@@ -1,0 +1,533 @@
+---
+title: "Agricultural Productivity Model"
+subtitle: "Part 2: RF Data"
+author: "Rudolf Cesaretti"
+date: "Last run on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+    number_sections: true
+bibliography: References.bib
+csl: apa.csl
+link-citations: yes
+---
+
+```{css, echo=FALSE}
+pre {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+pre[class] {
+  max-height: 300px;
+}
+```
+
+```{r, setup, include=FALSE,echo=FALSE, message=FALSE,warning=FALSE}
+require(knitr)
+# Set so that long lines in R will be wrapped:
+opts_chunk$set(tidy.opts=list(width.cutoff=75),tidy=TRUE)
+#
+rm(list = ls())
+```
+
+I do four things in this R markdown document: 
+Topographic/environmental metrics
+
+  1. Calculate catchment area variables, including
+      + Topographic/environmental metrics
+      + 
+  4. Reorganize the data and export for Script #6
+  
+  
+# Setup 
+
+All of the data and scripts are downloadable from the [new ASU SettlementPersist2022 github repository](https://https://github.com/rcesaret/ASUSettlementPersist2022), which can be downloaded locally as a .zip folder or cloned to your own account.
+
+Either way, once you have done so, you will need to modify the working directory (setwd("C:/...)") path and "dir" variables in the code chunk below to match the repository location on your computer.
+
+```{r, label='Set Local Directory Location', message=FALSE,warning=FALSE}
+
+wd <- list()
+
+#SET YOUR LOCAL DIRECTORY LOCATION HERE:
+wd$dir <- "D:/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
+#wd$dir <- "C:/Users/TJ McMote/Dropbox (ASU)/Huexotzinco/HuexTlaxAnal2022/HuexTlax2022Analysis/"
+
+wd$analysis <- paste0(wd$dir,"analysis/")
+wd$data_r <- paste0(wd$dir,"data-raw/")
+wd$data_p <- paste0(wd$dir,"data-processed/")
+wd$data_f <- paste0(wd$dir,"data-final-outputs/")
+wd$figs <- paste0(wd$dir,"figures/")
+wd$funcs <- paste0(wd$dir,"functions/")
+
+```
+
+
+
+## Load R Packages and Custom Functions
+
+```{r, label='Load Libraries', message=FALSE,warning=FALSE}
+# Package names
+packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster", 
+              "Matrix", "terra","gdistance", "lwgeom", "tidyr", "stars", "dismo", 
+              "purrr", "spatialEco", "whitebox", "classInt","ggnewscale", "lbmech", 
+              "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
+              "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
+              "stringi", "fuzzyjoin")#, "data.table", "zoo", "era", "JOPS", "mgcv","igraph",  "ggrepel","ggridges", "movecost",  "datplot", "scales",
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# load packages
+invisible(lapply(packages, library, character.only = TRUE))
+
+rm(packages,installed_packages)
+
+#Read in custom R functions located in the wd$funcs directory folder
+FUNCS <- list("RescaleSpatRast.R")#"splitByAttributes.R", 
+invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
+rm(FUNCS)
+
+```
+
+
+
+
+## Load Data from Previous Script
+
+```{r}
+
+
+load(paste0(wd$data_r, "Data2000s_poly.rData"))
+
+TopoEnv_r <- rast(paste0(wd$data_r, "TopoEnvData_RastStack_resampled.tif"))
+
+#load(paste0(wd$data_r, "TopoEnvData_RastStack_resampled.rData"))
+Soil_r <- rast(paste0(wd$data_r, "Soil_r_resampled.tif"))
+
+Clim_r <- rast(paste0(wd$data_r, "Clim_r_resampled.tif"))
+
+
+
+```
+
+# Define the rescale function
+rescale <- function(r,stdev=2) {
+out <- (r - mean(r,na.rm=TRUE))/(sd(r,na.rm=TRUE))
+out[out < -1 * stdev] <- -1 * stdev
+out[out > stdev] <- stdev
+out <- (out + stdev) / (2 * stdev)
+}
+
+## Environmental Raster Data
+
+#### Subset Raster Data
+
+
+```{r}
+Soil_r_sub <- subset(Soil_r, c("BD","S", "Z","C","SOC","CEC","OCD","N", "BDRICM", "BDTICM"))
+
+TopoEnv_r_sub <- subset(TopoEnv_r, c("DEM", "slope","Accum", "TRI", "TWI", "STI", "SPI"))
+
+Clim_r_sub <- subset(Clim_r, c("prec_04", "prec_05", "prec_06", "prec_07", "prec_08", "prec_09", "prec_10", "prec_11",
+                               "pr_04", "pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", "pr_11",
+                               "tmean_04", "tmean_05", "tmean_06", "tmean_07", "tmean_08", "tmean_09", "tmean_10", "tmean_11", 
+                               "tmin_04","tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10","tmin_11",
+                               "clt_04", "clt_05", "clt_06", "clt_07", "clt_08", "clt_09", "clt_10", "clt_11", 
+                               "rsds_04", "rsds_05", "rsds_06", "rsds_07", "rsds_08", "rsds_09", "rsds_10", "rsds_11"
+                               ))
+
+mymean <- function(x){
+  out <- mean(x, na.rm=T)
+  return(out)
+}
+
+values <- exact_extract(x = Soil_r_sub, y = Data2000s_poly, fun = "mean", max_cells_in_memory = 8e+08, stack_apply=T, append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+values2 <- exact_extract(x = Soil_r_sub, y = Data2000s_poly, fun = "count", max_cells_in_memory = 8e+08, stack_apply=T, append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+#xx = cbind(st_drop_geometry(Data2000s_poly$EstadoMunicipio), values)
+
+#values <- exact_extract(x = Soil_r_sub[[1:2]], y = Data2000s_poly, fun = mymean, summarize_df = TRUE, max_cells_in_memory = 8e+08, stack_apply=T)
+
+all <- c(Clim_r_sub, Soil_r_sub, TopoEnv_r_sub)
+
+Soil_df <- exact_extract(x = Soil_r_sub, y = Data2000s_poly, fun = mymean, max_cells_in_memory = 8e+10)
+save(all_df, file = paste0(wd$data_r, "EnvRastPolyExtract_df.rData"))
+```
+
+
+
+
+
+
+```{r}
+
+rescale <- function(z,stdev=2) {
+z[z < -stdev] <- -stdev
+z[z > stdev] <- stdev
+z <- (z + stdev) / (stdev*2)
+}
+
+# Subset the variables/layers you want
+
+
+Soil_r_sub_z = Soil_r_sub
+Soil_r_sub_zrs = Soil_r_sub
+for (i in 1:nlyr(Soil_r_sub)) {
+  Soil_r_sub_z[[i]] <- raster.Zscore(Soil_r_sub[[i]])
+  Soil_r_sub_zrs[[i]] <- rescale(Soil_r_sub_z[[i]])
+}
+writeRaster(Soil_r_sub_z, filename = paste0(wd$data_r, "ll.tif"),  overwrite=TRUE)
+writeRaster(Soil_r_sub_zrs, filename = paste0(wd$data_r, "Soil_r_sub_zrs.tif"), overwrite=TRUE)
+
+
+
+
+
+TopoEnv_r_sub_z = TopoEnv_r_sub
+TopoEnv_r_sub_zrs = TopoEnv_r_sub
+for (i in 1:nlyr(TopoEnv_r_sub)) {
+  TopoEnv_r_sub_z[[i]] <- raster.Zscore(TopoEnv_r_sub[[i]])
+  TopoEnv_r_sub_zrs[[i]] <- rescale(TopoEnv_r_sub_z[[i]])
+}
+writeRaster(TopoEnv_r_sub_z, filename = paste0(wd$data_r, "TopoEnv_r_sub_z.tif"), overwrite=TRUE)
+writeRaster(TopoEnv_r_sub_zrs, filename = paste0(wd$data_r, "TopoEnv_r_sub_zrs.tif"), overwrite=TRUE)
+
+
+prec <- subset(Clim_r, c("prec_04", "prec_05", "prec_06", "prec_07", "prec_08", "prec_09", "prec_10", "prec_11"))
+
+prec_z = prec
+prec_zrs = prec
+for (i in 1:nlyr(prec)) {
+  prec_z[[i]] <- raster.Zscore(prec[[i]])
+}
+writeRaster(prec_z, filename = paste0(wd$data_r, "prec_z.tif"), overwrite=TRUE)
+prec_z <- rast(paste0(wd$data_r, "prec_z.tif"))
+for (i in 1:nlyr(prec_z)) {
+  prec_zrs[[i]] <- rescale(prec_z[[i]])
+}
+
+pr <- subset(Clim_r, c("pr_04", "pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", "pr_11"))
+pr_z = pr
+pr_zrs = pr
+for (i in 1:nlyr(pr)) {
+  pr_z[[i]] <- raster.Zscore(pr[[i]])
+}
+for (i in 1:nlyr(prec_z)) {
+  pr_zrs[[i]] <- rescale(pr_z[[i]])
+}
+
+tmean <- subset(Clim_r, c("tmean_04", "tmean_05", "tmean_06", "tmean_07", "tmean_08", "tmean_09", "tmean_10", "tmean_11"))
+tmean_z = tmean
+tmean_zrs = tmean
+for (i in 1:nlyr(tmean)) {
+  tmean_z[[i]] <- raster.Zscore(tmean[[i]])
+}
+for (i in 1:nlyr(tmeanec_z)) {
+  tmean_zrs[[i]] <- rescale(tmean_z[[i]])
+}
+
+tmin <- subset(Clim_r, c("tmin_04","tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10","tmin_11"))
+tmin_z = tmin
+tmin_zrs = tmin
+for (i in 1:nlyr(tmin)) {
+  tmin_z[[i]] <- raster.Zscore(tmin[[i]])
+}
+for (i in 1:nlyr(tminec_z)) {
+  tmin_zrs[[i]] <- rescale(tmin_z[[i]])
+}
+
+
+
+Clim_r_sub <- subset(Clim_r, c("prec_04", "prec_05", "prec_06", "prec_07", "prec_08", "prec_09", "prec_10", "prec_11",
+                               "pr_04", "pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", "pr_11",
+                               "tmean_04", "tmean_05", "tmean_06", "tmean_07", "tmean_08", "tmean_09", "tmean_10", "tmean_11", 
+                               "tmin_04","tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10","tmin_11"#,
+                               "clt_04", "clt_05", "clt_06", "clt_07", "clt_08", "clt_09", "clt_10", "clt_11", 
+                               "rsds_04", "rsds_05", "rsds_06", "rsds_07", "rsds_08", "rsds_09", "rsds_10", "rsds_11"
+                               ))
+#Clim_r_sub_z = Clim_r_sub
+#Clim_r_sub_zrs = Clim_r_sub
+#for (i in 1:nlyr(Clim_r_sub)) {
+#  Clim_r_sub_z[[i]] <- raster.Zscore(Clim_r_sub[[i]])
+#  Clim_r_sub_zrs[[i]] <- rescale(Clim_r_sub_z[[i]])
+#}
+
+writeRaster(Clim_r_sub_z, filename = paste0(wd$data_r, "Clim_r_sub_z.tif"), overwrite=TRUE)
+writeRaster(Clim_r_sub_zrs, filename = paste0(wd$data_r, "Clim_r_sub_zrs.tif"), overwrite=TRUE)
+
+
+
+
+# Merge subsetted environmental rasters
+all <- c(Clim_r_sub, Soil_r_sub, TopoEnv_r_sub)
+all_z <- c(Clim_r_sub_z, Soil_r_sub_z, TopoEnv_r_sub_z)
+all_zrs <- c(Clim_r_sub_zrs, Soil_r_sub_zrs, TopoEnv_r_sub_zrs)
+
+
+
+all_df <- exact_extract(x = all, y = Data2000s_poly, fun = "mean", max_cells_in_memory = 8e+10)
+save(all_df, file = paste0(wd$data_r, "EnvRastPolyExtract_df.rData"))
+
+all_z_df <- exact_extract(x = all_z, y = Data2000s_poly, fun = "mean", max_cells_in_memory = 8e+10)
+save(all_z_df, file = paste0(wd$data_r, "EnvRastPolyExtract_z_df.rData"))
+
+all_zrs_df <- exact_extract(x = all_zrs, y = Data2000s_poly, fun = "mean", max_cells_in_memory = 8e+10)
+save(all_zrs_df, file = paste0(wd$data_r, "EnvRastPolyExtract_zrs_df.rData"))
+
+
+```
+
+clim <- stack(prec[[5:7]],prec[[5:7]],
+prec[[8:10]],
+tmin[[5:7]],
+tmin[[8:10]],tmin[[8:10]])
+geol <- stack(depth, cation, slope)
+
+geol_vals <- extract(geol,points)
+clim_vals <- extract(clim,points)
+
+#### Extract Environmental Raster Values 
+
+c("prec_05", "prec_06", "prec_07", "prec_08", "prec_09", "prec_10", 
+"pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", 
+"tmean_05", "tmean_06", "tmean_07", "tmean_08", "tmean_09", "tmean_10", 
+"tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10")
+```{r}
+st_extract(Clim_r[,,,5], x, fun = mean)
+
+Clim_df <- data.frame()
+
+for (i in 1:nlyr(Clim_r)) {
+  out[, i] <- my_function(my_df[, i])
+}
+
+nlyr(Clim_r)
+values <- exact_extract(x = Clim_r[[1:2]], y = x, fun = "mean", max_cells_in_memory = 8e+08)
+```
+
+
+
+
+
+## Agricultural Data
+
+#### Subset Agricultural Variables
+
+```{r}
+
+Data2000s_poly <- Data2000s_poly %>% mutate(
+  AGType = as.factor(AGType),
+  AvgYield = as.numeric(AvgYield),
+  sdYield = as.numeric(sdYield),
+  minYield = as.numeric(minYield),
+  maxYield = as.numeric(maxYield),
+  medYield = as.numeric(medYield),
+  cvYield = as.numeric(cvYield),
+  AvgPlanted = as.numeric(AvgPlanted),
+  AvgHarvested = as.numeric(AvgHarvested),
+  sdHarvested = as.numeric(sdHarvested),
+  cvHarvested = as.numeric(cvHarvested),
+  AvgLost = as.numeric(AvgLost),
+  sdLost = as.numeric(sdLost),
+  cvLost = as.numeric(cvLost),
+  AvgProduct = as.numeric(AvgProduct),
+  AvgValue = as.numeric(AvgValue),
+  AvgPrice = as.numeric(AvgPrice),
+  n = as.numeric(n),
+  n_Total = as.numeric(n_Total),
+  AvgYield_Total = as.numeric(AvgYield_Total),
+  sdYield_Total = as.numeric(sdYield_Total),
+  cvYield_Total = as.numeric(cvYield_Total),
+  AvgYield_Irrig = as.numeric(AvgYield_Irrig),
+  sdYield_Irrig = as.numeric(sdYield_Irrig),
+  cvYield_Irrig = as.numeric(cvYield_Irrig),
+  AvgYield_Temp = as.numeric(AvgYield_Temp),
+  sdYield_Temp = as.numeric(sdYield_Temp),
+  cvYield_Temp = as.numeric(cvYield_Temp),
+  IT_ratio_AvgYield = as.numeric(IT_ratio_AvgYield),
+  IT_ratio_cvYield = as.numeric(IT_ratio_cvYield),
+  Pct_Tract_Mechaniz_pu = as.numeric(Pct_Tract_Mechaniz_pu),
+  Pct_Tract_Animal_pu = as.numeric(Pct_Tract_Animal_pu),
+  Pct_Tract_Manual_pu = as.numeric(Pct_Tract_Manual_pu),
+  Riego_PU = as.numeric(Riego_PU),
+  Temporal_PU = as.numeric(Temporal_PU)
+  )
+
+x = st_drop_geometry(Data2000s_poly)# %>% filter(-1:3)
+x = x[-c(1:3, 31, 50, 87),]
+#x = x %>% filter(EstadoMunicipio != "Axapusco, Mexico")
+x = x[,-c(1:5)]
+x = as.data.frame(x)
+Tot = x %>% select(-cvLost, -AvgYield_Irrig, -sdYield_Irrig, -cvYield_Irrig, -AvgYield_Temp, -sdYield_Temp, -cvYield_Temp, -IT_ratio_AvgYield, -IT_ratio_cvYield) %>% filter(complete.cases(.))
+
+Temp = Tot %>% filter(AGType == "Temporal") %>% select(-AGType)
+Irrig = Tot %>% filter(AGType == "Riego") %>% select(-AGType)
+Tot = Tot %>% select(-AGType)
+#y = as.matrix(y)
+#colSums(is.na(y) | is.infinite(y))
+#missing_rows <- which(rowSums(is.na(y) | is.infinite(y)) > 0)
+#missing_cols <- which(colSums(is.na(y) | is.infinite(y)) > 0)
+#cat("Columns with missing or infinite values:", missing_cols, "\n")
+
+
+
+# sdYield, cvYield, sdHarvested, cvHarvested, sdLost                
+
+pca_tot <- prcomp(Tot, center = TRUE, scale. = TRUE)
+loadings_tot = as.data.frame(pca_tot$rotation, row.names = colnames(Tot))
+
+pca_temp <- prcomp(Temp, center = TRUE, scale. = TRUE)
+loadings_temp = as.data.frame(pca_temp$rotation, row.names = colnames(Temp))
+
+pca_irrig <- prcomp(Irrig, center = TRUE, scale. = TRUE)
+loadings_irrig = as.data.frame(pca_irrig$rotation, row.names = colnames(Irrig))
+
+#res <- cor(y)
+#res = as.data.frame(round(res, 2))
+
+
+x <- Data2000s_poly %>% select(EstadoMunicipio, AvgYield, AGType, LU_Total_perHa, Pct_Primary, Pct_FertilChem_ha, Pct_FertilManure_ha, UrbRatio, Pct_AG_ha, TotalLaborDens, Pop_Pct_Rural, TotalLabor_perHa, Pct_Pasture_ha, geom)
+
+
+
+```
+"AGType_Area_ha"        
+
+
+"sdYield"              
+ [11] "minYield"              "maxYield"              "medYield"              "cvYield"               "AvgPlanted"           
+ [16] "AvgHarvested"          "sdHarvested"           "cvHarvested"           "AvgLost"               "sdLost"               
+ [21] "cvLost"                "AvgProduct"            "AvgValue"              "AvgPrice"              "n"                    
+ [26] "n_Total"               "AvgYield_Total"        "sdYield_Total"         "cvYield_Total"         "AvgYield_Irrig"       
+ [31] "sdYield_Irrig"         "cvYield_Irrig"         "AvgYield_Temp"         "sdYield_Temp"          "cvYield_Temp"         
+ [36] "IT_ratio_AvgYield"     "IT_ratio_cvYield"      
+ 
+ 
+ "Area_ha"               "Pop_Total"             "Pop_Rural"            
+ [41] "Pop_Urban"             "UrbRatio"              "Pop_Pct_Rural"         "Pop_Employed"          "Primary"              
+ [46]            "AG_Workers"            "Pct_AG_Workers"        "Total_PU"              "Total_ha"             
+ [51] "Primary_PU"            "Primary_ha"            "AG_ha"                 "Pasture_ha"            "CommonLands_ha"       
+ [56] "Private_ha"            "Owned_ha"              "Rented_ha"             "Pct_Rented_ha"         "Rest_ha"              
+ [61]            "Fallow_ha"                      "Riego_PU"Temporal_PU              "Reigo_ha"             
+ [66] ""           "Temporal_ha"              "TotalLabor"            "TotalLabor_perHa"      "PctContractLabor"      "ContractLabor_Tot"    
+ [81] "ContractLabor_More6Mo" "ContractLabor_Less6Mo" "FamLabor_Tot"          "MechanizEquip"         "Tractors"             
+ [86] "Threshers"             "MotorizedCranes"       "OtherMachinery"        "DraftAnimals_Total"    "DraftAnimals_Oxen"    
+ [91] "DraftAnimals_Horses"   "DraftAnimals_Mules"    "DraftAnimals_Asses"    "PopDens"               "PopDensRural"         
+ [96] "PrimaryEmployDens"     "TotalLaborDens"        "AGPasture_ha"          "PrimaryEmploy_perHa"   "AG_Workers_perHa"     
+[101] "MechanizEquip_perHa"   "DraftAnimals_perHa"    "Pct_AG_ha"                     "LU_MechanizEquip"     
+[106] "LU_DraftAnimals"       "LU_FamLabor"           "LU_ContractFull"       "LU_ContractPart"                    
+[111] 
+
+
+# High Elevations
+
+
+```{r}
+
+high_elev <- raster("D:/Dropbox (ASU)/Huexotzinco/HuexTlaxAnal2022/GIS_Data/DEM_CEM_v3.0_15m_CMex.tif")
+
+#high_elev <- rast(high_elev)
+
+high_elev[high_elev < 3100] <- NA
+
+high_elev[high_elev >= 3100] <- 1
+
+#### EDIT FROM HERE ####
+
+
+high_elev <- rasterToPoints(high_elev,spatial=TRUE)
+
+rand <- sample(nrow(high_elev), nrow(points)/4, replace=FALSE)
+
+high_elev <- high_elev[rand,]
+high_elev$Irr <- sample(0:1,nrow(high_elev),replace=TRUE)
+set.seed(54865132)
+high_elev$Fert <- sample(0:1,nrow(high_elev),replace=TRUE)
+high_elev$MUNICIPIO <- "HIGH"
+high_elev$X <- high_elev@coords[,'x']
+high_elev$Y <- high_elev@coords[,'y']
+high_elev$Suit <- 0
+high_elev$Maize <- 0
+high_elev <- high_elev[,which(names(high_elev) != "DEM")]
+```
+
+
+
+# Random Forest Model
+
+
+```{r}
+
+train <- na.omit(train)
+
+
+rf <- ranger(Maize ~ ., data = train[, !(names(train) %in% cols)]
+, num.trees = 1000, write.forest = TRUE)
+
+
+test_out <- predict(rf,test)
+test$predicted <- test_out$predictions
+test$error <- test$predicted - test$Maize
+
+rsq <- 1 - (sd(test$error^2)/sd(test$Maize^2))
+mse <- mean(test$error^2)
+rmse <- sqrt(mse)
+mae <- mean(abs(test$error))
+
+{print(paste("Rsq:", rsq))
+print(paste("RMSE:", rmse))
+print(paste("MAE:", mae))}
+
+
+null_irrigation <- all[["Slope"]]
+null_irrigation[null_irrigation == null_irrigation] <- 0
+null_fert <- null_irrigation
+nulls <- stack(null_irrigation,null_fert)
+names(nulls) <- c('Irr','Fert')
+
+
+names(all) <- str_replace(names(all),"\\..*","")
+
+
+n <- c(names(nulls),names(all))
+n <- str_replace(names(n),"\\..*","")
+
+predictors <- stack(nulls,all)
+
+aoi <- extent(2710000,2950000,780000,950000)
+
+predictors <- crop(predictors,aoi)
+for (i in 1:nlayers(predictors)){
+predictors[[i]] <- na.roughfix(predictors[[i]])
+}
+
+predictors <-approxNA(predictors)
+
+output <- predict(rf,as.matrix(predictors),type="response")
+
+new <- predictors[[1]]
+new[1:length(new)] <- output$predictions
+
+
+steep <- predictors[["Slope"]]
+new[steep >= 7] <- 0
+new[new > 2000] <- 2000
+
+plot(new)
+
+lake <- readOGR(dsn = "A:/Regional_Datasets/GIS/Lake_Texcoco",
+layer = "Lake_Texcoco")
+lake <- spTransform(lake,crs(new))
+plot(lake,add=TRUE,col="cyan")
+
+```
+
+
+
+
+
