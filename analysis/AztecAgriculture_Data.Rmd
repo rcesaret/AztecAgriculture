@@ -75,7 +75,7 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "purrr", "spatialEco", "whitebox", "classInt","ggnewscale", "lbmech", 
               "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
-              "stringi", "fuzzyjoin")#, "data.table", "zoo", "era", "JOPS", "mgcv","igraph",  "ggrepel","ggridges", "movecost",  "datplot", "scales",
+              "stringi", "fuzzyjoin", "mgcv")#, "data.table", "zoo", "era", "JOPS", "mgcv","igraph",  "ggrepel","ggridges", "movecost",  "datplot", "scales",
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -89,7 +89,7 @@ invisible(lapply(packages, library, character.only = TRUE))
 rm(packages,installed_packages)
 
 #Read in custom R functions located in the wd$funcs directory folder
-FUNCS <- list("RescaleSpatRast.R")#"splitByAttributes.R", 
+FUNCS <- list("RescaleSpatRast.R", "Terra_df.R")#"splitByAttributes.R", 
 invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
 rm(FUNCS)
 
@@ -499,6 +499,8 @@ load(paste0(wd$data_r, "Data2000s_poly.rData"))
 
 
 # Topographic Variables
+
+
 rescale <- function(r,stdev=2) {
 out <- (r - mean(r,na.rm=TRUE))/(sd(r,na.rm=TRUE))
 out[out < -1 * stdev] <- -1 * stdev
@@ -517,7 +519,8 @@ resample_100m <- aggregate(resample_100m, 10)
 ## Import INEGI lidar-derived 15-meter DEM
 ## Continuo de Elevaciones Mexicanas 3.0 (2012)
 ## https://www.inegi.org.mx/app/geo2/elevacionesmex/#:~:text=El%20Continuo%20de%20Elevaciones%20Mexicano,le%20integran%20valores%20que%20representan
-DEM <- rast("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/DEM_CEM_v3.0_15m_CMex.tif")
+###DEM <- rast("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/DEM_CEM_v3.0_15m_CMex.tif")
+DEM <- rast(paste0(wd$data_r,"DEM_CEM_v3.0_15m_CMex.tif"))
 
 DEM[DEM == 0 | is.nan(DEM)] <- NA
 ## SMOOTH RASTER
@@ -532,6 +535,7 @@ DEM <- focal(DEM, w=11, fun='mean', na.rm=T)
 DEM <- focal(DEM, w=13, fun='mean', na.rm=T)
 
 writeRaster(DEM,paste0(wd$data_r,"DEM.tif"), overwrite=TRUE)
+#DEM <- rast(paste0(wd$data_r,"DEM.tif"))
 
 DEM_r <- resample(DEM, resample_100m, method = "bilinear")
 writeRaster(DEM_r,paste0(wd$data_r,"DEM_r.tif"), overwrite=TRUE)
@@ -613,20 +617,85 @@ nam = c("DEM", "Slope", "Accum", "Accum_fd8", "TRI", "TWI", "STI", "SPI")
 names(TopoEnvData) = nam
 
 writeRaster(TopoEnvData, filename = paste0(wd$data_r, "TopoEnvData.tif"), overwrite=TRUE)
+
+TopoEnv_r <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
+
+rm(TopoEnvData)
 ```
 
 
 
 
 
+```{r}
+# Read the raster data and create a SpatRast object:
+r <- rast("your_raster_file.tif")
+
+# Identify the cells with NA values:
+na_cells <- is.na(r)
+
+# Extract the coordinates of the NA cells:
+coords <- xyFromCell(r, which(na_cells), spatial = TRUE)
+
+# Extract the values of the raster at the non-NA cells:
+values <- getValues(r)[!na_cells]
+
+# Fit a GAM model to the non-NA cells:
+gam_model <- gam(values ~ s(x, y), data = coords)
+
+# Predict the values for the NA cells using the fitted GAM model:
+predicted_values <- predict(gam_model, newdata = coords)
+
+# Assign the predicted values to the NA cells in the original raster:
+r[na_cells] <- predicted_values
+
+# 
+
+
+```
+
+
+rescale <- function(r,stdev=2) {
+out <- (r - mean(r,na.rm=TRUE))/(sd(r,na.rm=TRUE))
+out[out < -1 * stdev] <- -1 * stdev
+out[out > stdev] <- stdev
+out <- (out + stdev) / (2 * stdev)
+}
+```{r}
 
 
 
+BD_df = Terra_df(BD, "BD")
+BDRICM_df = Terra_df(BD_df, "BDRICM")
+BDTICM_df = Terra_df(BDTICM, "BDTICM")
+Elev_df = Terra_df(DEM_r, "Elevation")
+Slope_df = Terra_df(Slope, "Slope")
+
+
+# Extract the values of the raster at the non-NA cells:
+values <- extract(BD, coords)
+
+# Fit a GAM model to the non-NA cells:
+gam_model <- gam(values ~ s(x, y), data = coords)
+
+# Predict the values for the NA cells using the fitted GAM model:
+predicted_values <- predict(gam_model, newdata = coords)
+
+# Assign the predicted values to the NA cells in the original raster:
+r[na_cells] <- predicted_values
+
+# 
+
+
+```
 
 
 # Soil Data
 
 ```{r}
+DEM_r <- TopoEnv_r[[1]]
+Slope <- TopoEnv_r[[2]]
+
 DepthWeights = c(5,10,15)
 ##resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
 #Soil_r_resampled = rast(Soil_resampled)

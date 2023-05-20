@@ -75,7 +75,7 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "purrr", "spatialEco", "whitebox", "classInt","ggnewscale", "lbmech", 
               "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
-              "stringi", "fuzzyjoin")#, "data.table", "zoo", "era", "JOPS", "mgcv","igraph",  "ggrepel","ggridges", "movecost",  "datplot", "scales",
+              "stringi", "fuzzyjoin", "mgcv")#, "data.table", "zoo", "era", "JOPS", "mgcv","igraph",  "ggrepel","ggridges", "movecost",  "datplot", "scales",
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -89,7 +89,7 @@ invisible(lapply(packages, library, character.only = TRUE))
 rm(packages,installed_packages)
 
 #Read in custom R functions located in the wd$funcs directory folder
-FUNCS <- list("RescaleSpatRast.R")#"splitByAttributes.R", 
+FUNCS <- list("RescaleSpatRast.R", "Terra_df.R")#"splitByAttributes.R", 
 invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
 rm(FUNCS)
 
@@ -105,7 +105,7 @@ rm(FUNCS)
 
 load(paste0(wd$data_r, "Data2000s_poly.rData"))
 
-TopoEnv_r <- rast(paste0(wd$data_r, "TopoEnvData_RastStack_resampled.tif"))
+TopoEnv_r <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
 
 #load(paste0(wd$data_r, "TopoEnvData_RastStack_resampled.rData"))
 Soil_r <- rast(paste0(wd$data_r, "Soil_r_resampled.tif"))
