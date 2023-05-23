@@ -75,7 +75,7 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "purrr", "spatialEco", "whitebox", "classInt","ggnewscale", "lbmech", 
               "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
-              "stringi", "fuzzyjoin", "mgcv")#, "data.table", "zoo", "era", "JOPS", "mgcv","igraph",  "ggrepel","ggridges", "movecost",  "datplot", "scales",
+              "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger")#, "data.table", "zoo", "era", "JOPS", "mgcv","igraph",  "ggrepel","ggridges", "movecost",  "datplot", "scales",
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -544,7 +544,8 @@ writeRaster(DEM_r,paste0(wd$data_r,"DEM_r.tif"), overwrite=TRUE)
 
 #create temp directory for rasters we will delete later
 # we will stack and save these together at the end of this chunk
-dir.create(paste0(wd$data_p,"temp_rasts"))
+
+##### dir.create(paste0(wd$data_p,"temp_rasts"))
 
 ######### TRI ######### 
 
@@ -624,7 +625,7 @@ rm(TopoEnvData)
 ```
 
 
-
+# Interpolate missing values
 
 
 ```{r}
@@ -661,15 +662,92 @@ out[out < -1 * stdev] <- -1 * stdev
 out[out > stdev] <- stdev
 out <- (out + stdev) / (2 * stdev)
 }
+
+
+library(tidyverse)
+library(terra)
+library(ranger)
+
 ```{r}
 
+RF_ImputeRast <- function(r = BD, # Terra SpatRast raster object
+                          rnam = names(r),
+                          covs = c(DEM_r,Slope)#=NULL,
+						  Mask = m,
+						  SampFrac = 0.3,
+						  # character vector name of column name for raster values
+                     ) {
+  
+  m_df = Terra_df(m, "mask")
+  names(m_df) <- c("x", "y", "mask", "outside")
+  r_df = Terra_df(r, rnam)
+  r_df = merge(r_df, m_df, all = F, sort = F)
+  
+
+  if (!is.null(covs)){
+    out_list <- list()  # or result_vector <- c()
+    for (i in 1:nlyr(covs)) {
+      out_list[[i]] = Terra_df(covs[[i]], names(covs[[i]]))
+      out_list[[i]] = out_list[[i]] %>% select(-na_cells)
+    }
+    covs_df <- Reduce(function(x, y) merge(x, y, all = F, sort = F), out_list)
+    #covs_df <- bind_cols(out_list)
+    #covs_df <- do.call(cbind, df_list)
+    r_df = merge(r_df, covs_df, all = F, sort = F)
+  }
+  
+
+  train = r_df %>% filter(outside == F) %>% filter(complete.cases(.)) %>% select(-na_cells, -outside, -mask) %>% sample_frac(SampFrac)
+  
+  model <- ranger(
+    formula = get(names(r)) ~ .,
+    data = train,
+    save.memory = F 
+  )
+  
+  
+  return(df)
+}
 
 
+
+
+DEM_r <- TopoEnv_r[[1]]
+Slope <- TopoEnv_r[[2]]
+Municipios2000s <- st_read(paste0(wd$data_r, "AG_Model_2000s/CMex_Municipios_2000s.gpkg"))
+
+resample_100m_b = resample_100m
+values(resample_100m_b) <- 1
+m <- mask(resample_100m_b, Municipios2000s)#Data2000s_poly)
+
+m_df = Terra_df(m, "mask")
+names(m_df) <- c("x", "y", "mask", "outside")
 BD_df = Terra_df(BD, "BD")
-BDRICM_df = Terra_df(BD_df, "BDRICM")
+BDRICM_df = Terra_df(BDRICM, "BDRICM") 
 BDTICM_df = Terra_df(BDTICM, "BDTICM")
 Elev_df = Terra_df(DEM_r, "Elevation")
 Slope_df = Terra_df(Slope, "Slope")
+
+Elev_df2 = Elev_df %>% select(-na_cells)
+Slope_df2 = Slope_df %>% select(-na_cells)
+BDRICM_df2 = BDRICM_df %>% select(-na_cells)
+BDTICM_df2 = BDTICM_df %>% select(-na_cells)
+z = BD_df %>% left_join(m_df, by=c('x','y')) %>% left_join(Elev_df2, by=c('x','y')) %>%
+  left_join(Slope_df2, by=c('x','y')) #%>%
+  #left_join(BDRICM_df2, by=c('x','y')) %>% 
+  #left_join(BDTICM_df2, by=c('x','y'))
+
+zt <- z %>% filter(outside == F) %>% filter(complete.cases(.)) %>% select(-na_cells, -outside, -mask)
+
+zt2 <- zt %>% sample_frac(0.3)
+
+#rm(BD_df,BDRICM_df,BDTICM_df,Elev_df,Slope_df)
+
+model <- ranger(
+  formula = BD ~ .,
+  data = zt2,
+  save.memory = F 
+)
 
 
 # Extract the values of the raster at the non-NA cells:
@@ -684,10 +762,12 @@ predicted_values <- predict(gam_model, newdata = coords)
 # Assign the predicted values to the NA cells in the original raster:
 r[na_cells] <- predicted_values
 
-# 
-
 
 ```
+
+missing_vals <- is.na(r)
+predicted_vals <- predict(rf_model, df[, -1])
+r[missing_vals] <- predicted_vals
 
 
 # Soil Data
@@ -721,6 +801,7 @@ BDRICM[BDRICM == 0] <- NA
 BDRICM <- focal(BDRICM, w=5, fun='max', na.policy="only", na.rm=T)
 BDRICM <- focal(BDRICM, w=5, fun='max', na.policy="only", na.rm=T)
 BDRICM <- resample(BDRICM, resample_100m, method = "bilinear")
+names(BDRICM) <- "BDRICM"
 
 
 # 	BDRLOG	Probability of occurrence of R horizon	percentage
@@ -729,6 +810,7 @@ BDRLOG[BDRLOG == 0] <- NA
 BDRLOG <- focal(BDRLOG, w=5, fun='min', na.policy="only", na.rm=T)
 BDRLOG <- focal(BDRLOG, w=5, fun='min', na.policy="only", na.rm=T)
 BDRLOG <- resample(BDRLOG, resample_100m, method = "bilinear")
+names(BDRLOG) <- "BDRLOG"
 
 
 # 	BDTICM	Absolute depth to bedrock	cm
@@ -737,10 +819,12 @@ BDTICM[BDTICM == 0] <- NA
 BDTICM <- focal(BDTICM, w=5, fun='max', na.policy="only", na.rm=T)
 BDTICM <- focal(BDTICM, w=5, fun='max', na.policy="only", na.rm=T)
 BDTICM <- resample(BDTICM, resample_100m, method = "bilinear")
+names(BDTICM) <- "BDTICM"
 
 # World Reference Base (2006) Soil Groups
 WRB <- rast(paste0(wd$data_r, "SoilGrids/WRB.tif"))
 WRB <- resample(WRB, resample_100m, method = "bilinear")
+names(WRB) <- "WRB"
 
 # Bulk Density
 BD_0_5 <- raster(paste0(wd$data_r, "SoilGrids/BD_0_5.tif"))
@@ -753,7 +837,7 @@ BD = stack(BD_0_5, BD_5_15, BD_15_30)
 BD = weighted.mean(BD, DepthWeights, na.rm=T)
 BD <- resample(rast(BD), resample_100m, method = "bilinear")
 rm(BD_0_5, BD_5_15, BD_15_30)
-
+names(BD) <- "BD"
 
 # Clay
 C_0_5 <- raster(paste0(wd$data_r, "SoilGrids/C_0_5.tif"))
@@ -766,6 +850,7 @@ C = stack(C_0_5, C_5_15, C_15_30)
 C = weighted.mean(C, DepthWeights, na.rm=T)
 C <- resample(rast(C), resample_100m, method = "bilinear")
 rm(C_0_5, C_5_15, C_15_30)
+names(C) <- "C"
 
 # Silt
 Z_0_5 <- raster(paste0(wd$data_r, "SoilGrids/Z_0_5.tif"))
@@ -778,7 +863,7 @@ Z = stack(Z_0_5, Z_5_15, Z_15_30)
 Z = weighted.mean(Z, DepthWeights, na.rm=T)
 Z <- resample(rast(Z), resample_100m, method = "bilinear")
 rm(Z_0_5, Z_5_15, Z_15_30)
-
+names(Z) <- "Z"
 
 # Sand
 S_0_5 <- raster(paste0(wd$data_r, "SoilGrids/S_0_5.tif"))
@@ -791,7 +876,7 @@ S = stack(S_0_5, S_5_15, S_15_30)
 S = weighted.mean(S, DepthWeights, na.rm=T)
 S <- resample(rast(S), resample_100m, method = "bilinear")
 rm(S_0_5, S_5_15, S_15_30)
-
+names(S) <- "S"
 
 # Soil Organic Carbon
 SOC_0_5 <- raster(paste0(wd$data_r, "SoilGrids/SOC_0_5.tif"))
@@ -804,7 +889,7 @@ SOC = stack(SOC_0_5, SOC_5_15, SOC_15_30)
 SOC = weighted.mean(SOC, DepthWeights, na.rm=T)
 SOC <- resample(rast(SOC), resample_100m, method = "bilinear")
 rm(SOC_0_5, SOC_5_15, SOC_15_30)
-
+names(SOC) <- "SOC"
 
 # Cation Exchange Capacity
 CEC_0_5 <- raster(paste0(wd$data_r, "SoilGrids/CEC_0_5.tif"))
@@ -817,6 +902,7 @@ CEC = stack(CEC_0_5, CEC_5_15, CEC_15_30)
 CEC = weighted.mean(CEC, DepthWeights, na.rm=T)
 CEC <- resample(rast(CEC), resample_100m, method = "bilinear")
 rm(CEC_0_5, CEC_5_15, CEC_15_30)
+names(CEC) <- "CEC"
 
 # Organic Carbon Density
 OCD_0_5 <- raster(paste0(wd$data_r, "SoilGrids/OCD_0_5.tif"))
@@ -829,6 +915,7 @@ OCD = stack(OCD_0_5, OCD_5_15, OCD_15_30)
 OCD = weighted.mean(OCD, DepthWeights, na.rm=T)
 OCD <- resample(rast(OCD), resample_100m, method = "bilinear")
 rm(OCD_0_5, OCD_5_15, OCD_15_30)
+names(OCD) <- "OCD"
 
 # Nitrogen
 N_0_5 <- rast(paste0(wd$data_r, "SoilGrids/N_0_5.tif"))
@@ -841,17 +928,17 @@ N = stack(N_0_5, N_5_15, N_15_30)
 N = weighted.mean(N, DepthWeights, na.rm=T)
 N <- resample(rast(N), resample_100m, method = "bilinear")
 rm(N_0_5, N_5_15, N_15_30)
+names(N) <- "N"
 
 #Soil organic carbon stock
 SOCS <- rast(paste0(wd$data_r, "SoilGrids/SOCS_0_30.tif"))
 SOCS[SOCS == 0] <- NA
 SOCS <- resample(rast(SOCS), resample_100m, method = "bilinear")
-
+names(SOCS) <- "SOCS"
 
 #Stack
 Soil = c(BD, S, Z, C, SOC, CEC, OCD, N, SOCS, BDRICM, BDRLOG, BDTICM)
-names(Soil) = c("BD", "S", "Z", "C", "SOC", "CEC", "OCD", "N", 
-                "SOCS", "BDRICM", "BDRLOG", "BDTICM")
+#names(Soil) = c("BD", "S", "Z", "C", "SOC", "CEC", "OCD", "N", "SOCS", "BDRICM", "BDRLOG", "BDTICM")
 
 
 writeRaster(Soil, filename = paste0(wd$data_r, "Soil_r_resampled.tif"), overwrite=TRUE)
