@@ -753,13 +753,14 @@ RF_ImputeRast <- function(r, # Terra SpatRast raster object
   missing_values <- is.na(raster_values)
   df_values <- x$pred[missing_values]
   r2[missing_values] <- df_values
-  
+  names(r2) <- rnam
   
   
   return(r2)
 }
 
 
+#writeRaster(r2,paste0(wd$data_r,"BD_RF_interpolated.tif"), overwrite=TRUE)
 
 
 ```

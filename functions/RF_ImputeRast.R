@@ -100,6 +100,7 @@ RF_ImputeRast <- function(r, # Terra SpatRast raster object
   missing_values <- is.na(raster_values)
   df_values <- x$pred[missing_values]
   r2[missing_values] <- df_values
+  names(r2) <- rnam
   
   out <- list()
   out[[1]] <- r2
