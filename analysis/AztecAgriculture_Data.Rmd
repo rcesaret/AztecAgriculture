@@ -669,49 +669,6 @@ library(terra)
 library(ranger)
 
 ```{r}
-
-RF_ImputeRast <- function(r = BD, # Terra SpatRast raster object
-                          rnam = names(r),
-                          covs = c(DEM_r,Slope)#=NULL,
-						  Mask = m,
-						  SampFrac = 0.3,
-						  # character vector name of column name for raster values
-                     ) {
-  
-  m_df = Terra_df(m, "mask")
-  names(m_df) <- c("x", "y", "mask", "outside")
-  r_df = Terra_df(r, rnam)
-  r_df = merge(r_df, m_df, all = F, sort = F)
-  
-
-  if (!is.null(covs)){
-    out_list <- list()  # or result_vector <- c()
-    for (i in 1:nlyr(covs)) {
-      out_list[[i]] = Terra_df(covs[[i]], names(covs[[i]]))
-      out_list[[i]] = out_list[[i]] %>% select(-na_cells)
-    }
-    covs_df <- Reduce(function(x, y) merge(x, y, all = F, sort = F), out_list)
-    #covs_df <- bind_cols(out_list)
-    #covs_df <- do.call(cbind, df_list)
-    r_df = merge(r_df, covs_df, all = F, sort = F)
-  }
-  
-
-  train = r_df %>% filter(outside == F) %>% filter(complete.cases(.)) %>% select(-na_cells, -outside, -mask) %>% sample_frac(SampFrac)
-  
-  model <- ranger(
-    formula = get(names(r)) ~ .,
-    data = train,
-    save.memory = F 
-  )
-  
-  
-  return(df)
-}
-
-
-
-
 DEM_r <- TopoEnv_r[[1]]
 Slope <- TopoEnv_r[[2]]
 Municipios2000s <- st_read(paste0(wd$data_r, "AG_Model_2000s/CMex_Municipios_2000s.gpkg"))
@@ -720,47 +677,89 @@ resample_100m_b = resample_100m
 values(resample_100m_b) <- 1
 m <- mask(resample_100m_b, Municipios2000s)#Data2000s_poly)
 
-m_df = Terra_df(m, "mask")
-names(m_df) <- c("x", "y", "mask", "outside")
-BD_df = Terra_df(BD, "BD")
-BDRICM_df = Terra_df(BDRICM, "BDRICM") 
-BDTICM_df = Terra_df(BDTICM, "BDTICM")
-Elev_df = Terra_df(DEM_r, "Elevation")
-Slope_df = Terra_df(Slope, "Slope")
+r = BD
+rnam = names(r)
+covs = c(DEM_r,Slope)
+Mask = m
+SampFrac = 0.3
+save_mem = FALSE
 
-Elev_df2 = Elev_df %>% select(-na_cells)
-Slope_df2 = Slope_df %>% select(-na_cells)
-BDRICM_df2 = BDRICM_df %>% select(-na_cells)
-BDTICM_df2 = BDTICM_df %>% select(-na_cells)
-z = BD_df %>% left_join(m_df, by=c('x','y')) %>% left_join(Elev_df2, by=c('x','y')) %>%
-  left_join(Slope_df2, by=c('x','y')) #%>%
-  #left_join(BDRICM_df2, by=c('x','y')) %>% 
-  #left_join(BDTICM_df2, by=c('x','y'))
+RF_ImputeRast <- function(r, # Terra SpatRast raster object
+                          rnam = names(r), # name for df variable for raster values from focal SpatRast object
+                          covs = NULL, # Terra SpatRast raster object with 1 or more stacked layers 
+						              Mask = NULL, # mask of focal area under consideration. Used in reducing the sample for the training dataset; training dataset first excludes areas outside of the mask before applying the sampling fraction
+						              SampFrac = 0.3, # sampling fraction for training dataset; applied after mask exclusions, if present (see Mask, above)
+						              save_mem = FALSE # whether the save.memory parameter should be used for the ranger random forest function
+                     ) {
+  
+  if (!is.null(Mask)){
+    m_df = Terra_df(Mask, "mask")
+    names(m_df) <- c("x", "y", "mask", "outside")
+    r_df = Terra_df(r, rnam)
+    r_df = merge(r_df, m_df, all = F, sort = F)
+  } else {
+    r_df = Terra_df(r, rnam)
+  }
 
-zt <- z %>% filter(outside == F) %>% filter(complete.cases(.)) %>% select(-na_cells, -outside, -mask)
+  if (!is.null(covs)){
+    out_list <- list()  # or result_vector <- c()
+    for (i in 1:nlyr(covs)) {
+      out_list[[i]] = Terra_df(covs[[i]], names(covs[[i]]))
+      out_list[[i]] = out_list[[i]] %>% select(-na_cells)
+    }
+    covs_df <- Reduce(function(x, y) merge(x, y, all = F, sort = F), out_list)
+    r_df = merge(r_df, covs_df, all = F, sort = F)
+  }
+  
+  if (!is.null(Mask)){
+    
+    train = r_df %>% filter(outside == F) %>% filter(complete.cases(.)) %>% 
+      select(-na_cells, -outside, -mask) %>% sample_frac(SampFrac)
+    
+  } else {
+    
+    train = r_df %>% filter(complete.cases(.)) %>% select(-na_cells) %>% 
+      sample_frac(SampFrac)
+  }
+  
+  f <- names(train)
+  f <- f[f != names(r)]
+  form <- paste(names(r), "~", paste(f, collapse = " + "))
+  form <- as.formula(form)
+  
+  model <- ranger(
+    formula = form,
+    data = train,
+    save.memory = save_mem 
+  )
+  
+  if (!is.null(Mask)){
+    
+    pred = r_df %>% select(-na_cells, -outside, -mask) %>% select(-!!sym(rnam)) %>% filter(complete.cases(.))
+    
+  } else {
+    
+    pred = r_df %>% select(-na_cells) %>% select(-!!sym(rnam)) %>% filter(complete.cases(.))
+    
+  }
+  
+  predicted_vals <- predict(model, pred)
+  pred$pred <- predicted_vals$predictions
+  
+  x = r_df %>% left_join(pred, by = f)
+  
+  r2 = r
+  raster_values <- values(r2)
+  missing_values <- is.na(raster_values)
+  df_values <- x$pred[missing_values]
+  r2[missing_values] <- df_values
+  
+  
+  
+  return(r2)
+}
 
-zt2 <- zt %>% sample_frac(0.3)
 
-#rm(BD_df,BDRICM_df,BDTICM_df,Elev_df,Slope_df)
-
-model <- ranger(
-  formula = BD ~ .,
-  data = zt2,
-  save.memory = F 
-)
-
-
-# Extract the values of the raster at the non-NA cells:
-values <- extract(BD, coords)
-
-# Fit a GAM model to the non-NA cells:
-gam_model <- gam(values ~ s(x, y), data = coords)
-
-# Predict the values for the NA cells using the fitted GAM model:
-predicted_values <- predict(gam_model, newdata = coords)
-
-# Assign the predicted values to the NA cells in the original raster:
-r[na_cells] <- predicted_values
 
 
 ```
@@ -775,6 +774,12 @@ r[missing_vals] <- predicted_vals
 ```{r}
 DEM_r <- TopoEnv_r[[1]]
 Slope <- TopoEnv_r[[2]]
+
+Municipios2000s <- st_read(paste0(wd$data_r, "AG_Model_2000s/CMex_Municipios_2000s.gpkg"))
+
+resample_100m_b = resample_100m
+values(resample_100m_b) <- 1
+m <- mask(resample_100m_b, Municipios2000s)#Data2000s_poly)
 
 DepthWeights = c(5,10,15)
 ##resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
@@ -802,7 +807,9 @@ BDRICM <- focal(BDRICM, w=5, fun='max', na.policy="only", na.rm=T)
 BDRICM <- focal(BDRICM, w=5, fun='max', na.policy="only", na.rm=T)
 BDRICM <- resample(BDRICM, resample_100m, method = "bilinear")
 names(BDRICM) <- "BDRICM"
-
+BDRICMi <- RF_ImputeRast(r = BDRICM, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+BDRICM <- BDRICMi[[1]]
+rm(BDRICMi)
 
 # 	BDRLOG	Probability of occurrence of R horizon	percentage
 BDRLOG <- rast(paste0(wd$data_r, "SoilGrids/BDRLOG.tif"))
@@ -811,6 +818,9 @@ BDRLOG <- focal(BDRLOG, w=5, fun='min', na.policy="only", na.rm=T)
 BDRLOG <- focal(BDRLOG, w=5, fun='min', na.policy="only", na.rm=T)
 BDRLOG <- resample(BDRLOG, resample_100m, method = "bilinear")
 names(BDRLOG) <- "BDRLOG"
+BDRLOGi <- RF_ImputeRast(r = BDRLOG, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+BDRLOG <- BDRLOGi[[1]]
+rm(BDRLOGi)
 
 
 # 	BDTICM	Absolute depth to bedrock	cm
@@ -820,11 +830,14 @@ BDTICM <- focal(BDTICM, w=5, fun='max', na.policy="only", na.rm=T)
 BDTICM <- focal(BDTICM, w=5, fun='max', na.policy="only", na.rm=T)
 BDTICM <- resample(BDTICM, resample_100m, method = "bilinear")
 names(BDTICM) <- "BDTICM"
+BDTICMi <- RF_ImputeRast(r = BDTICM, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+BDTICM <- BDTICMi[[1]]
+rm(BDTICMi)
 
 # World Reference Base (2006) Soil Groups
-WRB <- rast(paste0(wd$data_r, "SoilGrids/WRB.tif"))
-WRB <- resample(WRB, resample_100m, method = "bilinear")
-names(WRB) <- "WRB"
+#WRB <- rast(paste0(wd$data_r, "SoilGrids/WRB.tif"))
+#WRB <- resample(WRB, resample_100m, method = "bilinear")
+#names(WRB) <- "WRB"
 
 # Bulk Density
 BD_0_5 <- raster(paste0(wd$data_r, "SoilGrids/BD_0_5.tif"))
@@ -838,6 +851,9 @@ BD = weighted.mean(BD, DepthWeights, na.rm=T)
 BD <- resample(rast(BD), resample_100m, method = "bilinear")
 rm(BD_0_5, BD_5_15, BD_15_30)
 names(BD) <- "BD"
+BDi <- RF_ImputeRast(r = BD, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+BD <- BDi[[1]]
+rm(BDi)
 
 # Clay
 C_0_5 <- raster(paste0(wd$data_r, "SoilGrids/C_0_5.tif"))
@@ -851,6 +867,9 @@ C = weighted.mean(C, DepthWeights, na.rm=T)
 C <- resample(rast(C), resample_100m, method = "bilinear")
 rm(C_0_5, C_5_15, C_15_30)
 names(C) <- "C"
+Ci <- RF_ImputeRast(r = C, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+C <- Ci[[1]]
+rm(Ci)
 
 # Silt
 Z_0_5 <- raster(paste0(wd$data_r, "SoilGrids/Z_0_5.tif"))
@@ -864,6 +883,9 @@ Z = weighted.mean(Z, DepthWeights, na.rm=T)
 Z <- resample(rast(Z), resample_100m, method = "bilinear")
 rm(Z_0_5, Z_5_15, Z_15_30)
 names(Z) <- "Z"
+Zi <- RF_ImputeRast(r = Z, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+Z <- Zi[[1]]
+rm(Zi)
 
 # Sand
 S_0_5 <- raster(paste0(wd$data_r, "SoilGrids/S_0_5.tif"))
@@ -877,6 +899,9 @@ S = weighted.mean(S, DepthWeights, na.rm=T)
 S <- resample(rast(S), resample_100m, method = "bilinear")
 rm(S_0_5, S_5_15, S_15_30)
 names(S) <- "S"
+Si <- RF_ImputeRast(r = S, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+S <- Si[[1]]
+rm(Si)
 
 # Soil Organic Carbon
 SOC_0_5 <- raster(paste0(wd$data_r, "SoilGrids/SOC_0_5.tif"))
@@ -890,6 +915,9 @@ SOC = weighted.mean(SOC, DepthWeights, na.rm=T)
 SOC <- resample(rast(SOC), resample_100m, method = "bilinear")
 rm(SOC_0_5, SOC_5_15, SOC_15_30)
 names(SOC) <- "SOC"
+SOCi <- RF_ImputeRast(r = SOC, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+SOC <- SOCi[[1]]
+rm(SOCi)
 
 # Cation Exchange Capacity
 CEC_0_5 <- raster(paste0(wd$data_r, "SoilGrids/CEC_0_5.tif"))
@@ -903,6 +931,9 @@ CEC = weighted.mean(CEC, DepthWeights, na.rm=T)
 CEC <- resample(rast(CEC), resample_100m, method = "bilinear")
 rm(CEC_0_5, CEC_5_15, CEC_15_30)
 names(CEC) <- "CEC"
+CECi <- RF_ImputeRast(r = CEC, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+CEC <- CECi[[1]]
+rm(CECi)
 
 # Organic Carbon Density
 OCD_0_5 <- raster(paste0(wd$data_r, "SoilGrids/OCD_0_5.tif"))
@@ -916,6 +947,9 @@ OCD = weighted.mean(OCD, DepthWeights, na.rm=T)
 OCD <- resample(rast(OCD), resample_100m, method = "bilinear")
 rm(OCD_0_5, OCD_5_15, OCD_15_30)
 names(OCD) <- "OCD"
+OCDi <- RF_ImputeRast(r = OCD, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+OCD <- OCDi[[1]]
+rm(OCDi)
 
 # Nitrogen
 N_0_5 <- rast(paste0(wd$data_r, "SoilGrids/N_0_5.tif"))
@@ -929,12 +963,18 @@ N = weighted.mean(N, DepthWeights, na.rm=T)
 N <- resample(rast(N), resample_100m, method = "bilinear")
 rm(N_0_5, N_5_15, N_15_30)
 names(N) <- "N"
+Ni <- RF_ImputeRast(r = N, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+N <- Ni[[1]]
+rm(Ni)
 
 #Soil organic carbon stock
 SOCS <- rast(paste0(wd$data_r, "SoilGrids/SOCS_0_30.tif"))
 SOCS[SOCS == 0] <- NA
 SOCS <- resample(rast(SOCS), resample_100m, method = "bilinear")
 names(SOCS) <- "SOCS"
+SOCSi <- RF_ImputeRast(r = SOCS, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+SOCS <- SOCSi[[1]]
+rm(SOCSi)
 
 #Stack
 Soil = c(BD, S, Z, C, SOC, CEC, OCD, N, SOCS, BDRICM, BDRLOG, BDTICM)
