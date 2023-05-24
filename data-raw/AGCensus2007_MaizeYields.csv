@@ -1,0 +1,310 @@
+Num,Municipio,Name,State,Region,INCLUDE,NOM,ProductionUnits,Planted_ha,Harvested_ha,Yield
+276,"Azcapotzalco, Distrito Federal",Azcapotzalco,Distrito Federal,BOM,TRUE,"AZCAPOTZALCO, DISTRITO FEDERAL",C,1,1,2937.5
+277,"Coyoacan, Distrito Federal",Coyoacan,Distrito Federal,BOM,TRUE,"COYOACAN, DISTRITO FEDERAL",,,,
+278,"Cuajimalpa de Morelos, Distrito Federal",Cuajimalpa de Morelos,Distrito Federal,BOM,TRUE,"CUAJIMALPA DE MORELOS, DISTRITO FEDERAL",C,35.9768,35.5183,3083.174026
+279,"Gustavo A. Madero, Distrito Federal",Gustavo A. Madero,Distrito Federal,BOM,TRUE,"GUSTAVO A. MADERO, DISTRITO FEDERAL",,,,
+280,"Iztapalapa, Distrito Federal",Iztapalapa,Distrito Federal,BOM,TRUE,"IZTAPALAPA, DISTRITO FEDERAL",C,0.06,0.06,1763.333333
+281,"La Magdalena Contreras, Distrito Federal",La Magdalena Contreras,Distrito Federal,BOM,TRUE,"LA MAGDALENA CONTRERAS, DISTRITO FEDERAL",C,201.2238,190.3798,2778.74806
+282,"Milpa Alta, Distrito Federal",Milpa Alta,Distrito Federal,BOM,TRUE,"MILPA ALTA, DISTRITO FEDERAL",1900,1774.2339,1548.9476,2390.108097
+283,"Alvaro Obregon, Distrito Federal",Alvaro Obregon,Distrito Federal,BOM,TRUE,"ALVARO OBREGON, DISTRITO FEDERAL",C,64.2737,61.7588,5564.515502
+284,"Tlahuac, Distrito Federal",Tlahuac,Distrito Federal,BOM,TRUE,"TLAHUAC, DISTRITO FEDERAL",1304,1008.585,832.085,3375.622442
+285,"Tlalpan, Distrito Federal",Tlalpan,Distrito Federal,BOM,TRUE,"TLALPAN, DISTRITO FEDERAL",701,1655.2451,1498.4195,2960.835067
+286,"Xochimilco, Distrito Federal",Xochimilco,Distrito Federal,BOM,TRUE,"XOCHIMILCO, DISTRITO FEDERAL",955,782.5238,630.2155,2553.18046
+287,"Miguel Hidalgo, Distrito Federal",Miguel Hidalgo,Distrito Federal,BOM,TRUE,"MIGUEL HIDALGO, DISTRITO FEDERAL",C,0.15,0.15,1813.333333
+288,"Venustiano Carranza, Distrito Federal",Venustiano Carranza,Distrito Federal,BOM,TRUE,"MIGUEL HIDALGO, DISTRITO FEDERAL",C,6,1,2190
+463,"Ajacuba, Hidalgo",Ajacuba,Hidalgo,,TRUE,"AJACUBA, HIDALGO",1495,3405.3599,3221.3604,4554.114529
+465,"Almoloya, Hidalgo",Almoloya,Hidalgo,,TRUE,"ALMOLOYA, HIDALGO",607,1485.2682,1378.5374,1630.123202
+466,"Apan, Hidalgo",Apan,Hidalgo,,TRUE,"APAN, HIDALGO",1312,3731.1425,3534.1261,1602.4993
+468,"Atitalaquia, Hidalgo",Atitalaquia,Hidalgo,,TRUE,"ATITALAQUIA, HIDALGO",922,1290.7622,1258.9638,8275.054056
+471,"Atotonilco de Tula, Hidalgo",Atotonilco de Tula,Hidalgo,,TRUE,"ATOTONILCO DE TULA, HIDALGO",1502,2995.3346,2668.8539,2448.312626
+479,"Emiliano Zapata, Hidalgo",Emiliano Zapata,Hidalgo,,TRUE,"EMILIANO ZAPATA, HIDALGO",345,758.8239,700.3365,2085.384098
+480,"Epazoyucan, Hidalgo",Epazoyucan,Hidalgo,,TRUE,"EPAZOYUCAN, HIDALGO",537,1076.819,683.7966,2416.501778
+481,"Francisco I. Madero, Hidalgo",Francisco I. Madero,Hidalgo,,TRUE,"FRANCISCO I. MADERO, HIDALGO",1534,2891.7634,2841.4543,6810.260542
+497,"Mineral del Monte, Hidalgo",Mineral del Monte,Hidalgo,,TRUE,"MINERAL DEL MONTE, HIDALGO",323,736.6939,688.1058,670.3025901
+499,"Mixquiahuala de Juarez, Hidalgo",Mixquiahuala de Juarez,Hidalgo,,TRUE,"MIXQUIAHUALA DE JUAREZ, HIDALGO",1296,3379.9193,3365.6566,9746.003945
+506,"Pachuca de Soto, Hidalgo",Pachuca de Soto,Hidalgo,,TRUE,"PACHUCA DE SOTO, HIDALGO",C,1390.2449,1302.4068,417.24905
+509,"Mineral de la Reforma, Hidalgo",Mineral de la Reforma,Hidalgo,,TRUE,"MINERAL DE LA REFORMA, HIDALGO",219,1029.6459,967.272,4468.040324
+510,"San Agustin Tlaxiaca, Hidalgo",San Agustin Tlaxiaca,Hidalgo,,TRUE,"SAN AGUSTIN TLAXIACA, HIDALGO",2081,5056.1799,3916.5208,1413.710761
+515,"Singuilucan, Hidalgo",Singuilucan,Hidalgo,,TRUE,"SINGUILUCAN, HIDALGO",881,2199.2312,2047.2083,1501.418297
+519,"Tepeapulco, Hidalgo",Tepeapulco,Hidalgo,,TRUE,"TEPEAPULCO, HIDALGO",735,1273.8681,1151.1487,1310.73466
+521,"Tepeji del Rio de Ocampo, Hidalgo",Tepeji del Rio de Ocampo,Hidalgo,,TRUE,"TEPEJI DEL RIO DE OCAMPO, HIDALGO",3064,6032.8714,5314.3148,2083.455425
+522,"Tepetitlan, Hidalgo",Tepetitlan,Hidalgo,,TRUE,"TEPETITLAN, HIDALGO",1071,1793.7423,1443.5104,2764.829058
+523,"Tetepango, Hidalgo",Tetepango,Hidalgo,,TRUE,"TETEPANGO, HIDALGO",625,1198.8368,1163.1848,6747.747391
+524,"Villa de Tezontepec, Hidalgo",Villa de Tezontepec,Hidalgo,,TRUE,"VILLA DE TEZONTEPEC, HIDALGO",203,544.9435,480.5699,2019.873904
+525,"Tezontepec de Aldama, Hidalgo",Tezontepec de Aldama,Hidalgo,,TRUE,"TEZONTEPEC DE ALDAMA, HIDALGO",1825,2548.4789,2492.1012,8037.965232
+527,"Tizayuca, Hidalgo",Tizayuca,Hidalgo,,TRUE,"TIZAYUCA, HIDALGO",231,965.3997,887.0294,4344.814727
+528,"Tlahuelilpan, Hidalgo",Tlahuelilpan,Hidalgo,,TRUE,,C,604.4156,598.6844,8945.718479
+530,"Tlanalapa, Hidalgo",Tlanalapa,Hidalgo,,TRUE,"TLANALAPA, HIDALGO",272,542.2429,511.8396,800.5974919
+532,"Tlaxcoapan, Hidalgo",Tlaxcoapan,Hidalgo,,TRUE,"TLAXCOAPAN, HIDALGO",808,1445.5526,1406.438,9128.075536
+533,"Tolcayuca, Hidalgo",Tolcayuca,Hidalgo,,TRUE,"TOLCAYUCA, HIDALGO",227,503.8364,441.2252,1230.213505
+534,"Tula de Allende, Hidalgo",Tula de Allende,Hidalgo,,TRUE,"TULA DE ALLENDE, HIDALGO",2959,6030.6367,5328.8381,4100.481923
+540,"Zapotlan de Juarez, Hidalgo",Zapotlan de Juarez,Hidalgo,,TRUE,"ZAPOTLAN DE JUAREZ, HIDALGO",207,642.0155,551.4057,1780.391461
+541,"Zempoala, Hidalgo",Zempoala,Hidalgo,,TRUE,"ZEMPOALA, HIDALGO",982,2566.3502,2132.5444,2369.508508
+670,"Acambay, Mexico",Acambay,Mexico,N TOL,TRUE,"ACAMBAY, MEXICO",10012,15125.1966,13383.2741,1979.562206
+671,"Acolman, Mexico",Acolman,Mexico,BOM,TRUE,"ACOLMAN, MEXICO",1363,1831.6926,1488.6904,3399.187837
+672,"Aculco, Mexico",Aculco,Mexico,N TOL,TRUE,"ACULCO, MEXICO",5730,11678.8535,9413.0909,2524.114051
+674,"Almoloya de Juarez, Mexico",Almoloya de Juarez,Mexico,Toluca,TRUE,"ALMOLOYA DE JUAREZ, MEXICO",9511,17146.4373,15478.9657,2447.062138
+675,"Almoloya del Rio, Mexico",Almoloya del Rio,Mexico,Toluca,TRUE,"ALMOLOYA DEL RIO, MEXICO",435,464.6175,396.0708,2704.3011
+678,"Amecameca, Mexico",Amecameca,Mexico,BOM,TRUE,"AMECAMECA, MEXICO",1273,2750.5189,2640.2448,2399.90235
+679,"Apaxco, Mexico",Apaxco,Mexico,BOM,TRUE,"APAXCO, MEXICO",472,1117.8511,992.5973,1744.551995
+680,"Atenco, Mexico",Atenco,Mexico,BOM,TRUE,"ATENCO, MEXICO",586,660.3501,627.0485,3240.286357
+681,"Atizapan, Mexico",Atizapan,Mexico,Toluca,TRUE,"ATIZAPAN, MEXICO",302,380.6172,324.8911,3231.111902
+682,"Atizapan de Zaragoza, Mexico",Atizapan de Zaragoza,Mexico,BOM,TRUE,"ATIZAPAN DE ZARAGOZA, MEXICO",C,17.8789,15.7798,1017.009088
+683,"Atlacomulco, Mexico",Atlacomulco,Mexico,Toluca,TRUE,"ATLACOMULCO, MEXICO",6012,26351.2801,24002.7284,1468.484745
+684,"Atlautla, Mexico",Atlautla,Mexico,BOM,TRUE,"ATLAUTLA, MEXICO",1219,1467.3171,1369.3711,1281.904883
+685,"Axapusco, Mexico",Axapusco,Mexico,BOM,TRUE,"AXAPUSCO, MEXICO",1247,3067.1018,2843.6724,1508.901271
+686,"Ayapango, Mexico",Ayapango,Mexico,BOM,TRUE,"AYAPANGO, MEXICO",634,1460.2523,1323.7449,2320.784163
+687,"Calimaya, Mexico",Calimaya,Mexico,Toluca,TRUE,"CALIMAYA, MEXICO",1588,3369.5754,3293.1365,5304.476234
+688,"Capulhuac, Mexico",Capulhuac,Mexico,Toluca,TRUE,"CAPULHUAC, MEXICO",555,541.9754,473.6483,2806.847824
+689,"Coacalco de Berriozabal, Mexico",Coacalco de Berriozabal,Mexico,BOM,TRUE,"COACALCO DE BERRIOZABAL, MEXICO",C,4.4778,4.4778,1153.870204
+690,"Coatepec Harinas, Mexico",Coatepec Harinas,Mexico,Toluca,TRUE,"COATEPEC HARINAS, MEXICO",1910,2104.3689,1872.3608,2413.94148
+691,"Cocotitlan, Mexico",Cocotitlan,Mexico,BOM,TRUE,"COCOTITLAN, MEXICO",382,706.3302,695.7002,2206.856344
+692,"Coyotepec, Mexico",Coyotepec,Mexico,BOM,TRUE,"COYOTEPEC, MEXICO",925,1885.5535,1351.7022,1867.927714
+693,"Cuautitlan, Mexico",Cuautitlan,Mexico,BOM,TRUE,"CUAUTITLAN, MEXICO",83,198.2649,189.1561,2062.604907
+694,"Chalco, Mexico",Chalco,Mexico,BOM,TRUE,"CHALCO, MEXICO",2158,5326.5587,4188.8935,1901.811397
+695,"Chapa de Mota, Mexico",Chapa de Mota,Mexico,N TOL,TRUE,"CHAPA DE MOTA, MEXICO",2869,5622.5909,5012.9022,2073.228977
+696,"Chapultepec, Mexico",Chapultepec,Mexico,BOM,TRUE,"CHAPULTEPEC, MEXICO",1050,665.0277,606.1218,4546.958054
+697,"Chiautla, Mexico",Chiautla,Mexico,BOM,TRUE,"CHIAUTLA, MEXICO",476,438.4456,433.4236,4167.070275
+698,"Chicoloapan, Mexico",Chicoloapan,Mexico,BOM,TRUE,"CHICOLOAPAN, MEXICO",265,285.6953,268.5758,3781.04766
+699,"Chiconcuac, Mexico",Chiconcuac,Mexico,BOM,TRUE,"CHICONCUAC, MEXICO",C,3.8819,3.8819,2599.448724
+700,"Chimalhuacan, Mexico",Chimalhuacan,Mexico,BOM,TRUE,"CHIMALHUACAN, MEXICO",72,53.6803,50.3658,5314.98358
+702,"Ecatepec de Morelos, Mexico",Ecatepec de Morelos,Mexico,BOM,TRUE,"ECATEPEC DE MORELOS, MEXICO",54,35.4208,26.4279,5006.031505
+703,"Ecatzingo, Mexico",Ecatzingo,Mexico,BOM,TRUE,"ECATZINGO, MEXICO",714,806.8799,736.6707,1155.918513
+704,"Huehuetoca, Mexico",Huehuetoca,Mexico,BOM,TRUE,"HUEHUETOCA, MEXICO",996,2190.8581,1932.2488,1883.858331
+705,"Hueypoxtla, Mexico",Hueypoxtla,Mexico,BOM,TRUE,"HUEYPOXTLA, MEXICO",2657,5067.6967,4018.3577,1726.574964
+706,"Huixquilucan, Mexico",Huixquilucan,Mexico,BOM,TRUE,"HUIXQUILUCAN, MEXICO",1257,815.9464,764.8689,913.3745665
+707,"Isidro Fabela, Mexico",Isidro Fabela,Mexico,BOM,TRUE,"ISIDRO FABELA, MEXICO",416,259.67,248.9296,2429.983015
+708,"Ixtapaluca, Mexico",Ixtapaluca,Mexico,BOM,TRUE,"IXTAPALUCA, MEXICO",606,776.6448,721.0438,2467.650509
+709,"Ixtapan de la Sal, Mexico",Ixtapan de la Sal,Mexico,SSW MOR-TOL,TRUE,"IXTAPAN DE LA SAL, MEXICO",1015,701.5417,630.6438,3254.136487
+711,"Ixtlahuaca, Mexico",Ixtlahuaca,Mexico,Toluca,TRUE,"IXTLAHUACA, MEXICO",16956,17896.8222,17002.7806,3260.243475
+712,"Xalatlaco, Mexico",Xalatlaco,Mexico,Toluca,TRUE,"XALATLACO, MEXICO",732,858.9664,800.8628,2418.119808
+713,"Jaltenco, Mexico",Jaltenco,Mexico,BOM,TRUE,"JALTENCO, MEXICO",11,41.4745,40.481,13583.37986
+714,"Jilotepec, Mexico",Jilotepec,Mexico,N TOL,TRUE,"JILOTEPEC, MEXICO",6619,15795.0993,15135.6458,2183.483522
+715,"Jilotzingo, Mexico",Jilotzingo,Mexico,BOM,TRUE,"JILOTZINGO, MEXICO",391,369.0455,352.1883,1497.001746
+716,"Jiquipilco, Mexico",Jiquipilco,Mexico,Toluca,TRUE,"JIQUIPILCO, MEXICO",7994,9766.1074,9288.6635,3105.857048
+717,"Jocotitlan, Mexico",Jocotitlan,Mexico,Toluca,TRUE,"JOCOTITLAN, MEXICO",7774,12766.0811,12482.9037,3842.643223
+718,"Joquicingo, Mexico",Joquicingo,Mexico,Toluca,TRUE,"JOQUICINGO, MEXICO",562,633.714,593.1373,2886.535546
+719,"Juchitepec, Mexico",Juchitepec,Mexico,BOM,TRUE,"JUCHITEPEC, MEXICO",1075,2422.5348,2372.898,2722.714504
+720,"Lerma, Mexico",Lerma,Mexico,Toluca,TRUE,"LERMA, MEXICO",4458,4383.1873,3450.861,2344.921021
+721,"Malinalco, Mexico",Malinalco,Mexico,SSW MOR-TOL,TRUE,"MALINALCO, MEXICO",1512,1467.6411,1163.3996,2513.530261
+722,"Melchor Ocampo, Mexico",Melchor Ocampo,Mexico,BOM,TRUE,"MELCHOR OCAMPO, MEXICO",61,52.8783,49.1071,7991.644793
+723,"Metepec, Mexico",Metepec,Mexico,Toluca,TRUE,"METEPEC, MEXICO",1059,1111.0602,991.4851,4484.197695
+724,"Mexicaltzingo, Mexico",Mexicaltzingo,Mexico,BOM,TRUE,"MEXICALTZINGO, MEXICO",642,338.0426,334.5758,5013.105251
+725,"Morelos, Mexico",Morelos,Mexico,Toluca,TRUE,"MORELOS, MEXICO",3406,5090.2988,4997.398,1844.240203
+726,"Naucalpan de Juarez, Mexico",Naucalpan de Juarez,Mexico,BOM,TRUE,"NAUCALPAN DE JUAREZ, MEXICO",485,365.5113,307.8914,1757.095846
+727,"Nezahualcoyotl, Mexico",Nezahualcoyotl,Mexico,BOM,TRUE,,C,4.2501,4.2501,7727.253476
+728,"Nextlalpan, Mexico",Nextlalpan,Mexico,BOM,TRUE,"NEXTLALPAN, MEXICO",266,699.1129,611.4128,6613.231519
+729,"Nicolas Romero, Mexico",Nicolas Romero,Mexico,BOM,TRUE,"NICOLAS ROMERO, MEXICO",2627,2996.2949,2560.3586,1568.38378
+730,"Nopaltepec, Mexico",Nopaltepec,Mexico,BOM,TRUE,"NOPALTEPEC, MEXICO",321,626.8008,553.6937,1291.725913
+731,"Ocoyoacac, Mexico",Ocoyoacac,Mexico,Toluca,TRUE,"OCOYOACAC, MEXICO",1680,1129.8363,886.4313,2690.37657
+732,"Ocuilan, Mexico",Ocuilan,Mexico,SSW MOR-TOL,TRUE,"OCUILAN, MEXICO",1929,1929.8293,1839.339,1794.403152
+733,"El Oro, Mexico",El Oro,Mexico,N TOL,TRUE,"EL ORO, MEXICO",5843,5778.1726,5571.8022,1777.366971
+734,"Otumba, Mexico",Otumba,Mexico,BOM,TRUE,"OTUMBA, MEXICO",609,1195.6523,1074.3025,1133.650252
+736,"Otzolotepec, Mexico",Otzolotepec,Mexico,Toluca,TRUE,"OTZOLOTEPEC, MEXICO",3283,1792.6458,1530.1597,3777.588182
+737,"Ozumba, Mexico",Ozumba,Mexico,BOM,TRUE,"OZUMBA, MEXICO",628,767.1464,733.6306,1852.380067
+738,"Papalotla, Mexico",Papalotla,Mexico,BOM,TRUE,"PAPALOTLA, MEXICO",C,15.182,15.182,2644.579107
+739,"La Paz, Mexico",La Paz,Mexico,BOM,TRUE,"LA PAZ, MEXICO",57,79.558,76.1642,1327.961168
+740,"Polotitlan, Mexico",Polotitlan,Mexico,N TOL,TRUE,"POLOTITLAN, MEXICO",895,3867.9236,3468.0171,2368.909023
+741,"Rayon, Mexico",Rayon,Mexico,Toluca,TRUE,"RAYON, MEXICO",681,1048.0069,983.2931,5684.555805
+742,"San Antonio La Isla, Mexico",San Antonio La Isla,Mexico,Toluca,TRUE,"SAN ANTONIO LA ISLA, MEXICO",682,945.4466,813.1436,3608.75287
+743,"San Felipe del Progreso, Mexico",San Felipe del Progreso,Mexico,Toluca,TRUE,"SAN FELIPE DEL PROGRESO, MEXICO",15348,16752.3965,16383.7208,2068.104365
+744,"San Martin de las Piramides, Mexico",San Martin de las Piramides,Mexico,BOM,TRUE,"SAN MARTIN DE LAS PIRAMIDES, MEXICO",377,458.6237,406.8219,2480.503385
+745,"San Mateo Atenco, Mexico",San Mateo Atenco,Mexico,Toluca,TRUE,"SAN MATEO ATENCO, MEXICO",158,220.4992,215.8925,3648.638559
+748,"Soyaniquilpan de Juarez, Mexico",Soyaniquilpan de Juarez,Mexico,N TOL,TRUE,"SOYANIQUILPAN DE JUAREZ, MEXICO",1413,3372.1989,3211.5847,3526.468226
+750,"Tecamac, Mexico",Tecamac,Mexico,BOM,TRUE,"TECAMAC, MEXICO",942,1822.4991,1619.2122,5678.488527
+752,"Temamatla, Mexico",Temamatla,Mexico,BOM,TRUE,"TEMAMATLA, MEXICO",300,676.3277,638.7817,2315.960836
+753,"Temascalapa, Mexico",Temascalapa,Mexico,BOM,TRUE,"TEMASCALAPA, MEXICO",1595,3497.0279,3026.1225,1437.878705
+754,"Temascalcingo, Mexico",Temascalcingo,Mexico,N TOL,TRUE,"TEMASCALCINGO, MEXICO",7094,8781.6239,8027.3939,3009.52329
+756,"Temoaya, Mexico",Temoaya,Mexico,Toluca,TRUE,"TEMOAYA, MEXICO",6451,5713.3424,5159.7622,3337.559452
+757,"Tenancingo, Mexico",Tenancingo,Mexico,Toluca,TRUE,"TENANCINGO, MEXICO",2410,1869.5172,1716.2818,2034.868749
+758,"Tenango del Aire, Mexico",Tenango del Aire,Mexico,BOM,TRUE,"TENANGO DEL AIRE, MEXICO",618,1784.998,1751.0877,3442.465275
+759,"Tenango del Valle, Mexico",Tenango del Valle,Mexico,Toluca,TRUE,"TENANGO DEL VALLE, MEXICO",2667,3595.4993,3522.3998,4408.073042
+760,"Teoloyucan, Mexico",Teoloyucan,Mexico,BOM,TRUE,"TEOLOYUCAN, MEXICO",369,332.4682,288.8599,4710.830406
+761,"Teotihuacan, Mexico",Teotihuacan,Mexico,BOM,TRUE,"TEOTIHUACAN, MEXICO",1115,1309.1274,1084.6854,2742.727338
+762,"Tepetlaoxtoc, Mexico",Tepetlaoxtoc,Mexico,BOM,TRUE,"TEPETLAOXTOC, MEXICO",858,1135.97,1067.4455,2883.35189
+763,"Tepetlixpa, Mexico",Tepetlixpa,Mexico,BOM,TRUE,"TEPETLIXPA, MEXICO",765,743.9454,711.7655,1623.245296
+764,"Tepotzotlan, Mexico",Tepotzotlan,Mexico,BOM,TRUE,"TEPOTZOTLAN, MEXICO",1148,1899.2309,1665.0914,1956.482869
+765,"Tequixquiac, Mexico",Tequixquiac,Mexico,BOM,TRUE,"TEQUIXQUIAC, MEXICO",1095,2317.4442,2135.268,3606.995
+767,"Texcalyacac, Mexico",Texcalyacac,Mexico,Toluca,TRUE,"TEXCALYACAC, MEXICO",185,374.5226,339.6737,3382.053718
+768,"Texcoco, Mexico",Texcoco,Mexico,BOM,TRUE,"TEXCOCO, MEXICO",2510,3631.0317,3479.6893,2793.462048
+769,"Tezoyuca, Mexico",Tezoyuca,Mexico,BOM,TRUE,"TEZOYUCA, MEXICO",308,284.5233,268.9049,3276.879298
+770,"Tianguistenco, Mexico",Tianguistenco,Mexico,Toluca,TRUE,"TIANGUISTENCO, MEXICO",2627,2636.1819,2355.9921,2221.330708
+771,"Timilpan, Mexico",Timilpan,Mexico,N TOL,TRUE,"TIMILPAN, MEXICO",2759,4454.0399,4409.8021,2205.234992
+772,"Tlalmanalco, Mexico",Tlalmanalco,Mexico,BOM,TRUE,"TLALMANALCO, MEXICO",503,938.9394,912.6273,2347.431531
+773,"Tlalnepantla de Baz, Mexico",Tlalnepantla de Baz,Mexico,BOM,TRUE,"TLALNEPANTLA DE BAZ, MEXICO",152,56.548,55.6386,766.0077716
+775,"Toluca, Mexico",Toluca,Mexico,Toluca,TRUE,"TOLUCA, MEXICO",8633,7098.2962,6347.8741,4068.676882
+776,"Tonatico, Mexico",Tonatico,Mexico,SSW MOR-TOL,TRUE,"TONATICO, MEXICO",604,956.4093,932.2725,5999.166016
+777,"Tultepec, Mexico",Tultepec,Mexico,BOM,TRUE,"TULTEPEC, MEXICO",183,247.0432,215.3899,4610.256563
+778,"Tultitlan, Mexico",Tultitlan,Mexico,BOM,TRUE,"TULTITLAN, MEXICO",C,20.801,20.6738,2617.288549
+781,"Villa del Carbon, Mexico",Villa del Carbon,Mexico,BOM,TRUE,"VILLA DEL CARBON, MEXICO",4431,8539.9645,8073.4159,1145.060915
+782,"Villa Guerrero, Mexico",Villa Guerrero,Mexico,Toluca,TRUE,"VILLA GUERRERO, MEXICO",896,627.068,571.5646,3293.712557
+783,"Villa Victoria, Mexico",Villa Victoria,Mexico,Toluca,TRUE,"VILLA VICTORIA, MEXICO",10180,17445.8449,17005.0069,1803.387466
+784,"Xonacatlan, Mexico",Xonacatlan,Mexico,BOM,TRUE,"XONACATLAN, MEXICO",1331,1146.7689,953.2879,3737.787818
+787,"Zinacantepec, Mexico",Zinacantepec,Mexico,Toluca,TRUE,"ZINACANTEPEC, MEXICO",5245,5501.9755,4807.4415,2629.371486
+788,"Zumpahuacan, Mexico",Zumpahuacan,Mexico,SSW MOR-TOL,TRUE,"ZUMPAHUACAN, MEXICO",1557,1087.5719,902.6753,1756.36123
+789,"Zumpango, Mexico",Zumpango,Mexico,BOM,TRUE,"ZUMPANGO, MEXICO",1721,3279.8602,3082.1359,3662.082811
+790,"Cuautitlan Izcalli, Mexico",Cuautitlan Izcalli,Mexico,BOM,TRUE,,262,328.8945,293.561,3188.994451
+791,"Valle de Chalco Solidaridad, Mexico",Valle de Chalco Solidaridad,Mexico,BOM,TRUE,,283,241.5165,167.1376,2059.756751
+793,"San Jose del Rincon, Mexico",San Jose del Rincon,Mexico,Toluca,TRUE,,12551,18345.833,18134.1658,1611.255738
+794,"Tonanitla, Mexico",Tonanitla,Mexico,BOM,TRUE,,111,297.969,279.8227,9083.814858
+911,"Atlatlahucan, Morelos",Atlatlahucan,Morelos,Northern Morelos,TRUE,"ATLATLAHUCAN, MORELOS",494,760.9243,708.937,2412.383188
+913,"Ayala, Morelos",Ayala,Morelos,Northern Morelos,TRUE,"AYALA, MORELOS",1113,2114.3619,2025.5455,4862.915792
+914,"Coatlan del Rio, Morelos",Coatlan del Rio,Morelos,Northern Morelos,TRUE,"COATLAN DEL RIO, MORELOS",330,453.8556,425.6506,3424.572408
+915,"Cuautla, Morelos",Cuautla,Morelos,Northern Morelos,TRUE,"CUAUTLA, MORELOS",565,839.9559,832.8996,3239.791327
+916,"Cuernavaca, Morelos",Cuernavaca,Morelos,Northern Morelos,TRUE,"CUERNAVACA, MORELOS",414,574.5343,455.7807,2548.398824
+917,"Emiliano Zapata, Morelos",Emiliano Zapata,Morelos,Northern Morelos,TRUE,"EMILIANO ZAPATA, MORELOS",204,228.5343,218.0503,5814.494637
+918,"Huitzilac, Morelos",Huitzilac,Morelos,Northern Morelos,TRUE,"HUITZILAC, MORELOS",221,199.2581,186.6086,1258.074923
+919,"Jantetelco, Morelos",Jantetelco,Morelos,Northern Morelos,TRUE,"JANTETELCO, MORELOS",489,524.9818,509.8449,3273.526518
+920,"Jiutepec, Morelos",Jiutepec,Morelos,Northern Morelos,TRUE,"JIUTEPEC, MORELOS",80,53.4837,45.3321,5185.451369
+922,"Jonacatepec, Morelos",Jonacatepec,Morelos,Northern Morelos,TRUE,"JONACATEPEC, MORELOS",326,425.5674,424.7491,2777.800353
+923,"Mazatepec, Morelos",Mazatepec,Morelos,Northern Morelos,TRUE,"MAZATEPEC, MORELOS",279,478.0347,459.5591,4223.089043
+924,"Miacatlan, Morelos",Miacatlan,Morelos,Northern Morelos,TRUE,"MIACATLAN, MORELOS",859,1340.5805,1242.4678,2908.809951
+925,"Ocuituco, Morelos",Ocuituco,Morelos,Northern Morelos,TRUE,"OCUITUCO, MORELOS",1142,1946.0049,1697.5051,1864.080291
+927,"Temixco, Morelos",Temixco,Morelos,Northern Morelos,TRUE,"TEMIXCO, MORELOS",533,649.254,504.4105,3548.917201
+929,"Tepoztlan, Morelos",Tepoztlan,Morelos,Northern Morelos,TRUE,"TEPOZTLAN, MORELOS",766,1344.5944,1259.3655,2786.941837
+930,"Tetecala, Morelos",Tetecala,Morelos,Northern Morelos,TRUE,"TETECALA, MORELOS",142,221.9328,213.2258,4687.832804
+931,"Tetela del Volcan, Morelos",Tetela del Volcan,Morelos,Northern Morelos,TRUE,"TETELA DEL VOLCAN, MORELOS",1329,1010.9648,755.7399,1948.640266
+932,"Tlalnepantla, Morelos",Tlalnepantla,Morelos,Northern Morelos,TRUE,"TLALNEPANTLA, MORELOS",120,116.5003,109.2087,2024.37901
+933,"Tlaltizapan, Morelos",Tlaltizapan,Morelos,Northern Morelos,TRUE,"TLALTIZAPAN, MORELOS",353,513.7734,492.5109,3742.82092
+935,"Tlayacapan, Morelos",Tlayacapan,Morelos,Northern Morelos,TRUE,"TLAYACAPAN, MORELOS",360,386.3358,338.7487,3000.915133
+936,"Totolapan, Morelos",Totolapan,Morelos,Northern Morelos,TRUE,"TOTOLAPAN, MORELOS",383,505.802,495.239,1762.951625
+937,"Xochitepec, Morelos",Xochitepec,Morelos,Northern Morelos,TRUE,"XOCHITEPEC, MORELOS",258,369.9996,354.7204,3134.12733
+938,"Yautepec, Morelos",Yautepec,Morelos,Northern Morelos,TRUE,"YAUTEPEC, MORELOS",470,1074.7635,1046.4217,5983.960673
+939,"Yecapixtla, Morelos",Yecapixtla,Morelos,Northern Morelos,TRUE,"YECAPIXTLA, MORELOS",1271,2278.7661,2063.5122,2633.588306
+941,"Zacualpan de Amilpas, Morelos",Zacualpan de Amilpas,Morelos,Northern Morelos,TRUE,"ZACUALPAN DE AMILPAS, MORELOS",445,675.8381,657.9877,3223.743696
+942,"Temoac, Morelos",Temoac,Morelos,Northern Morelos,TRUE,,455,440.4656,410.5809,2707.141272
+1585,"Acajete, Puebla",Acajete,Puebla,,TRUE,"ACAJETE, PUEBLA",4996,8556.8811,8283.7819,1458.56497
+1588,"Acatzingo, Puebla",Acatzingo,Puebla,,TRUE,"ACATZINGO, PUEBLA",1622,4340.027,3985.1147,1905.36699
+1589,"Acteopan, Puebla",Acteopan,Puebla,,TRUE,"ACTEOPAN, PUEBLA",356,392.4645,384.3287,1124.241827
+1599,"Amozoc, Puebla",Amozoc,Puebla,,TRUE,"AMOZOC, PUEBLA",1389,3443.3705,3028.7122,1984.408324
+1603,"Atlixco, Puebla",Atlixco,Puebla,,TRUE,"ATLIXCO, PUEBLA",3694,4080.5306,3594.7404,2985.305142
+1604,"Atoyatempan, Puebla",Atoyatempan,Puebla,,TRUE,"ATOYATEMPAN, PUEBLA",318,488.7965,485.3465,3791.005601
+1606,"Atzitzihuacan, Puebla",Atzitzihuacan,Puebla,,TRUE,"ATZITZIHUACAN, PUEBLA",1935,1742.5962,1695.1243,1323.268211
+1610,"Calpan, Puebla",Calpan,Puebla,,TRUE,"CALPAN, PUEBLA",2074,3288.8401,3256.6439,1034.539116
+1617,"Cohuecan, Puebla",Cohuecan,Puebla,,TRUE,"COHUECAN, PUEBLA",407,401.6161,397.3544,1029.217746
+1618,"Coronango, Puebla",Coronango,Puebla,,TRUE,"CORONANGO, PUEBLA",1486,1250.185,1223.7174,2519.172482
+1622,"Cuapiaxtla de Madero, Puebla",Cuapiaxtla de Madero,Puebla,,TRUE,"CUAPIAXTLA DE MADERO, PUEBLA",216,232.9439,229.5224,2596.495593
+1624,"Cuautinchan, Puebla",Cuautinchan,Puebla,,TRUE,"CUAUTINCHAN, PUEBLA",1196,2324.7252,2119.1647,1133.395955
+1625,"Cuautlancingo, Puebla",Cuautlancingo,Puebla,,TRUE,"CUAUTLANCINGO, PUEBLA",479,1455.4201,1438.078,642.2128702
+1632,"Chiautzingo, Puebla",Chiautzingo,Puebla,,TRUE,"CHIAUTZINGO, PUEBLA",1974,1669.9984,1622.2645,2442.054918
+1636,"Chigmecatitlan, Puebla",Chigmecatitlan,Puebla,,TRUE,"CHIGMECATITLAN, PUEBLA",C,95.85,93.068,957.2011862
+1644,"Domingo Arenas, Puebla",Domingo Arenas,Puebla,,TRUE,"DOMINGO ARENAS, PUEBLA",561,312.5951,298.9766,2142.415159
+1646,"Epatlan, Puebla",Epatlan,Puebla,,TRUE,"EPATLAN, PUEBLA",196,296.9723,295.2606,2207.60982
+1649,"General Felipe angeles, Puebla",General Felipe angeles,Puebla,,TRUE,"GENERAL FELIPE ANGELES, PUEBLA",1622,2524.3535,2416.6281,1504.22504
+1653,"Huaquechula, Puebla",Huaquechula,Puebla,,TRUE,"HUAQUECHULA, PUEBLA",1844,2203.9009,2106.0881,2216.425752
+1654,"Huatlatlauca, Puebla",Huatlatlauca,Puebla,,TRUE,"HUATLATLAUCA, PUEBLA",1907,3635.4406,3566.1959,417.3228117
+1656,"Huehuetla, Puebla",Huehuetla,Puebla,,TRUE,"HUEHUETLA, PUEBLA",1461,1242.2117,1125.9994,1656.273085
+1658,"Huejotzingo, Puebla",Huejotzingo,Puebla,,TRUE,"HUEJOTZINGO, PUEBLA",5702,3725.6077,3723,3231.79769
+1663,"Huitziltepec, Puebla",Huitziltepec,Puebla,,TRUE,"HUITZILTEPEC, PUEBLA",460,605.5713,537.6747,1636.728676
+1674,"Juan C. Bonilla, Puebla",Juan C. Bonilla,Puebla,,TRUE,"JUAN C. BONILLA, PUEBLA",430,337.4478,333.5455,2900.237899
+1679,"La Magdalena Tlatlauquitepec, Puebla",La Magdalena Tlatlauquitepec,Puebla,,TRUE,"LA MAGDALENA TLATLAUQUITEPEC, PUEBLA",40,90.6667,89.6667,786.5595589
+1680,"Mazapiltepec de Juarez, Puebla",Mazapiltepec de Juarez,Puebla,,TRUE,"MAZAPILTEPEC DE JUAREZ, PUEBLA",736,1742.2079,1702.4655,3240.811576
+1681,"Mixtla, Puebla",Mixtla,Puebla,,TRUE,"MIXTLA, PUEBLA",180,192.7552,173.7409,2584.518096
+1682,"Molcaxac, Puebla",Molcaxac,Puebla,,TRUE,"MOLCAXAC, PUEBLA",1140,2689.548,2553.462,1885.025546
+1686,"Nealtican, Puebla",Nealtican,Puebla,,TRUE,"NEALTICAN, PUEBLA",536,299.7162,293.6203,2959.443199
+1688,"Nopalucan, Puebla",Nopalucan,Puebla,,TRUE,"NOPALUCAN, PUEBLA",2932,10253.8563,9927.988,1688.983125
+1690,"Ocoyucan, Puebla",Ocoyucan,Puebla,,TRUE,"OCOYUCAN, PUEBLA",2133,3980.5792,3892.4383,1024.691747
+1698,"Puebla, Puebla",Puebla,Puebla,,TRUE,"PUEBLA, PUEBLA",4549,6641.6094,5491.829,1469.66863
+1699,"Quecholac, Puebla",Quecholac,Puebla,,TRUE,"QUECHOLAC, PUEBLA",3140,4884.7106,4698.4222,1866.636527
+1701,"Rafael Lara Grajales, Puebla",Rafael Lara Grajales,Puebla,,TRUE,"RAFAEL LARA GRAJALES, PUEBLA",139,510.2199,420.7121,2186.626674
+1702,"Los Reyes de Juarez, Puebla",Los Reyes de Juarez,Puebla,,TRUE,"LOS REYES DE JUAREZ, PUEBLA",451,615.4209,598.5814,2056.5066
+1703,"San Andres Cholula, Puebla",San Andres Cholula,Puebla,,TRUE,"SAN ANDRES CHOLULA, PUEBLA",1150,1026.5235,991.8854,1380.582676
+1705,"San Diego La Mesa Tochimiltzingo, Puebla",San Diego La Mesa Tochimiltzingo,Puebla,,TRUE,"SAN DIEGO LA MESA TOCHIMILTZINGO, PUEBLA",C,127.2962,123.8203,10636.9093
+1706,"San Felipe Teotlalcingo, Puebla",San Felipe Teotlalcingo,Puebla,,TRUE,"SAN FELIPE TEOTLALCINGO, PUEBLA",823,698.0486,666.1212,3012.215945
+1709,"San Gregorio Atzompa, Puebla",San Gregorio Atzompa,Puebla,,TRUE,"SAN GREGORIO ATZOMPA, PUEBLA",206,143.8009,118.2822,3763.910377
+1710,"San Jeronimo Tecuanipan, Puebla",San Jeronimo Tecuanipan,Puebla,,TRUE,"SAN JERONIMO TECUANIPAN, PUEBLA",710,535.4786,514.3277,2675.432997
+1712,"San Jose Chiapa, Puebla",San Jose Chiapa,Puebla,,TRUE,"SAN JOSE CHIAPA, PUEBLA",1787,5917.2434,5734.6912,2719.294005
+1715,"San Juan Atzompa, Puebla",San Juan Atzompa,Puebla,,TRUE,"SAN JUAN ATZOMPA, PUEBLA",C,179.4905,171.2173,450.3265733
+1716,"San Martin Texmelucan, Puebla",San Martin Texmelucan,Puebla,,TRUE,"SAN MARTIN TEXMELUCAN, PUEBLA",2703,2285.7609,2190.035,2692.549936
+1717,"San Martin Totoltepec, Puebla",San Martin Totoltepec,Puebla,,TRUE,"SAN MARTIN TOTOLTEPEC, PUEBLA",33,53.3264,50.0621,1510.076485
+1718,"San Matias Tlalancaleca, Puebla",San Matias Tlalancaleca,Puebla,,TRUE,"SAN MATIAS TLALANCALECA, PUEBLA",1614,1897.6127,1863.0016,3131.876108
+1720,"San Miguel Xoxtla, Puebla",San Miguel Xoxtla,Puebla,,TRUE,"SAN MIGUEL XOXTLA, PUEBLA",238,142.9527,142.6433,2996.097959
+1722,"San Nicolas de los Ranchos, Puebla",San Nicolas de los Ranchos,Puebla,,TRUE,"SAN NICOLAS DE LOS RANCHOS, PUEBLA",1349,867.4155,833.0505,2558.527724
+1724,"San Pedro Cholula, Puebla",San Pedro Cholula,Puebla,,TRUE,"SAN PEDRO CHOLULA, PUEBLA",1071,585.7376,537.6264,2944.988937
+1727,"San Salvador el Verde, Puebla",San Salvador el Verde,Puebla,,TRUE,"SAN SALVADOR EL VERDE, PUEBLA",1265,1491.3479,1455.7495,3062.856487
+1728,"San Salvador Huixcolotla, Puebla",San Salvador Huixcolotla,Puebla,,TRUE,"SAN SALVADOR HUIXCOLOTLA, PUEBLA",485,667.4891,647.8313,3962.215472
+1730,"Santa Catarina Tlaltempan, Puebla",Santa Catarina Tlaltempan,Puebla,,TRUE,"SANTA CATARINA TLALTEMPAN, PUEBLA",C,194.1367,176.7023,861.603952
+1732,"Santa Isabel Cholula, Puebla",Santa Isabel Cholula,Puebla,,TRUE,"SANTA ISABEL CHOLULA, PUEBLA",617,409.3833,377.2236,2629.742943
+1735,"Santo Tomas Hueyotlipan, Puebla",Santo Tomas Hueyotlipan,Puebla,,TRUE,"SANTO TOMAS HUEYOTLIPAN, PUEBLA",309,327.0897,313.7374,3504.174829
+1736,"Soltepec, Puebla",Soltepec,Puebla,,TRUE,"SOLTEPEC, PUEBLA",1593,3656.1789,3331.7873,2511.390388
+1737,"Tecali de Herrera, Puebla",Tecali de Herrera,Puebla,,TRUE,"TECALI DE HERRERA, PUEBLA",1709,2606.8324,2445.094,1334.696785
+1738,"Tecamachalco, Puebla",Tecamachalco,Puebla,,TRUE,"TECAMACHALCO, PUEBLA",2866,5261.5067,4770.5114,3556.345636
+1743,"Teopantlan, Puebla",Teopantlan,Puebla,,TRUE,"TEOPANTLAN, PUEBLA",798,1077.9988,1064.9276,1330.302079
+1747,"Tepatlaxco de Hidalgo, Puebla",Tepatlaxco de Hidalgo,Puebla,,TRUE,"TEPATLAXCO DE HIDALGO, PUEBLA",795,1967.4093,1861.2156,1155.520833
+1748,"Tepeaca, Puebla",Tepeaca,Puebla,,TRUE,"TEPEACA, PUEBLA",2813,4617.61,3965.1047,2113.804586
+1749,"Tepemaxalco, Puebla",Tepemaxalco,Puebla,,TRUE,"TEPEMAXALCO, PUEBLA",175,208.9632,207.8382,1052.313771
+1750,"Tepeojuma, Puebla",Tepeojuma,Puebla,,TRUE,"TEPEOJUMA, PUEBLA",450,570.9925,528.9172,2316.934484
+1752,"Tepexco, Puebla",Tepexco,Puebla,,TRUE,"TEPEXCO, PUEBLA",C,610.3848,600.0382,1046.358215
+1755,"Tepeyahualco de Cuauhtemoc, Puebla",Tepeyahualco de Cuauhtemoc,Puebla,,TRUE,"TEPEYAHUALCO DE CUAUHTEMOC, PUEBLA",143,176.5652,174.5653,3793.499624
+1759,"Tianguismanalco, Puebla",Tianguismanalco,Puebla,,TRUE,"TIANGUISMANALCO, PUEBLA",827,848.2351,616.3078,2503.128956
+1760,"Tilapa, Puebla",Tilapa,Puebla,,TRUE,"TILAPA, PUEBLA",280,558.3525,534.4286,2031.089654
+1764,"Tlahuapan, Puebla",Tlahuapan,Puebla,,TRUE,"TLAHUAPAN, PUEBLA",2888,5115.9792,5009.4611,2558.842627
+1765,"Tlaltenango, Puebla",Tlaltenango,Puebla,,TRUE,"TLALTENANGO, PUEBLA",409,566.1856,554.7496,3868.654254
+1766,"Tlanepantla, Puebla",Tlanepantla,Puebla,,TRUE,"TLANEPANTLA, PUEBLA",90,148.9225,148.2597,3574.577582
+1769,"Tlapanala, Puebla",Tlapanala,Puebla,,TRUE,"TLAPANALA, PUEBLA",411,699.0491,629.2185,2747.950036
+1772,"Tochimilco, Puebla",Tochimilco,Puebla,,TRUE,"TOCHIMILCO, PUEBLA",2116,2120.4048,1939.3025,1491.357382
+1773,"Tochtepec, Puebla",Tochtepec,Puebla,,TRUE,"TOCHTEPEC, PUEBLA",1858,2685.6984,2600.5311,3102.222773
+1777,"Tzicatlacoyan, Puebla",Tzicatlacoyan,Puebla,,TRUE,"TZICATLACOYAN, PUEBLA",1418,2186.0128,2000.4018,649.7867578
+1785,"Xochiltepec, Puebla",Xochiltepec,Puebla,,TRUE,"XOCHILTEPEC, PUEBLA",210,274.4152,264.5092,2098.242708
+1787,"Xochitlan Todos Santos, Puebla",Xochitlan Todos Santos,Puebla,,TRUE,"XOCHITLAN TODOS SANTOS, PUEBLA",1146,2596.4833,2458.7028,2435.620686
+1789,"Yehualtepec, Puebla",Yehualtepec,Puebla,,TRUE,"YEHUALTEPEC, PUEBLA",1334,2824.8024,2485.3199,2406.099593
+2043,"Amaxac de Guerrero, Tlaxcala",Amaxac de Guerrero,Tlaxcala,Tlaxcala,TRUE,"AMAXAC DE GUERRERO, TLAXCALA",362,258.6885,217.7412,1757.152069
+2044,"Apetatitlan de Antonio Carvajal, Tlaxcala",Apetatitlan de Antonio Carvajal,Tlaxcala,Tlaxcala,TRUE,"APETATITLAN DE ANTONIO CARVAJAL, TLAXCALA",376,161.1769,141.3465,1279.939723
+2045,"Atlangatepec, Tlaxcala",Atlangatepec,Tlaxcala,Tlaxcala,TRUE,"ATLANGATEPEC, TLAXCALA",722,2220.7105,2104.8916,1759.392218
+2046,"Altzayanca, Tlaxcala",Altzayanca,Tlaxcala,Tlaxcala,TRUE,"ATLTZAYANCA, TLAXCALA",2087,7987.1077,7485.2718,1764.979049
+2047,"Apizaco, Tlaxcala",Apizaco,Tlaxcala,Tlaxcala,TRUE,"APIZACO, TLAXCALA",811,1580.3443,1414.3722,1226.378955
+2048,"Calpulalpan, Tlaxcala",Calpulalpan,Tlaxcala,Tlaxcala,TRUE,"CALPULALPAN, TLAXCALA",875,3363.3724,3286.257,3045.403631
+2049,"El Carmen Tequexquitla, Tlaxcala",El Carmen Tequexquitla,Tlaxcala,Tlaxcala,TRUE,"EL CARMEN TEQUEXQUITLA, TLAXCALA",1146,2152.3372,2005.7591,1280.618395
+2050,"Cuapiaxtla, Tlaxcala",Cuapiaxtla,Tlaxcala,Tlaxcala,TRUE,"CUAPIAXTLA, TLAXCALA",1366,5107.8537,4990.4954,2926.904511
+2051,"Cuaxomulco, Tlaxcala",Cuaxomulco,Tlaxcala,Tlaxcala,TRUE,"CUAXOMULCO, TLAXCALA",490,644.7307,638.4985,1465.978385
+2052,"Chiautempan, Tlaxcala",Chiautempan,Tlaxcala,Tlaxcala,TRUE,"CHIAUTEMPAN, TLAXCALA",2276,1180.2314,1039.8393,2185.753991
+2053,"Muñoz de Domingo Arenas, Tlaxcala",Muñoz de Domingo Arenas,Tlaxcala,Tlaxcala,TRUE,"MUNOZ DE DOMINGO ARENAS, TLAXCALA",312,1547.6319,1539.7932,1938.683454
+2054,"Españita, Tlaxcala",Españita,Tlaxcala,Tlaxcala,TRUE,"ESPANITA, TLAXCALA",1148,2696.6957,2636.7763,1973.545462
+2055,"Huamantla, Tlaxcala",Huamantla,Tlaxcala,Tlaxcala,TRUE,"HUAMANTLA, TLAXCALA",4495,17933.2657,16795.6563,2315.039907
+2056,"Hueyotlipan, Tlaxcala",Hueyotlipan,Tlaxcala,Tlaxcala,TRUE,"HUEYOTLIPAN, TLAXCALA",1226,3188.2387,3045.031,1905.38717
+2057,"Ixtacuixtla de Mariano Matamoros, Tlaxcala",Ixtacuixtla de Mariano Matamoros,Tlaxcala,Tlaxcala,TRUE,"IXTACUIXTLA DE MARIANO MATAMOROS, TLAXCALA",2801,4118.9839,3992.3528,2410.917542
+2058,"Ixtenco, Tlaxcala",Ixtenco,Tlaxcala,Tlaxcala,TRUE,"IXTENCO, TLAXCALA",968,3536.1318,3418.1663,1913.488791
+2059,"Mazatecochco de Jose Maria Morelos, Tlaxcala",Mazatecochco de Jose Maria Morelos,Tlaxcala,Tlaxcala,TRUE,"MAZATECOCHCO DE JOSE MARIA MORELOS, TLAXCALA",731,533.0177,530.5857,2556.237758
+2060,"Contla de Juan Cuamatzi, Tlaxcala",Contla de Juan Cuamatzi,Tlaxcala,Tlaxcala,TRUE,"CONTLA DE JUAN CUAMATZI, TLAXCALA",1418,689.7499,619.7937,1872.54146
+2061,"Tepetitla de Lardizabal, Tlaxcala",Tepetitla de Lardizabal,Tlaxcala,Tlaxcala,TRUE,"TEPETITLA DE LARDIZABAL, TLAXCALA",1419,1155.4912,1101.9783,2816.893944
+2062,"Sanctorum de Lazaro Cardenas, Tlaxcala",Sanctorum de Lazaro Cardenas,Tlaxcala,Tlaxcala,TRUE,"SANCTORUM DE LAZARO CARDENAS, TLAXCALA",566,1810.3933,1777.4489,2579.380651
+2063,"Nanacamilpa de Mariano Arista, Tlaxcala",Nanacamilpa de Mariano Arista,Tlaxcala,Tlaxcala,TRUE,"NANACAMILPA DE MARIANO ARISTA, TLAXCALA",676,2437.1484,2389.8012,3695.016305
+2064,"Acuamanala de Miguel Hidalgo, Tlaxcala",Acuamanala de Miguel Hidalgo,Tlaxcala,Tlaxcala,TRUE,"ACUAMANALA DE MIGUEL HIDALGO, TLAXCALA",600,336.9526,315.1674,2843.138599
+2065,"Nativitas, Tlaxcala",Nativitas,Tlaxcala,Tlaxcala,TRUE,"NATIVITAS, TLAXCALA",2202,1836.1589,1649.1321,2839.27655
+2066,"Panotla, Tlaxcala",Panotla,Tlaxcala,Tlaxcala,TRUE,"PANOTLA, TLAXCALA",2155,2721.2951,2621.483,1205.902804
+2067,"San Pablo del Monte, Tlaxcala",San Pablo del Monte,Tlaxcala,Tlaxcala,TRUE,"SAN PABLO DEL MONTE, TLAXCALA",2216,1431.8369,1416.9741,2958.444547
+2068,"Santa Cruz Tlaxcala, Tlaxcala",Santa Cruz Tlaxcala,Tlaxcala,Tlaxcala,TRUE,"SANTA CRUZ TLAXCALA, TLAXCALA",916,1241.3294,597.8896,1667.062448
+2069,"Tenancingo, Tlaxcala",Tenancingo,Tlaxcala,Tlaxcala,TRUE,"TOCATLAN, TLAXCALA",C,1357.9177,1356.3977,640.2715074
+2070,"Teolocholco, Tlaxcala",Teolocholco,Tlaxcala,Tlaxcala,TRUE,"TENANCINGO, TLAXCALA",1033,959.0383,877.3157,1812.378486
+2071,"Tepeyanco, Tlaxcala",Tepeyanco,Tlaxcala,Tlaxcala,TRUE,"TEOLOCHOLCO, TLAXCALA",761,322.4297,300.0797,3020.606859
+2072,"Terrenate, Tlaxcala",Terrenate,Tlaxcala,Tlaxcala,TRUE,"TEPEYANCO, TLAXCALA",1164,4185.7126,3970.4962,1347.437859
+2073,"Tetla de la Solidaridad, Tlaxcala",Tetla de la Solidaridad,Tlaxcala,Tlaxcala,TRUE,"TERRENATE, TLAXCALA",2151,4669.1681,4058.8479,1461.210261
+2074,"Tetlatlahuca, Tlaxcala",Tetlatlahuca,Tlaxcala,Tlaxcala,TRUE,"TETLA DE LA SOLIDARIDAD, TLAXCALA",994,1015.0191,807.3456,2418.801069
+2075,"Tlaxcala, Tlaxcala",Tlaxcala,Tlaxcala,Tlaxcala,TRUE,"TETLATLAHUCA, TLAXCALA",944,539.9154,479.1168,2137.212888
+2076,"Tlaxco, Tlaxcala",Tlaxco,Tlaxcala,Tlaxcala,TRUE,"TLAXCALA, TLAXCALA",2825,8125.9222,7461.8636,1630.163596
+2077,"Tocatlan, Tlaxcala",Tocatlan,Tlaxcala,Tlaxcala,TRUE,"TLAXCO, TLAXCALA",254,705.1905,652.0534,1689.671735
+2078,"Totolac, Tlaxcala",Totolac,Tlaxcala,Tlaxcala,TRUE,"TOTOLAC, TLAXCALA",393,140.6049,135.6892,2214.74959
+2079,"Zitlaltepec de Trinidad Sanchez Santos, Tlaxcala",Zitlaltepec de Trinidad Sanchez Santos,Tlaxcala,Tlaxcala,TRUE,"ZILTLALTEPEC DE TRINIDAD SANCHEZ SANTOS, TLAXCALA",1494,3360.1244,3287.3699,2091.67575
+2080,"Tzompantepec, Tlaxcala",Tzompantepec,Tlaxcala,Tlaxcala,TRUE,"TZOMPANTEPEC, TLAXCALA",855,1534.7542,1396.7474,1576.328261
+2081,"Xaloztoc, Tlaxcala",Xaloztoc,Tlaxcala,Tlaxcala,TRUE,"XALOZTOC, TLAXCALA",1001,2254.6483,2093.3263,1271.420657
+2082,"Xaltocan, Tlaxcala",Xaltocan,Tlaxcala,Tlaxcala,TRUE,"XALTOCAN, TLAXCALA",1238,2809.1787,2750.8034,1227.72409
+2083,"Papalotla de Xicohtencatl, Tlaxcala",Papalotla de Xicohtencatl,Tlaxcala,Tlaxcala,TRUE,"PAPALOTLA DE XICOHTENCATL, TLAXCALA",901,1746.9077,1733.6349,802.0546887
+2084,"Xicohtzinco, Tlaxcala",Xicohtzinco,Tlaxcala,Tlaxcala,TRUE,"XICOHTZINCO, TLAXCALA",422,272.7745,265.0629,2514.120988
+2085,"Yauhquemecan, Tlaxcala",Yauhquemecan,Tlaxcala,Tlaxcala,TRUE,"YAUHQUEMEHCAN, TLAXCALA",886,1126.1188,1077.8824,1171.898159
+2086,"Zacatelco, Tlaxcala",Zacatelco,Tlaxcala,Tlaxcala,TRUE,"ZACATELCO, TLAXCALA",1549,1172.3583,1120.3089,2598.050145
+2087,"Benito Juarez, Tlaxcala",Benito Juarez,Tlaxcala,Tlaxcala,TRUE,,207,659.4549,640.0108,2700.631458
+2088,"Emiliano Zapata, Tlaxcala",Emiliano Zapata,Tlaxcala,Tlaxcala,TRUE,,476,814.1191,796.3706,1200.434446
+2089,"Lazaro Cardenas, Tlaxcala",Lazaro Cardenas,Tlaxcala,Tlaxcala,TRUE,,257,527.2066,443.9488,2600.693819
+2090,"La Magdalena Tlaltelulco, Tlaxcala",La Magdalena Tlaltelulco,Tlaxcala,Tlaxcala,TRUE,,869,234.4473,226.5976,2593.162505
+2091,"San Damian Texoloc, Tlaxcala",San Damian Texoloc,Tlaxcala,Tlaxcala,TRUE,,522,347.9549,331.9023,2535.778752
+2092,"San Francisco Tetlanohcan, Tlaxcala",San Francisco Tetlanohcan,Tlaxcala,Tlaxcala,TRUE,,828,320.8418,276.2443,2378.325634
+2093,"San Jeronimo Zacualpan, Tlaxcala",San Jeronimo Zacualpan,Tlaxcala,Tlaxcala,TRUE,,259,177.5442,163.6193,2763.920882
+2094,"San Jose Teacalco, Tlaxcala",San Jose Teacalco,Tlaxcala,Tlaxcala,TRUE,,646,2555.5807,2530.7367,1870.844486
+2095,"San Juan Huactzinco, Tlaxcala",San Juan Huactzinco,Tlaxcala,Tlaxcala,TRUE,,198,129.7014,91.0051,3449.278117
+2096,"San Lorenzo Axocomanitla, Tlaxcala",San Lorenzo Axocomanitla,Tlaxcala,Tlaxcala,TRUE,,263,129.5732,100.7421,3406.092388
+2097,"San Lucas Tecopilco, Tlaxcala",San Lucas Tecopilco,Tlaxcala,Tlaxcala,TRUE,,236,723.0832,700.9693,1344.402815
+2098,"Santa Ana Nopalucan, Tlaxcala",Santa Ana Nopalucan,Tlaxcala,Tlaxcala,TRUE,,578,280.5227,276.689,3050.928299
+2099,"Santa Apolonia Teacalco, Tlaxcala",Santa Apolonia Teacalco,Tlaxcala,Tlaxcala,TRUE,,282,173.9456,158.7759,3122.709429
+2100,"Santa Catarina Ayometla, Tlaxcala",Santa Catarina Ayometla,Tlaxcala,Tlaxcala,TRUE,,661,390.3955,379.9466,2766.953567
+2101,"Santa Cruz Quilehtla, Tlaxcala",Santa Cruz Quilehtla,Tlaxcala,Tlaxcala,TRUE,,349,121.2997,118.9135,3578.42213
+2102,"Santa Isabel Xiloxoxtla, Tlaxcala",Santa Isabel Xiloxoxtla,Tlaxcala,Tlaxcala,TRUE,,C,94.8761,90.7534,2516.658329

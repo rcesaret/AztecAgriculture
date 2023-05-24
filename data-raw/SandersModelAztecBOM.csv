@@ -1,0 +1,41 @@
+Name,Region,BOM,TimeSeries,TimeSeriesAvg,TimeAvg,ExactReport,Yield,Series
+Temporal and Floodwater Irrigation Area below 2200m,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,700,Sanders Aztec Model
+Temporal and Floodwater Irrigation Area below 2200m,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Chinampa Freshwater Lakebed,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,3000,Sanders Aztec Model
+Chinampa Freshwater Lakebed,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,3000,Sanders Aztec Model
+Pseudo Chinampa Saline Lakebed,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,2000,Sanders Aztec Model
+Humedad (riverine) Deep Soil Alluvial Floodplain,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1200,Sanders Aztec Model
+Humedad (riverine) Deep Soil Alluvial Floodplain,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1200,Sanders Aztec Model
+Humedad (riverine) Deep Soil Alluvial Floodplain,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1200,Sanders Aztec Model
+Humedad Deep Soil Alluvial Lakeshore,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1400,Sanders Aztec Model
+Humedad Deep Soil Alluvial Lakeshore,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1400,Sanders Aztec Model
+Permanent Irrigation  Well-Drained Deep Soil Plain,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1400,Sanders Aztec Model
+Permanent Irrigation  Well-Drained Deep Soil Plain,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1400,Sanders Aztec Model
+Permanent Irrigation  Well-Drained Deep Soil Plain,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1400,Sanders Aztec Model
+Temporal and Floodwater Irrigation Well-Drained Deep Soil Plain,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1000,Sanders Aztec Model
+Temporal and Floodwater Irrigation Well-Drained Deep Soil Plain,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1000,Sanders Aztec Model
+Floodwater Irrigation Thin Soil Plain,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Floodwater Irrigation Thin Soil Plain,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Temporal Thin Soil Plain,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,600,Sanders Aztec Model
+Temporal and Floodwater Irrigation Upper Alluvium,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1000,Sanders Aztec Model
+Permanent Irrigation Lower Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1000,Sanders Aztec Model
+Floodwater Irrigation Lower Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Floodwater Irrigation Lower Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Floodwater Irrigation Lower Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Floodwater Irrigation Lower Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Temporal Lower Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,400,Sanders Aztec Model
+Temporal Lower Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,600,Sanders Aztec Model
+Temporal Lower Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,600,Sanders Aztec Model
+Temporal Lower Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Permanent Irrigation Middle Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1000,Sanders Aztec Model
+Floodwater Irrigation Middle Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Floodwater Irrigation Middle Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Floodwater Irrigation Middle Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Floodwater Irrigation Middle Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Temporal Middle Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,700,Sanders Aztec Model
+Temporal Middle Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,500,Sanders Aztec Model
+Permanent Irrigation  Upper Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,1000,Sanders Aztec Model
+Floodwater Irrigation  Upper Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Floodwater Irrigation  Upper Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,800,Sanders Aztec Model
+Temporal  Upper Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,700,Sanders Aztec Model
+Temporal  Upper Piedmont,BOM,TRUE,FALSE,FALSE,FALSE,FALSE,500,Sanders Aztec Model

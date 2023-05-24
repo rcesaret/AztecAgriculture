@@ -1,0 +1,36 @@
+Name,Region,Sector,Env Zone,EZ,Cultivation System,CultivSys,Town,YieldRangeLower,YieldRangeUpper,YieldAvgRangeLow,YieldAvg,YieldAvgRangeHigh
+Atlatongo (Teo) Alluvial Plain Permanent Irrigation,Teotihuacan Valley,Lower Valley,Alluvial Plain,Alluvial Plain,Permanent Irrigation,Permanent Irrigation,Atlatongo,900,2250,1500,1875,2250
+Calvario Acolman (Teo) Alluvial Plain Permanent Irrigation,Teotihuacan Valley,Lower Valley,Alluvial Plain,Alluvial Plain,Permanent Irrigation,Permanent Irrigation,Calvario Acolman,1200,1500,1200,1350,1500
+San Pablo Isquitlan (Teo) Alluvial Plain Floodwater Irrigation,Teotihuacan Valley,Middle Valley,Alluvial Plain,Alluvial Plain,Floodwater Irrigation,Floodwater Irrigation,San Pablo Isquitlan,900,1500,,1200,
+San Martin (Teo) Alluvial Plain Floodwater Irrigation,Teotihuacan Valley,Middle Valley,Alluvial Plain,Alluvial Plain,Floodwater Irrigation,Floodwater Irrigation,San Martin,900,3000,1500,1875,2250
+San Pablo Isquitlan (Teo) Alluvial Plain Temporal,Teotihuacan Valley,Middle Valley,Alluvial Plain,Alluvial Plain,Temporal,Temporal,San Pablo Isquitlan,600,900,,750,
+San Martin (Teo) Alluvial Plain Temporal,Teotihuacan Valley,Middle Valley,Alluvial Plain,Alluvial Plain,Temporal,Temporal,San Martin,450,2000,,600,
+Santa Maria Coatlan (Teo) Alluvial Plain Temporal,Teotihuacan Valley,Middle Valley,Alluvial Plain,Alluvial Plain,Temporal,Temporal,Santa Maria Coatlan,450,1800,,600,
+San Francisco Mazapan (Teo) Alluvial Plain Temporal,Teotihuacan Valley,Middle Valley,Alluvial Plain,Alluvial Plain,Temporal,Temporal,San Francisco Mazapan,450,1800,,600,
+San Cristobal Colhuacan (Teo) Piedmont Floodwater Irrigation,Teotihuacan Valley,Cerro Gordo North Slope,Lower Piedmont,Piedmont,Presa humedad,Floodwater Irrigation,San Cristobal Colhuacan,1500,2250,,1875,
+Santa Maria Maquixco el Alto (Teo) Piedmont Temporal,Teotihuacan Valley,Cerro Gordo North Slope,Lower Piedmont,Piedmont,Terrace,Temporal,Santa Maria Maquixco el Alto,1050,2250,,1350,
+Santa Maria Maquixco el Alto (Teo) Piedmont Floodwater Irrigation,Teotihuacan Valley,Cerro Gordo North Slope,Lower Piedmont,Piedmont,Presa humedad,Floodwater Irrigation,Santa Maria Maquixco el Alto,1250,3000,,1800,
+San Cristobal Colhuacan (Teo) Piedmont Temporal,Teotihuacan Valley,Cerro Gordo North Slope,Lower Piedmont,Piedmont,Temporal,Temporal,San Cristobal Colhuacan,950,1500,1050,1125,1200
+Santa Maria Maquixco el Alto (Teo) Piedmont Temporal,Teotihuacan Valley,Cerro Gordo North Slope,Lower Piedmont,Piedmont,Temporal,Temporal,Santa Maria Maquixco el Alto,900,1500,1050,1125,1200
+San Miguel Tocuila (Tex) Alluvial Plain Permanent Irrigation,Texcoco Region,Alluvial Plain,Alluvial Plain,Alluvial Plain,Permanent Irrigation,Permanent Irrigation,San Miguel Tocuila,900,3000,,1950,1200
+San Salvador Atenco (Tex) Alluvial Plain Permanent Irrigation,Texcoco Region,Alluvial Plain,Alluvial Plain,Alluvial Plain,Permanent Irrigation,Permanent Irrigation,San Salvador Atenco,1000,3750,,1850,
+Papalotla (Tex) Alluvial Plain Permanent Irrigation,Texcoco Region,Alluvial Plain,Alluvial Plain,Alluvial Plain,Permanent Irrigation,Permanent Irrigation,Papalotla,,,,3000,
+San Miguel Tocuila (Tex) Alluvial Plain Temporal,Texcoco Region,Alluvial Plain,Alluvial Plain,Alluvial Plain,Temporal,Temporal,San Miguel Tocuila,,,,700,
+San Salvador Atenco (Tex) Alluvial Plain Temporal,Texcoco Region,Alluvial Plain,Alluvial Plain,Alluvial Plain,Temporal,Temporal,San Salvador Atenco,900,1050,,1000,
+San Vicente Chicoloapan (Tex) Alluvial Plain Temporal,Texcoco Region,Alluvial Plain,Alluvial Plain,Alluvial Plain,Temporal,Temporal,San Vicente Chicoloapan,550,3025,,1600,
+Papalotla (Tex) Alluvial Plain Temporal,Texcoco Region,Alluvial Plain,Alluvial Plain,Alluvial Plain,Temporal,Temporal,Papalotla,1125,3600,,2660,
+San Digueto (Tex) Piedmont Floodwater Irrigation,Texcoco Region,Lower Piedmont,Lower Piedmont,Piedmont,Floodwater Irrigation,Floodwater Irrigation,San Digueto,,,,1475,
+San Digueto (Tex) Piedmont Temporal,Texcoco Region,Lower Piedmont,Lower Piedmont,Piedmont,Temporal,Temporal,San Digueto,500,3150,,1725,
+San Pedro Chiautzingo (Tex) Piedmont Temporal,Texcoco Region,Lower Piedmont,Lower Piedmont,Piedmont,Temporal,Temporal,San Pedro Chiautzingo,500,2085,,1350,
+Coatepec (Tex) Piedmont Temporal,Texcoco Region,Lower Piedmont,Lower Piedmont,Piedmont,Temporal,Temporal,Coatepec,,,,1845,
+San Miguel Tlaixpan (Tex) Piedmont Temporal,Texcoco Region,Lower Piedmont,Lower Piedmont,Piedmont,Temporal,Temporal,San Miguel Tlaixpan,940,1800,,1320,
+San Gregorio Amanalco (Tex) Piedmont Floodwater Irrigation,Texcoco Region,Upper Piedmont,Upper Piedmont,Piedmont,Floodwater Irrigation,Floodwater Irrigation,San Gregorio Amanalco,1665,3120,,2390,
+San Gregorio Amanalco (Tex) Piedmont Temporal,Texcoco Region,Upper Piedmont,Upper Piedmont,Piedmont,Temporal,Temporal,San Gregorio Amanalco,940,1800,,1370,
+San Gregorio Atlapulco (Xo) Piedmont Temporal,Xochimilco Region,El Cerro,Lower Piedmont,Piedmont,Canada Humedad Temporal,Temporal,San Gregorio Atlapulco,2000,4500,,3000,
+San Gregorio Atlapulco (Xo) Piedmont Temporal,Xochimilco Region,El Cerro,Lower Piedmont,Piedmont,Canada Humedad Temporal,Temporal,San Gregorio Atlapulco,1200,1500,,1350,
+San Gregorio Atlapulco (Xo) Piedmont Temporal,Xochimilco Region,El Cerro,Lower Piedmont,Piedmont,Canada Humedad Temporal,Temporal,San Gregorio Atlapulco,2280,2850,,2565,
+San Gregorio Atlapulco (Xo) Piedmont Temporal,Xochimilco Region,Teuhtli Slope Loma,Lower Piedmont,Piedmont,Temporal,Temporal,San Gregorio Atlapulco,1800,2250,,2025,
+San Gregorio Atlapulco (Xo) Piedmont Temporal,Xochimilco Region,Teuhtli Slope Loma,Lower Piedmont,Piedmont,Temporal,Temporal,San Gregorio Atlapulco,900,1125,,1012.5,
+San Gregorio Atlapulco (Xo) Lakebed Lake Bottom Humedad Temporal,Xochimilco Region,Lakebed,Lakebed,Lakebed,Lake Bottom Humedad Temporal,Lake Bottom Humedad Temporal,San Gregorio Atlapulco,,,,1900,
+San Gregorio Atlapulco (Xo) Lakebed Chinampa,Xochimilco Region,Lakebed,Lakebed,Lakebed,Chinampa,Chinampa,San Gregorio Atlapulco,3600,4950,,4294,
+Tlahuac (Xo) Lakebed Chinampa,Xochimilco Region,Lakebed,Lakebed,Lakebed,Chinampa,Chinampa,Tlahuac,3750,6300,,4971,
