@@ -1,6 +1,6 @@
 ---
-title: "Agricultural Productivity Model"
-subtitle: "Part 2: RF Data"
+title: "Aztec Agricultural Productivity Model"
+subtitle: "Part 2: Random Forest Model"
 author: "Rudolf Cesaretti"
 date: "Last run on `r Sys.Date()`"
 output:
@@ -53,7 +53,7 @@ wd <- list()
 
 #SET YOUR LOCAL DIRECTORY LOCATION HERE:
 wd$dir <- "D:/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
-#wd$dir <- "C:/Users/TJ McMote/Dropbox (ASU)/Huexotzinco/HuexTlaxAnal2022/HuexTlax2022Analysis/"
+#wd$dir <- "C:/Users/TJ McMote/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
 
 wd$analysis <- paste0(wd$dir,"analysis/")
 wd$data_r <- paste0(wd$dir,"data-raw/")
@@ -75,7 +75,7 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "purrr", "spatialEco", "whitebox", "classInt","ggnewscale", "lbmech", 
               "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
-              "stringi", "fuzzyjoin", "mgcv")#, "data.table", "zoo", "era", "JOPS", "mgcv","igraph",  "ggrepel","ggridges", "movecost",  "datplot", "scales",
+              "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "exactextractr")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -89,7 +89,7 @@ invisible(lapply(packages, library, character.only = TRUE))
 rm(packages,installed_packages)
 
 #Read in custom R functions located in the wd$funcs directory folder
-FUNCS <- list("RescaleSpatRast.R", "Terra_df.R")#"splitByAttributes.R", 
+FUNCS <- list("RescaleSpatRast.R", "Terra_df.R", "RF_ImputeRast.R")
 invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
 rm(FUNCS)
 
@@ -100,8 +100,8 @@ rm(FUNCS)
 
 ## Load Data from Previous Script
 
-```{r}
-
+```{r, label='Import Data from Part 1', message=FALSE,warning=FALSE}
+Municipios2000s <- st_read(paste0(wd$data_r, "Municipios2000s_Data.gpkg"))
 
 load(paste0(wd$data_r, "Data2000s_poly.rData"))
 
@@ -111,8 +111,6 @@ TopoEnv_r <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
 Soil_r <- rast(paste0(wd$data_r, "Soil_r_resampled.tif"))
 
 Clim_r <- rast(paste0(wd$data_r, "Clim_r_resampled.tif"))
-
-
 
 ```
 
@@ -129,7 +127,7 @@ out <- (out + stdev) / (2 * stdev)
 #### Subset Raster Data
 
 
-```{r}
+```{r, label='Subset Environmental Data Rasters', message=FALSE,warning=FALSE}
 Soil_r_sub <- subset(Soil_r, c("BD","S", "Z","C","SOC","CEC","OCD","N", "BDRICM", "BDTICM"))
 
 TopoEnv_r_sub <- subset(TopoEnv_r, c("DEM", "slope","Accum", "TRI", "TWI", "STI", "SPI"))
@@ -142,13 +140,15 @@ Clim_r_sub <- subset(Clim_r, c("prec_04", "prec_05", "prec_06", "prec_07", "prec
                                "rsds_04", "rsds_05", "rsds_06", "rsds_07", "rsds_08", "rsds_09", "rsds_10", "rsds_11"
                                ))
 
-mymean <- function(x){
-  out <- mean(x, na.rm=T)
-  return(out)
-}
+#mymean <- function(x){
+#  out <- mean(x, na.rm=T)
+#  return(out)
+#}
 
 values <- exact_extract(x = Soil_r_sub, y = Data2000s_poly, fun = "mean", max_cells_in_memory = 8e+08, stack_apply=T, append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+
 values2 <- exact_extract(x = Soil_r_sub, y = Data2000s_poly, fun = "count", max_cells_in_memory = 8e+08, stack_apply=T, append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+
 #xx = cbind(st_drop_geometry(Data2000s_poly$EstadoMunicipio), values)
 
 #values <- exact_extract(x = Soil_r_sub[[1:2]], y = Data2000s_poly, fun = mymean, summarize_df = TRUE, max_cells_in_memory = 8e+08, stack_apply=T)

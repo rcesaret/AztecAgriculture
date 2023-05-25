@@ -1,5 +1,5 @@
 ---
-title: "Agricultural Productivity Model"
+title: "Aztec Agricultural Productivity Model"
 subtitle: "Part 1: Data"
 author: "Rudolf Cesaretti"
 date: "Last run on `r Sys.Date()`"
@@ -89,7 +89,7 @@ invisible(lapply(packages, library, character.only = TRUE))
 rm(packages,installed_packages)
 
 #Read in custom R functions located in the wd$funcs directory folder
-FUNCS <- list("RescaleSpatRast.R", "Terra_df.R")#"splitByAttributes.R", 
+FUNCS <- list("RescaleSpatRast.R", "Terra_df.R", "RF_ImputeRast.R")#"splitByAttributes.R", 
 invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
 rm(FUNCS)
 
@@ -121,13 +121,15 @@ Municipios2000s$Area_m2 <- st_area(Municipios2000s)
 Municipios2000s$Area_ha <- as.numeric(Municipios2000s$Area_m2)/10000
 Municipios2000s_Cases = st_drop_geometry(Municipios2000s)
 
+st_write(Municipios2000s, paste0(wd$data_r, "Municipios2000s_Data.gpkg"), driver = "GPKG", overwrite=T)
+
 ```
 
 
 
 ## 2010 Population Census
 
-```{r, 'Load/Organize 2007 Agricultural Census', message=FALSE, warning=FALSE}
+```{r, 'Load/Organize 2010 Population Census', message=FALSE, warning=FALSE}
 PopCensus2010 <- read.csv(paste0(wd$data_r,"AG_Model_2000s/PopCensus2010.csv"))
 PopCensus2010 <- PopCensus2010 %>% select(-MUN, -ORD, -MUN_NUM, -INCLUDE) %>% 
   unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F)
@@ -413,7 +415,7 @@ Temporal
 
 ### Merge SIAP with Land Use Polygons
 
-```{r}
+```{r, label='Merge SIAP with Land Use Polygons', message=FALSE,warning=FALSE}
 LU_Cases = LU_Cases %>% select(EstadoMunicipio, AGType)
 SIAP_Cases = SIAP_5 %>% select(EstadoMunicipio, AGType)
 #LU_Cases = st_drop_geometry(LU_Cases)
@@ -465,7 +467,7 @@ plot(Data2000s_poly["AGType"])
 
 ### Merge 2000s Census Data with SIAP-Land-Use Polygons
 
-```{r}
+```{r, label='Merge 2000s Census Data with SIAP-Land-Use Polygons', message=FALSE,warning=FALSE}
 
 Data2000s_poly = SIAP_LU_poly %>% left_join(Census2000s, 
            by = c("EstadoMunicipio", "Municipio", "Estado", "Estado_ID", "Municipio_ID"))
@@ -509,7 +511,8 @@ out <- (out + stdev) / (2 * stdev)
 }
 DEM_r <- terra::rast(raster(paste0(wd$data_r, "SRTM_30m_DEM_PueblaTlaxcala2_Smooth3.tif")))
 DEM = read_stars(paste0(wd$data_r, "SRTM_30m_DEM_PueblaTlaxcala2_Smooth3.tif"))
-```{r, label='Topographic Variables', message=FALSE,warning=FALSE}
+
+```{r, label='Load, Resample and Calculate Topographic Variable Rasters', message=FALSE,warning=FALSE}
 
 
 resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
@@ -668,7 +671,11 @@ library(tidyverse)
 library(terra)
 library(ranger)
 
-```{r}
+resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
+resample_100m <- disagg(resample_30m, 3)
+resample_100m <- aggregate(resample_100m, 10)
+
+```{r, label='Function for RF soil raster imputation of missing values', message=FALSE,warning=FALSE, eval = FALSE}
 DEM_r <- TopoEnv_r[[1]]
 Slope <- TopoEnv_r[[2]]
 Municipios2000s <- st_read(paste0(wd$data_r, "AG_Model_2000s/CMex_Municipios_2000s.gpkg"))
@@ -677,7 +684,7 @@ resample_100m_b = resample_100m
 values(resample_100m_b) <- 1
 m <- mask(resample_100m_b, Municipios2000s)#Data2000s_poly)
 
-r = BD
+r = C
 rnam = names(r)
 covs = c(DEM_r,Slope)
 Mask = m
@@ -687,10 +694,10 @@ save_mem = FALSE
 RF_ImputeRast <- function(r, # Terra SpatRast raster object
                           rnam = names(r), # name for df variable for raster values from focal SpatRast object
                           covs = NULL, # Terra SpatRast raster object with 1 or more stacked layers 
-						              Mask = NULL, # mask of focal area under consideration. Used in reducing the sample for the training dataset; training dataset first excludes areas outside of the mask before applying the sampling fraction
-						              SampFrac = 0.3, # sampling fraction for training dataset; applied after mask exclusions, if present (see Mask, above)
-						              save_mem = FALSE # whether the save.memory parameter should be used for the ranger random forest function
-                     ) {
+                          Mask = NULL, # mask of focal area under consideration. Used in reducing the sample for the training dataset; training dataset first excludes areas outside of the mask before applying the sampling fraction
+                          SampFrac = 0.3, # sampling fraction for training dataset; applied after mask exclusions, if present (see Mask, above)
+                          save_mem = FALSE # whether the save.memory parameter should be used for the ranger random forest function
+) {
   
   if (!is.null(Mask)){
     m_df = Terra_df(Mask, "mask")
@@ -700,7 +707,7 @@ RF_ImputeRast <- function(r, # Terra SpatRast raster object
   } else {
     r_df = Terra_df(r, rnam)
   }
-
+  
   if (!is.null(covs)){
     out_list <- list()  # or result_vector <- c()
     for (i in 1:nlyr(covs)) {
@@ -755,12 +762,17 @@ RF_ImputeRast <- function(r, # Terra SpatRast raster object
   r2[missing_values] <- df_values
   names(r2) <- rnam
   
+  out <- list()
+  out[[1]] <- r2
+  out[[2]] <- model$r.squared
+  out[[3]] <- model$prediction.error
+  out[[4]] <- model$num.trees
   
-  return(r2)
+  return(out)
 }
 
 
-#writeRaster(r2,paste0(wd$data_r,"BD_RF_interpolated.tif"), overwrite=TRUE)
+writeRaster(r2,paste0(wd$data_r,"C_RF_interpolated.tif"), overwrite=TRUE)
 
 
 ```
@@ -772,7 +784,51 @@ r[missing_vals] <- predicted_vals
 
 # Soil Data
 
-```{r}
+SCRIPT FOR SAVING MULTI-GIGABYTE SOILGRID DOWNLOADS TO HUEXTLAXANAL2022 DATA-RAW/SOILGRIDS FOLDER
+
+```{r, label='Soil Depth huge downloads cropping', eval = FALSE}
+
+# # SCRIPT FOR SAVING MULTI-GIGABYTE SOILGRID DOWNLOADS 
+# # TO HUEXTLAXANAL2022 DATA-RAW/SOILGRIDS FOLDER
+
+BDRICM <- raster("C:/Users/rcesaret/Downloads/BDRICM_M_250m_ll.tif")
+X <- projectRaster(WRB, crs = "+proj=longlat +datum=WGS84 +no_defs")
+r2 = raster(extent(X), resolution = c(0.00208, 0.00208), crs = crs(X))
+BDRICM <- crop(BDRICM, r2)
+BDRICM <- projectRaster(BDRICM, crs = prj)
+BDRICM <- resample(BDRICM, BD, method = "bilinear")
+writeRaster(BDRICM,paste0(wd$data_r,"SoilGrids/BDRICM.tif"), overwrite=TRUE)
+
+
+BDRLOG <- raster("C:/Users/rcesaret/Downloads/BDRLOG_M_250m_ll.tif")
+X <- projectRaster(WRB, crs = "+proj=longlat +datum=WGS84 +no_defs")
+r2 = raster(extent(X), resolution = c(0.00208, 0.00208), crs = crs(X))
+BDRLOG <- crop(BDRLOG, r2)
+BDRLOG <- projectRaster(BDRLOG, crs = prj)
+BDRLOG <- resample(BDRLOG, BD, method = "bilinear")
+writeRaster(BDRLOG,paste0(wd$data_r,"SoilGrids/BDRLOG.tif"), overwrite=TRUE)
+
+
+BDTICM <- raster("C:/Users/rcesaret/Downloads/BDTICM_M_250m_ll.tif")
+X <- projectRaster(WRB, crs = "+proj=longlat +datum=WGS84 +no_defs")
+r2 = raster(extent(X), resolution = c(0.00208, 0.00208), crs = crs(X))
+BDTICM <- crop(BDTICM, r2)
+BDTICM <- projectRaster(BDTICM, crs = prj)
+BDTICM <- resample(BDTICM, BD, method = "bilinear")
+writeRaster(BDTICM,paste0(wd$data_r,"SoilGrids/BDTICM.tif"), overwrite=TRUE)
+
+```
+
+
+
+```{r, label='Load, resample and RF impute Soil Rasters', message=FALSE, warning=FALSE}
+###############################################
+resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
+resample_100m <- disagg(resample_30m, 3)
+resample_100m <- aggregate(resample_100m, 10)
+TopoEnv_r <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
+###############################################
+
 DEM_r <- TopoEnv_r[[1]]
 Slope <- TopoEnv_r[[2]]
 
@@ -953,7 +1009,7 @@ OCD <- OCDi[[1]]
 rm(OCDi)
 
 # Nitrogen
-N_0_5 <- rast(paste0(wd$data_r, "SoilGrids/N_0_5.tif"))
+N_0_5 <- raster(paste0(wd$data_r, "SoilGrids/N_0_5.tif"))
 N_0_5[N_0_5 == 0] <- NA
 N_5_15 <- raster(paste0(wd$data_r, "SoilGrids/N_5_15.tif"))
 N_5_15[N_5_15 == 0] <- NA
@@ -965,8 +1021,8 @@ N <- resample(rast(N), resample_100m, method = "bilinear")
 rm(N_0_5, N_5_15, N_15_30)
 names(N) <- "N"
 Ni <- RF_ImputeRast(r = N, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
-N <- Ni[[1]]
-rm(Ni)
+#N <- Ni[[1]]
+#rm(Ni)
 
 #Soil organic carbon stock
 SOCS <- rast(paste0(wd$data_r, "SoilGrids/SOCS_0_30.tif"))
@@ -974,56 +1030,20 @@ SOCS[SOCS == 0] <- NA
 SOCS <- resample(rast(SOCS), resample_100m, method = "bilinear")
 names(SOCS) <- "SOCS"
 SOCSi <- RF_ImputeRast(r = SOCS, covs = c(DEM_r,Slope), Mask = m, SampFrac = 0.3, save_mem = FALSE)
-SOCS <- SOCSi[[1]]
-rm(SOCSi)
+#SOCS <- SOCSi[[1]]
+#rm(SOCSi)
 
 #Stack
-Soil = c(BD, S, Z, C, SOC, CEC, OCD, N, SOCS, BDRICM, BDRLOG, BDTICM)
-#names(Soil) = c("BD", "S", "Z", "C", "SOC", "CEC", "OCD", "N", "SOCS", "BDRICM", "BDRLOG", "BDTICM")
+#Soil = c(BDRICM, BDRLOG, BDTICM, BD, S, Z, C, SOC, CEC, OCD, N, SOCS)
+####names(Soil) = c("BD", "S", "Z", "C", "SOC", "CEC", "OCD", "N", "SOCS", "BDRICM", "BDRLOG", "BDTICM")
 
 
-writeRaster(Soil, filename = paste0(wd$data_r, "Soil_r_resampled.tif"), overwrite=TRUE)
-
-```
-
-
-
-
-```{r}
-
-# # SCRIPT FOR SAVING MULTI-GIGABYTE SOILGRID DOWNLOADS 
-# # TO HUEXTLAXANAL2022 DATA-RAW/SOILGRIDS FOLDER
-
-BDRICM <- raster("C:/Users/rcesaret/Downloads/BDRICM_M_250m_ll.tif")
-##"+proj=longlat +datum=WGS84 +no_defs"
-X <- projectRaster(WRB, crs = "+proj=longlat +datum=WGS84 +no_defs")
-r2 = raster(extent(X), resolution = c(0.00208, 0.00208), crs = crs(X))
-BDRICM <- crop(BDRICM, r2)
-BDRICM <- projectRaster(BDRICM, crs = prj)
-BDRICM <- resample(BDRICM, BD, method = "bilinear")
-writeRaster(BDRICM,paste0(wd$data_r,"SoilGrids/BDRICM.tif"), overwrite=TRUE)
-
-
-BDRLOG <- raster("C:/Users/rcesaret/Downloads/BDRLOG_M_250m_ll.tif")
-##"+proj=longlat +datum=WGS84 +no_defs"
-X <- projectRaster(WRB, crs = "+proj=longlat +datum=WGS84 +no_defs")
-r2 = raster(extent(X), resolution = c(0.00208, 0.00208), crs = crs(X))
-BDRLOG <- crop(BDRLOG, r2)
-BDRLOG <- projectRaster(BDRLOG, crs = prj)
-BDRLOG <- resample(BDRLOG, BD, method = "bilinear")
-writeRaster(BDRLOG,paste0(wd$data_r,"SoilGrids/BDRLOG.tif"), overwrite=TRUE)
-
-
-BDTICM <- raster("C:/Users/rcesaret/Downloads/BDTICM_M_250m_ll.tif")
-##"+proj=longlat +datum=WGS84 +no_defs"
-X <- projectRaster(WRB, crs = "+proj=longlat +datum=WGS84 +no_defs")
-r2 = raster(extent(X), resolution = c(0.00208, 0.00208), crs = crs(X))
-BDTICM <- crop(BDTICM, r2)
-BDTICM <- projectRaster(BDTICM, crs = prj)
-BDTICM <- resample(BDTICM, BD, method = "bilinear")
-writeRaster(BDTICM,paste0(wd$data_r,"SoilGrids/BDTICM.tif"), overwrite=TRUE)
+#writeRaster(Soil, filename = paste0(wd$data_r, "Soil_r_resampled.tif"), overwrite=TRUE)
 
 ```
+
+
+
 
 OCD = Organic Carbon Density
 SOCS = Soil organic carbon stock
@@ -1046,15 +1066,20 @@ BDTICM = Absolute depth to bedrock
 
 # Climate Data
 
-```{r}
+```{r, label='Load and Resample Climate Rasters', message=FALSE,warning=FALSE}
 chwd = "D:/Dropbox (ASU)/Huexotzinco/HuexTlaxAnal2022/GIS_Data/CHELSA/"
 prj = "+proj=utm +zone=14 +datum=WGS84 +units=m +no_defs"
-EXT <- projectRaster(WRB, crs = "+proj=longlat +datum=WGS84 +no_defs")
+TopoEnv_r <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
+EXT <- projectRaster(TopoEnv_r[[1]], crs = "+proj=longlat +datum=WGS84 +no_defs")
+###############################################
 resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
+resample_100m <- disagg(resample_30m, 3)
+resample_100m <- aggregate(resample_100m, 10)
+###############################################
 mo = c(31,28,31,30,31,30,31,31,30,31,30,31)
-divide_layer <- function(x, y) {
-  x / y
-}
+#divide_layer <- function(x, y) {
+#  x / y
+#}
 
 # precipitation amount; amount refeers to means mass per unit area. precipitation in the earth's
 # atmosphere means precipitation of water in all phases.
@@ -1082,7 +1107,7 @@ rm(prec_01, prec_02, prec_03, prec_04, prec_05, prec_06, prec_07, prec_08, prec_
 prec <- rast(prec)
 prec_r <- resample(prec, resample_100m, method = "bilinear")
 rm(prec)
-writeRaster(prec_r, filename = paste0(wd$data_r, "prec_r.tif"))
+#writeRaster(prec_r, filename = paste0(wd$data_r, "prec_r.tif"))
 
 
 # daily mean air temperatures at 2 metres averaged over 1 month
@@ -1176,6 +1201,7 @@ names(pr) <- c("pr_01", "pr_02", "pr_03", "pr_04", "pr_05", "pr_06", "pr_07", "p
 rm(pr_01, pr_02, pr_03, pr_04, pr_05, pr_06, pr_07, pr_08, pr_09, pr_10, pr_11, pr_12)
 pr_r <- rast(pr)
 pr_r <- resample(pr_r, resample_100m, method = "bilinear")
+###rm(pr)
 
 # Total % cloud cover for each month
 clt_01 = raster(paste0(chwd, "clt/CHELSA_clt_01_1981-2010_V.2.1.tif"))
@@ -1226,13 +1252,13 @@ rm(rsds)
 
 
 Clim_r <- c(prec_r,pr_r,tmean_r,tmax_r,tmin_r,clt_r,rsds_r)
-
+#names(Clim_r)
 writeRaster(Clim_r, filename = paste0(wd$data_r, "Clim_r_resampled.tif"))
 
 
 ```
 
-
+# Krieging DELETE
 ```{r}
 krige_rasts <- function(raster_missing, raster_cov = NULL){
   
