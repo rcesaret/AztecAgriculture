@@ -114,18 +114,11 @@ Clim_r <- rast(paste0(wd$data_r, "Clim_r_resampled.tif"))
 
 ```
 
-# Define the rescale function
-rescale <- function(r,stdev=2) {
-out <- (r - mean(r,na.rm=TRUE))/(sd(r,na.rm=TRUE))
-out[out < -1 * stdev] <- -1 * stdev
-out[out > stdev] <- stdev
-out <- (out + stdev) / (2 * stdev)
-}
+# Construct Training Dataset
 
 ## Environmental Raster Data
 
-#### Subset Raster Data
-
+### Subset Raster Data
 
 ```{r, label='Subset Environmental Data Rasters', message=FALSE,warning=FALSE}
 Soil_r_sub <- subset(Soil_r, c("BD","S", "Z","C","SOC","CEC","OCD","N", "BDRICM", "BDTICM"))
@@ -140,6 +133,12 @@ Clim_r_sub <- subset(Clim_r, c("prec_04", "prec_05", "prec_06", "prec_07", "prec
                                "rsds_04", "rsds_05", "rsds_06", "rsds_07", "rsds_08", "rsds_09", "rsds_10", "rsds_11"
                                ))
 
+```
+
+
+### Extract Raster Values
+
+```{r, label='Extract Raster Values', message=FALSE,warning=FALSE}
 #mymean <- function(x){
 #  out <- mean(x, na.rm=T)
 #  return(out)
@@ -157,14 +156,40 @@ all <- c(Clim_r_sub, Soil_r_sub, TopoEnv_r_sub)
 
 Soil_df <- exact_extract(x = Soil_r_sub, y = Data2000s_poly, fun = mymean, max_cells_in_memory = 8e+10)
 save(all_df, file = paste0(wd$data_r, "EnvRastPolyExtract_df.rData"))
+
+
+st_extract(Clim_r[,,,5], x, fun = mean)
+
+Clim_df <- data.frame()
+
+for (i in 1:nlyr(Clim_r)) {
+  out[, i] <- my_function(my_df[, i])
+}
+
+nlyr(Clim_r)
+values <- exact_extract(x = Clim_r[[1:2]], y = x, fun = "mean", max_cells_in_memory = 8e+08)
+
+
 ```
 
+c("prec_05", "prec_06", "prec_07", "prec_08", "prec_09", "prec_10", 
+"pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", 
+"tmean_05", "tmean_06", "tmean_07", "tmean_08", "tmean_09", "tmean_10", 
+"tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10")
+
+clim <- stack(prec[[5:7]],prec[[5:7]],
+prec[[8:10]],
+tmin[[5:7]],
+tmin[[8:10]],tmin[[8:10]])
+geol <- stack(depth, cation, slope)
+
+geol_vals <- extract(geol,points)
+clim_vals <- extract(clim,points)
 
 
+### DELETE Rescale/Normalize Rasters
 
-
-
-```{r}
+```{r, label='Rescale Rasters', message=FALSE,warning=FALSE, eval = FALSE}
 
 rescale <- function(z,stdev=2) {
 z[z < -stdev] <- -stdev
@@ -282,43 +307,16 @@ save(all_zrs_df, file = paste0(wd$data_r, "EnvRastPolyExtract_zrs_df.rData"))
 
 ```
 
-clim <- stack(prec[[5:7]],prec[[5:7]],
-prec[[8:10]],
-tmin[[5:7]],
-tmin[[8:10]],tmin[[8:10]])
-geol <- stack(depth, cation, slope)
+Random Forest algorithm is not a distance-based model - it is a tree-based model. Each node in a Random Forest is not comparing feature values, it is simply splitting a sorted list that requires absolute values for branching. The algorithm is based on partitioning the data to make predictions, therefore, it does not require normalization.
 
-geol_vals <- extract(geol,points)
-clim_vals <- extract(clim,points)
-
-#### Extract Environmental Raster Values 
-
-c("prec_05", "prec_06", "prec_07", "prec_08", "prec_09", "prec_10", 
-"pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", 
-"tmean_05", "tmean_06", "tmean_07", "tmean_08", "tmean_09", "tmean_10", 
-"tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10")
-```{r}
-st_extract(Clim_r[,,,5], x, fun = mean)
-
-Clim_df <- data.frame()
-
-for (i in 1:nlyr(Clim_r)) {
-  out[, i] <- my_function(my_df[, i])
-}
-
-nlyr(Clim_r)
-values <- exact_extract(x = Clim_r[[1:2]], y = x, fun = "mean", max_cells_in_memory = 8e+08)
-```
-
-
+https://www.kdnuggets.com/2022/07/random-forest-algorithm-need-normalization.html#:~:text=Each%20node%20in%20a%20Random,it%20does%20not%20require%20normalization.
 
 
 
 ## Agricultural Data
 
-#### Subset Agricultural Variables
 
-```{r}
+```{r, label='Prepare Agricultural Data', message=FALSE,warning=FALSE}
 
 Data2000s_poly <- Data2000s_poly %>% mutate(
   AGType = as.factor(AGType),
@@ -374,28 +372,9 @@ Tot = Tot %>% select(-AGType)
 #missing_cols <- which(colSums(is.na(y) | is.infinite(y)) > 0)
 #cat("Columns with missing or infinite values:", missing_cols, "\n")
 
-
-
-# sdYield, cvYield, sdHarvested, cvHarvested, sdLost                
-
-pca_tot <- prcomp(Tot, center = TRUE, scale. = TRUE)
-loadings_tot = as.data.frame(pca_tot$rotation, row.names = colnames(Tot))
-
-pca_temp <- prcomp(Temp, center = TRUE, scale. = TRUE)
-loadings_temp = as.data.frame(pca_temp$rotation, row.names = colnames(Temp))
-
-pca_irrig <- prcomp(Irrig, center = TRUE, scale. = TRUE)
-loadings_irrig = as.data.frame(pca_irrig$rotation, row.names = colnames(Irrig))
-
-#res <- cor(y)
-#res = as.data.frame(round(res, 2))
-
-
-x <- Data2000s_poly %>% select(EstadoMunicipio, AvgYield, AGType, LU_Total_perHa, Pct_Primary, Pct_FertilChem_ha, Pct_FertilManure_ha, UrbRatio, Pct_AG_ha, TotalLaborDens, Pop_Pct_Rural, TotalLabor_perHa, Pct_Pasture_ha, geom)
-
-
-
 ```
+
+
 "AGType_Area_ha"        
 
 
@@ -424,12 +403,58 @@ x <- Data2000s_poly %>% select(EstadoMunicipio, AvgYield, AGType, LU_Total_perHa
 [111] 
 
 
+### CHINAMPAS SBOM
+
+```{r, label='xxx', message=FALSE,warning=FALSE}
+
+```
+
+
+
+
+### PCA for Agricultural Variable Selection
+
+```{r, label='PCA for Agricultural Variable Selection', message=FALSE,warning=FALSE}
+
+# sdYield, cvYield, sdHarvested, cvHarvested, sdLost                
+
+pca_tot <- prcomp(Tot, center = TRUE, scale. = TRUE)
+loadings_tot = as.data.frame(pca_tot$rotation, row.names = colnames(Tot))
+
+pca_temp <- prcomp(Temp, center = TRUE, scale. = TRUE)
+loadings_temp = as.data.frame(pca_temp$rotation, row.names = colnames(Temp))
+
+pca_irrig <- prcomp(Irrig, center = TRUE, scale. = TRUE)
+loadings_irrig = as.data.frame(pca_irrig$rotation, row.names = colnames(Irrig))
+
+#res <- cor(y)
+#res = as.data.frame(round(res, 2))
+
+```
+
+
+
+
+
+### Subset Agricultural Variables
+
+```{r, label='Subset Agricultural Variables', message=FALSE,warning=FALSE}
+
+x <- Data2000s_poly %>% select(EstadoMunicipio, AvgYield, AGType, LU_Total_perHa, Pct_Primary, Pct_FertilChem_ha, Pct_FertilManure_ha, UrbRatio, Pct_AG_ha, TotalLaborDens, Pop_Pct_Rural, TotalLabor_perHa, Pct_Pasture_ha, geom)
+
+```
+
+
+
+
+
+
 # High Elevations
 
 
-```{r}
+```{r, label='High Elevations', message=FALSE,warning=FALSE}
 
-high_elev <- raster("D:/Dropbox (ASU)/Huexotzinco/HuexTlaxAnal2022/GIS_Data/DEM_CEM_v3.0_15m_CMex.tif")
+DEM <- raster(paste0(wd$data_r,"DEM_r.tif"))
 
 #high_elev <- rast(high_elev)
 
