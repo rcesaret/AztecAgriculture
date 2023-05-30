@@ -71,11 +71,12 @@ wd$funcs <- paste0(wd$dir,"functions/")
 ```{r, label='Load Libraries', message=FALSE,warning=FALSE}
 # Package names
 packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster", 
-              "Matrix", "terra","gdistance", "lwgeom", "tidyr", "stars", "dismo", 
-              "purrr", "spatialEco", "whitebox", "classInt","ggnewscale", "lbmech", 
-              "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
-              "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
-              "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "exactextractr")
+              "Matrix", "terra","gdistance", "lwgeom", "tidyr", "stars", 
+              "dismo", "purrr", "spatialEco", "whitebox", "classInt",
+              "ggnewscale", "lbmech", "data.table", "tidyterra","gridExtra", 
+              "cowplot", "scam", "rmarkdown", "spatialreg","spdep", "ggridges", 
+              "ggnewscale", "scales", "ggstatsplot", "stringi", "fuzzyjoin", 
+              "mgcv", "randomForest", "ranger", "exactextractr", "kableExtra")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -103,7 +104,8 @@ rm(FUNCS)
 ```{r, label='Import Data from Part 1', message=FALSE,warning=FALSE}
 Municipios2000s <- st_read(paste0(wd$data_r, "Municipios2000s_Data.gpkg"))
 
-load(paste0(wd$data_r, "Data2000s_poly.rData"))
+#load(paste0(wd$data_r, "Data2000s_poly.rData"))
+Data2000s_poly <- st_read(paste0(wd$data_r, "Data2000s_poly.gpkg"))
 
 TopoEnv_r <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
 
@@ -114,6 +116,9 @@ Clim_r <- rast(paste0(wd$data_r, "Clim_r_resampled.tif"))
 
 ```
 
+
+
+
 # Construct Training Dataset
 
 ## Environmental Raster Data
@@ -123,7 +128,7 @@ Clim_r <- rast(paste0(wd$data_r, "Clim_r_resampled.tif"))
 ```{r, label='Subset Environmental Data Rasters', message=FALSE,warning=FALSE}
 Soil_r_sub <- subset(Soil_r, c("BD","S", "Z","C","SOC","CEC","OCD","N", "BDRICM", "BDTICM"))
 
-TopoEnv_r_sub <- subset(TopoEnv_r, c("DEM", "slope","Accum", "TRI", "TWI", "STI", "SPI"))
+TopoEnv_r_sub <- subset(TopoEnv_r, c("DEM", "Slope","Accum", "TRI", "TWI", "STI", "SPI"))
 
 Clim_r_sub <- subset(Clim_r, c("prec_04", "prec_05", "prec_06", "prec_07", "prec_08", "prec_09", "prec_10", "prec_11",
                                "pr_04", "pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", "pr_11",
@@ -136,17 +141,33 @@ Clim_r_sub <- subset(Clim_r, c("prec_04", "prec_05", "prec_06", "prec_07", "prec
 ```
 
 
+
+
 ### Extract Raster Values
 
 ```{r, label='Extract Raster Values', message=FALSE,warning=FALSE}
-#mymean <- function(x){
-#  out <- mean(x, na.rm=T)
-#  return(out)
-#}
 
-values <- exact_extract(x = Soil_r_sub, y = Data2000s_poly, fun = "mean", max_cells_in_memory = 8e+08, stack_apply=T, append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+topo_vals <- exact_extract(x = TopoEnv_r_sub, y = Data2000s_poly, fun = "mean", 
+                           max_cells_in_memory = 8e+08, stack_apply=T, 
+                           append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
 
-values2 <- exact_extract(x = Soil_r_sub, y = Data2000s_poly, fun = "count", max_cells_in_memory = 8e+08, stack_apply=T, append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+soil_vals <- exact_extract(x = Soil_r_sub, y = Data2000s_poly, fun = "mean", 
+                           max_cells_in_memory = 8e+08, stack_apply=T, 
+                           append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+
+clim_vals <- exact_extract(x = Clim_r_sub, y = Data2000s_poly, fun = "mean", 
+                           max_cells_in_memory = 8e+08, stack_apply=T, 
+                           append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+
+env_vals <- topo_vals %>% left_join(soil_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType")) #%>% 
+                          #left_join(clim_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+
+env_vals = merge(topo_vals, soil_vals, all = F, sort = F)
+
+```
+
+```{r}
+#values2 <- exact_extract(x = Soil_r_sub, y = Data2000s_poly, fun = "count", max_cells_in_memory = 8e+08, stack_apply=T, append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
 
 #xx = cbind(st_drop_geometry(Data2000s_poly$EstadoMunicipio), values)
 
@@ -169,9 +190,6 @@ for (i in 1:nlyr(Clim_r)) {
 nlyr(Clim_r)
 values <- exact_extract(x = Clim_r[[1:2]], y = x, fun = "mean", max_cells_in_memory = 8e+08)
 
-
-```
-
 c("prec_05", "prec_06", "prec_07", "prec_08", "prec_09", "prec_10", 
 "pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", 
 "tmean_05", "tmean_06", "tmean_07", "tmean_08", "tmean_09", "tmean_10", 
@@ -185,6 +203,11 @@ geol <- stack(depth, cation, slope)
 
 geol_vals <- extract(geol,points)
 clim_vals <- extract(clim,points)
+```
+
+
+
+
 
 
 ### DELETE Rescale/Normalize Rasters
