@@ -1,0 +1,641 @@
+---
+title: "Aztec Agricultural Productivity Model"
+subtitle: "Part 2: Agriculture Data"
+author: "Rudolf Cesaretti"
+date: "Last run on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+    number_sections: true
+bibliography: References.bib
+csl: apa.csl
+link-citations: yes
+---
+
+```{css, echo=FALSE}
+pre {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+pre[class] {
+  max-height: 300px;
+}
+```
+
+```{r, setup, include=FALSE,echo=FALSE, message=FALSE,warning=FALSE}
+require(knitr)
+# Set so that long lines in R will be wrapped:
+opts_chunk$set(tidy.opts=list(width.cutoff=75),tidy=TRUE)
+#
+rm(list = ls())
+```
+
+This R markdown document prepares the data used in the Aztec agricultural productivity random forest model, which is undertaken in Part 2 (the subsequent R markdown script). This involves the following:
+
+  1. Load, reorganize and integrate the modern agricultural analogue dataset, which includes:
+      + Contemporary municipio polygons from INEGI
+      + 2010 municipal population census statistics
+      + 2007 municipal agricultural census statistics
+      + FASII and INEGI geospatial land use polygons from the 2000s and 2010s
+      + SIAP 2003-2021 crop yield data
+      + 
+ 
+CRS = WGS84 UTM Zone 14N (EPSG: 32614)
+
+
+# Setup 
+
+All of the data and scripts are downloadable from the [Aztec Agriculture github repository](https://https://github.com/rcesaret/AztecAgriculture), which can be downloaded locally as a .zip folder or cloned to your own account.
+
+Either way, once you have done so, you will need to modify the working directory (setwd("C:/...)") path and "dir" variables in the code chunk below to match the repository location on your computer.
+
+```{r, label='Set Local Directory Location', message=FALSE,warning=FALSE}
+
+wd <- list()
+
+#SET YOUR LOCAL DIRECTORY LOCATION HERE:
+wd$dir <- "D:/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
+#wd$dir <- "C:/Users/TJ McMote/Dropbox (ASU)/Huexotzinco/HuexTlaxAnal2022/HuexTlax2022Analysis/"
+
+wd$analysis <- paste0(wd$dir,"analysis/")
+wd$data_r <- paste0(wd$dir,"data-raw/")
+wd$data_p <- paste0(wd$dir,"data-processed/")
+wd$data_f <- paste0(wd$dir,"data-final-outputs/")
+wd$figs <- paste0(wd$dir,"figures/")
+wd$funcs <- paste0(wd$dir,"functions/")
+
+```
+
+
+
+## Load R Packages and Custom Functions
+
+```{r, label='Load Libraries', message=FALSE,warning=FALSE}
+# Package names
+packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster", 
+              "Matrix", "terra","gdistance", "lwgeom", "tidyr", "stars", "dismo", 
+              "purrr", "spatialEco", "whitebox", "classInt","ggnewscale", "lbmech", 
+              "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
+              "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
+              "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# load packages
+invisible(lapply(packages, library, character.only = TRUE))
+
+rm(packages,installed_packages)
+
+#Read in custom R functions located in the wd$funcs directory folder
+FUNCS <- list("RescaleSpatRast.R", "Terra_df.R", "RF_ImputeRast.R")#"splitByAttributes.R", 
+invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
+rm(FUNCS)
+
+```
+
+
+
+
+
+# Agricultural Data
+
+## Municipios
+
+```{r, 'Load Municipios Polygons', message=FALSE, warning=FALSE}
+# Read-in municipio polygons for the focal region
+Municipios2000s <- st_read(paste0(wd$data_r, "AG_Model_2000s/CMex_Municipios_2000s.gpkg"))
+
+# Remove Spanish accent marks from the municipality names
+Municipios2000s$NOM_MUN <- stri_trans_general(str=Municipios2000s$NOM_MUN,id="Latin-ASCII")
+
+
+Municipios2000s <- Municipios2000s %>% 
+  # create variable for the written name of the state based on the state code in the polygon data
+  mutate(State = case_when(
+    CVE_ENT == "15" ~ "Mexico",
+    CVE_ENT == "09" ~ "Distrito Federal",
+    CVE_ENT == "13" ~ "Hidalgo",
+    CVE_ENT == "17" ~ "Morelos",
+    CVE_ENT == "21" ~ "Puebla",
+    CVE_ENT == "29" ~ "Tlaxcala")) %>% 
+  # create a variable that joins state and municipality written names ("[municipality], [state]")
+  unite(col = EstadoMunicipio, NOM_MUN, State, sep = ", ", remove = F) %>%  
+  # remove a number of municipalities that are not included in the focal region
+  # (these polygons are tiny residual edges not removed by GIS pre-processing)
+  filter(!(EstadoMunicipio %in% c("Almoloya de Alquisiras, Mexico", "Amanalco, Mexico", "Texcaltitlan, Mexico","Polotitlan, Mexico", "Temascalcingo, Mexico","Villa de Allende, Mexico", "Acambay de Ruiz Castaneda, Mexico", "Aculco, Mexico"))) %>% 
+  # rename variables
+  rename(Estado = State, Estado_ID = CVE_ENT, Municipio_ID = CVE_MUN, Municipio = NOM_MUN) %>% 
+  # remove prior ID column
+  select(-OID_1)
+
+# calculate variable for the area of each municipality in square meters
+Municipios2000s$Area_m2 <- st_area(Municipios2000s)
+# calculate variable for the area of each municipality in hectares
+Municipios2000s$Area_ha <- as.numeric(Municipios2000s$Area_m2)/10000
+# create copy of municipality dataframe without the polygons
+Municipios2000s_Cases = st_drop_geometry(Municipios2000s)
+# save municipality polygon data
+#st_write(Municipios2000s, paste0(wd$data_r, "Municipios2000s_Data.gpkg"), driver = "GPKG", overwrite=T)
+
+```
+
+
+
+
+## 2000s Census Data
+
+
+### 2010 Population Census
+
+```{r, 'Load/Organize 2010 Population Census', message=FALSE, warning=FALSE}
+
+# read .csv file of 2010 population census data
+PopCensus2010 <- read.csv(paste0(wd$data_r,"AG_Model_2000s/PopCensus2010.csv"))
+
+PopCensus2010 <- PopCensus2010 %>% 
+  # remove a number of unwanted variables
+  select(-MUN, -ORD, -MUN_NUM, -INCLUDE) %>% 
+  # create a variable that joins state and municipality written names ("[municipality], [state]")
+  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F)
+
+# left join the 2010 population census data with the municipality dataframe
+PopCensus2010 <- Municipios2000s_Cases %>% left_join(PopCensus2010, by=c('EstadoMunicipio', 'Municipio', 'Estado'))
+# export csv of the 2010 population census data
+write.csv(PopCensus2010, paste0(wd$data_r,"AG_Model_2000s/testcensus.csv"))
+
+```
+
+
+
+
+### 2007 Agricultural Census
+
+```{r, 'Load/Organize 2007 Agricultural Census', message=FALSE, warning=FALSE}
+
+# read .csv file of 2007 agricultural census data
+AGCensus2007 <- read.csv(paste0(wd$data_r,"AG_Model_2000s/AGCensus2007.csv"))
+
+AGCensus2007 <- AGCensus2007 %>% 
+  # remove a number of unwanted variables
+  select(-Region, -ORD, -Num, -INCLUDE) %>% 
+  # create a variable that joins state and municipality written names ("[municipality], [state]")
+  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F)
+
+```
+
+
+
+
+
+### Integrate 2000s Cenusus Data
+
+```{r, 'Integrate 2000s Cenusus Data', message=FALSE, warning=FALSE}
+
+# create a combined 2000s census dataframe from the 2010 population census dataframe
+# and the 2007 agricultural census dataframe
+Census2000s <- PopCensus2010 %>% 
+  # select desired 2010 population census variables to join with 2007 agricultural census data
+  select(Estado_ID, Municipio_ID, EstadoMunicipio, Municipio, Estado, Area_ha, 
+         Pop_Total, Pop_Rural, Pop_Urban, UrbRatio, Pop_Pct_Rural, Pop_Employed, 
+         Primary, Pct_Primary, AG_Workers, Pct_AG_Workers) %>% 
+  # left join the 2010 population census data with the 2007 agricultural census dataframe
+  left_join(AGCensus2007, by=c('EstadoMunicipio', 'Municipio', 'Estado'))
+
+
+```
+
+
+### Calculate Derived Census Variables
+
+```{r, 'Calculate Derived 2000s Census Variables', message=FALSE, warning=FALSE}
+
+# Calculate a number of derived variables from the combined 2000s census dataframe
+Census2000s <- Census2000s %>% mutate(
+  PopDens = Pop_Total / Area_ha, # population density
+  PopDensRural = Pop_Rural / Area_ha, # population density of the rural population
+  PrimaryEmployDens = Primary / Area_ha, # population density of primary sector employment (2010 pop census variable)
+  TotalLaborDens = TotalLabor / Area_ha, # population density of total agricultural labor (2007 agricultural census variable)
+  AGPasture_ha = AG_ha + Pasture_ha, # Total land used for agriculture and animal husbandry
+  PrimaryEmploy_perHa = Primary / AGPasture_ha, # Density of primary sector employment (2010 pop census variable) per hectare of agriculture+pasture land
+  AG_Workers_perHa = AG_Workers / AGPasture_ha, # Density of agricultural workers (2010 pop census variable, only includes laborers) per hectare of agriculture+pasture land
+  TotalLabor_perHa = TotalLabor / AGPasture_ha, # Density of total agricultural labor (2007 agricultural census variable) per hectare of agriculture+pasture land
+  MechanizEquip_perHa = MechanizEquip / AGPasture_ha, # Density of mechanized agricultural equipment per hectare of agriculture+pasture land
+  DraftAnimals_perHa = DraftAnimals_Total / AGPasture_ha, # Density of draught animals per hectare of agriculture+pasture land
+  Pct_AG_ha = AG_ha / AGPasture_ha, # Percentage of total agriculture+pasture land that is agricultural
+  Pct_Pasture_ha = Pasture_ha / AGPasture_ha, # Percentage of total agriculture+pasture land that is pasture
+  
+  #### Calculation of "Labor Units" ####
+  # used to equivocate different forms of labor input (machine, animal, human)
+  # using efficiencies calculated from 20th century statistics on cultivation labor 
+  # time per unit area using different technology (i.e. machine, animal, human).
+  # One "Labor Unit" (LU) == 1 person-year of manual labor based on person-day equivalents
+  # for common tasks undertaken over the course of the agricultural season
+
+  LU_MechanizEquip = MechanizEquip * 20, # one piece of mechanized equipment is equivalent to 20 people
+  LU_DraftAnimals = DraftAnimals_Total * 1, # draught animals and humans have 1-to-1 LU relationship 
+  LU_FamLabor = FamLabor_Tot * 1, # Each family farm operator contributes 1 labor unit
+  LU_ContractFull = ContractLabor_More6Mo * 1, # Each full-time contract laborer contributes 1 labor unit
+  LU_ContractPart = ContractLabor_Less6Mo * 0.5, # Each seasonal contract laborer contributes 0.5 labor units
+  LU_Total = LU_MechanizEquip + LU_DraftAnimals + LU_FamLabor + LU_ContractFull + LU_ContractPart, # total LUs == sum of all LUs
+  LU_Total_perHa = LU_Total / AGPasture_ha # Density of total LUs per hectare of agriculture+pasture land
+  )
+
+```
+
+
+
+
+## 2000s Land Use Data
+
+Accidentally missing in SIAP, need to recheck:
+Acatzingo, Puebla
+General Felipe Angeles, Puebla
+Mixtla, Puebla
+San Salvador Huixcolotla, Puebla
+Santo Tomas Hueyotlipan, Puebla
+
+
+```{r, 'Load/Organize Land Use Polygons', message=FALSE, warning=FALSE}
+
+# read GIS polygon data gpkg. This data is the intersection of two different land use polygon datasets:
+# 1) FASII 2015 agricultural land use polygons
+# 2) INEGI 2013 agricultural Land Use Polygons
+LU2000 <- st_read(paste0(wd$data_r, "AG_Model_2000s/FASII_INEGI_LandUse2000s.gpkg")) 
+
+# Remove Spanish accent marks from the municipality and state names
+LU2000$NOM_MUN <- stri_trans_general(str=LU2000$NOM_MUN,id="Latin-ASCII")
+LU2000$NOMEDO <- stri_trans_general(str=LU2000$NOMEDO,id="Latin-ASCII")
+ 
+
+LU2000b <- LU2000 %>% 
+  # Create new variable to abbreviate classified INEGI land use types
+  mutate(Tipages = case_when(
+    TIPAGES == "AGRICULTURA DE RIEGO" ~ "R",
+    TIPAGES == "AGRICULTURA DE TEMPORAL" ~ "T",
+    TIPAGES == "AGRICULTURA DE HUMEDAD" ~ "H")) %>% rowwise() %>% 
+  # Create new master variable agricultural type classification using both
+  # FASII and INEGI and FASII land use data
+  mutate(
+      #Type = ifelse(Tipages == "R" | MOD_AGR == "R", "R", 
+      #              ifelse(Tipages == "H", "H", "T"))
+      Type = ifelse(Tipages == "R" | MOD_AGR == "R", "Riego", "Temporal"),
+      Type = ifelse(is.na(Type), "Temporal", Type)) %>% ungroup() %>%
+  # remove unneeded variables
+  select(-Name, -fid_2, -layer, -path, -NOMEDO,  -fid_3) %>% 
+  # rename variables
+  rename(Estado_ID = CVE_ENT, ddr_ID = CVE_DDR, ddr = NOMDDR, Cader_ID = CVE_CADER, 
+    Cader = NOMCADER, Municipio_ID = CVE_MUN, Municipio = NOM_MUN) %>% 
+  # create variable for the written name of the state based on the state code in the polygon data
+  mutate(Estado = case_when(
+    Estado_ID == "15" ~ "Mexico",
+    Estado_ID == "09" ~ "Distrito Federal",
+    Estado_ID == "13" ~ "Hidalgo",
+    Estado_ID == "17" ~ "Morelos",
+    Estado_ID == "21" ~ "Puebla",
+    Estado_ID == "29" ~ "Tlaxcala"))
+
+##########################
+
+# ONE ISSUE MAY BE FIXED BY SWITCHING THJE ORDER OF LU2000c and LU2000d
+# Changing AGType for specific municipalities FIRST, and THEN merging the polygons!!!
+
+##########################
+
+
+# Join/merge (union) all land use polygons of the name agricultural type within each municipality
+LU2000c <- LU2000b %>% group_by(Type, Estado, Estado_ID, Municipio, Municipio_ID) %>% 
+  summarise(geom = sf::st_union(geom)) %>% ungroup()
+
+# calculate the area of the merged polygons in square meters and hectares
+LU2000c$Area_m2 <- st_area(LU2000c)
+LU2000c$Area_ha <- as.numeric(LU2000c$Area_m2)/10000
+
+
+##########################
+
+
+LU2000d <- LU2000c %>% 
+  # create a variable that joins state and municipality written names ("[municipality], [state]")
+  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>% 
+  # remove a number of municipios that should not be in the CMex focal region dataset
+  filter(!(EstadoMunicipio %in% c("Coatetelco, Morelos", "Almoloya de Alquisiras, Mexico", "Amanalco, Mexico", "Iztapalapa, Distrito Federal", "Texcaltitlan, Mexico","Polotitlan, Mexico", "Temascalcingo, Mexico","Villa de Allende, Mexico", "Acambay de Ruiz Castaneda, Mexico", "Aculco, Mexico"))) %>% 
+  # 
+ mutate(AGType = case_when(
+    EstadoMunicipio == "Tzicatlacoyan, Puebla" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "Santa Catarina Tlaltempan, Puebla" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "San Diego la Mesa Tochimiltzingo, Puebla" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "Ocuilan, Mexico" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "Cocotitlan, Mexico" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "Villa Guerrero, Mexico" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "Tonanitla, Mexico" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "Cuautitlan, Mexico" & Type == "Temporal" ~ "Riego", #############################
+    .default = Type)) %>% select(-Type)
+
+#%>% group_by(AGType, Estado, Estado_ID, Municipio, Municipio_ID, EstadoMunicipio) %>% 
+  #summarise(geom = sf::st_union(geom)) %>% ungroup()
+
+LU2000d$Area_m2 <- st_area(LU2000d)
+LU2000d$Area_ha <- as.numeric(LU2000d$Area_m2)/10000
+
+LU_Cases = st_drop_geometry(LU2000d)
+#write.csv(st_drop_geometry(LU2000c), paste0(wd$data_r,"LU_Cases.csv"))
+#st_write(LU2000c, dsn = paste0(wd$data_r, "AG_Model_2000s/test2.gpkg"),layer="test2", driver="GPKG")
+
+```
+
+
+Change Riego to Temporal = 
+Tzicatlacoyan, Puebla
+Santa Catarina Tlaltempan, Puebla
+San Diego la Mesa Tochimiltzingo, Puebla
+Ocuilan, Mexico
+Cocotitlan, Mexico
+Villa Guerrero, Mexico
+
+Change Temporal to Riego=
+Cuautitlan, Mexico
+
+
+HUMEDAD??
+
+
+## SIAP Data 2003-2021
+
+~Remove ROWS from SIAP due to 1 year (not included in land use data)~
+~Remove ROWS from SIAP due to size (not included in land use data)~
+~Remove ROWS from SIAP due to NO LAND USE LOCATION (not included in land use data)~
+
+
+
+```{r, 'Load/Organize SIAP 2003-2021 Yield Data', message=FALSE, warning=FALSE}
+
+# Read-in the SIAP 2003-2021 Yield Data
+SIAP <- read.csv(paste0(wd$data_r,"Cierre_agricola_mun_2003_2021.csv"))
+
+
+SIAP_2 = SIAP %>% 
+  # restrict dataset to the Mexican states located in the CMex focal region
+  filter(Estado == "Ciudad de Mexico / DF" | 
+         Estado == "Ciudad de Mexico" |
+         Estado == "Mexico" |
+         Estado == "Puebla" |
+         Estado == "Morelos" |
+         Estado == "Hidalgo" |
+         Estado == "Tlaxcala") %>% 
+  # Change some string names in the data to be congruent with the other agricultural data
+  mutate_all(~ str_replace_all(., c("Ciudad de Mexico / DF" = "Distrito Federal", 
+                                    "Ciudad de Mexico" = "Distrito Federal",
+                                    "QUECHOLAC" = "Quecholac",
+                                    "alvaro Obregon" = "Alvaro Obregon", 
+                                    "General Felipe angeles" = "General Felipe Angeles"))) %>%
+  # Change incorrectly-designated character variables to numeric
+  mutate(#Estado_ID = as.integer(Estado_ID), ddr_ID = as.integer(ddr_ID),
+          #Cader_ID = as.integer(Cader_ID), Municipio_ID = as.integer(Municipio_ID),
+          #Units_ID = as.integer(Units_ID), Cultigen_ID = as.integer(Cultigen_ID),
+          Planted = as.numeric(Planted), Harvested = as.numeric(Harvested),
+          Lost = as.numeric(Lost), Product = as.numeric(Product),
+          Yield = as.numeric(Yield), Price = as.numeric(Price),
+          Value = as.numeric(Value))
+
+
+#SIAP_ID = SIAP_2 %>% select(-Year, -(Cycle_ID:Value)) %>% distinct(EstadoMunicipio, .keep_all = T, .remove_duplicates = TRUE)
+
+# Export SIAP 2003-2021 Yield Data for manual editing
+#write.csv(SIAP_ID, paste0(wd$data_r,"SIAP_ID.csv"))
+
+# read-in manually-edited SIAP 2003-2021 ID Data
+SIAP_ID <- read.csv(paste0(wd$data_r,"SIAP_ID_EDITS.csv")) %>% 
+  # Change some string names in the data to be congruent with the other agricultural data
+  mutate_all(~ str_replace_all(., c("Ciudad de Mexico / DF" = "Distrito Federal", 
+                                    "Ciudad de Mexico" = "Distrito Federal",
+                                    "QUECHOLAC" = "Quecholac",
+                                    "alvaro Obregon" = "Alvaro Obregon", 
+                                    "General Felipe angeles" = "General Felipe Angeles")))
+
+# left-join edited SIAP_ID dataframe with SIAP_2 yield data
+SIAP_3 = SIAP_2 %>% left_join(SIAP_ID, by = c('Estado_ID', 'Estado', 'ddr_ID', 'ddr', 'Cader_ID', 'Cader', 'Municipio_ID', 'Municipio', 'EstadoMunicipio')) %>% 
+  # filter the data to only include Maize stats and municipalities in the CMex focal region
+  filter(Cultigen == "Maiz grano", INCLUDE == TRUE) %>%
+  # convert units -- tons to kg -- for yield and product
+  mutate(Yield = Yield * 1000, Product = Product* 1000)
+
+#write.csv(SIAP_3, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
+
+
+SIAP_4 = SIAP_3 %>% 
+  # only consider Spring-Summer crop cycle yields (exclude Autumn-Winter yields)
+  filter(Cycle == "Primavera-Verano") %>% 
+  # group the data by state-municipality and agriculture type
+  group_by(EstadoMunicipio, AGType) %>% 
+  # calculate variables for the maize yield time-series mean, standard deviation 
+  # and coefficient of variation by state-municipality and agriculture type
+  mutate(AvgYield = mean(Yield, na.rm=T), 
+         sdYield = sd(Yield, na.rm=T), 
+         cvYield = sdYield/AvgYield*100) %>% 
+  # calculate variable for the number of time series cases by state-municipality and agriculture type
+  add_tally() %>% 
+  # ungroup the data
+  ungroup() %>% 
+  # calculate the maize yield Z-score by state-municipality and agriculture type
+  # using the state-municipality / agriculture type mean and st.dev
+  mutate(zYield = (Yield - AvgYield)/sdYield) %>% 
+  # group by state-municipality
+  group_by(EstadoMunicipio) %>% 
+  # calculate variables for the mean, standard deviation and coefficient of variation 
+  # for each agriculture type by state-municipality
+  mutate(AvgYield_Total = mean(Yield, na.rm=T), 
+         sdYield_Total = sd(Yield, na.rm=T), 
+         cvYield_Total = sdYield_Total/AvgYield_Total*100,
+         AvgYield_Irrig = mean(Yield[AGType == "Riego"] , na.rm=T),
+         sdYield_Irrig = sd(Yield[AGType == "Riego"] , na.rm=T),
+         cvYield_Irrig = sdYield_Irrig/AvgYield_Irrig*100,
+         AvgYield_Temp = mean(Yield[AGType == "Temporal"], na.rm=T),
+         sdYield_Temp = sd(Yield[AGType == "Temporal"], na.rm=T),
+         cvYield_Temp = sdYield_Temp/AvgYield_Temp*100) %>% 
+  # calculate variable for the overall number of time series cases by state-municipality
+  add_tally(name = "n_Total") %>% 
+  # ungroup the data
+  ungroup() %>% 
+  # calculate additional variables of interest
+  mutate(
+    # calculate the maize yield Z-score by state-municipality for all agriculture types
+    zYield_Total = (Yield - AvgYield_Total)/sdYield_Total,
+    # Calculate the ratio of mean irrigated maize yield to mean temporal maize yield for each state-municipality
+    IT_ratio_AvgYield = AvgYield_Irrig/AvgYield_Temp,
+    # Calculate the ratio of the irrigated maize yield coefficient of variation to 
+    # the temporal maize yield coefficient of variation for each state-municipality
+    IT_ratio_cvYield = cvYield_Irrig/cvYield_Temp)
+
+
+SIAP_5 = SIAP_4 %>% 
+  # group by all of the ID variables (effectively at the resolution of each agriculture type and state-municipality)
+  group_by(Estado_ID, Estado, ddr_ID, ddr, Cader_ID, Cader, Municipio_ID, Municipio, EstadoMunicipio, AGType) %>%
+  # summarize the dataset by state-municipality and agriculture type
+  summarize(AvgYield = mean(Yield, na.rm=T), # mean/average maize yield
+            sdYield = sd(Yield, na.rm=T), # standard deviation of maize yield
+            minYield = min(Yield, na.rm=T), # minimum maize yield
+            maxYield = max(Yield, na.rm=T), # maximum maize yield
+            medYield = median(Yield, na.rm=T), # median maize yield
+            cvYield = sdYield/AvgYield*100, # coefficient of variation of maize yield
+            AvgPlanted = mean(Planted, na.rm=T), # average hectares planted in maize
+            AvgHarvested = mean(Harvested, na.rm=T), # average hectares harvested in maize
+            sdHarvested = sd(Harvested, na.rm=T), # standard deviation of hectares planted in maize
+            cvHarvested = sdHarvested/AvgHarvested*100, # coefficient of variation of hectares planted in maize
+            AvgLost = mean(Lost, na.rm=T), # average number of hectares of maize lost (i.e. planted but not harvested)
+            sdLost = sd(Lost, na.rm=T), # standard deviation of hectares of maize lost (i.e. planted but not harvested)
+            cvLost = sdLost/AvgLost*100, # coefficient of variation of hectares of maize lost (i.e. planted but not harvested)
+            AvgProduct = mean(Product, na.rm=T), # average total kg of maize produced
+            AvgValue = mean(Value, na.rm=T), # average total value in $MX of maize produced
+            AvgPrice = mean(Price, na.rm=T), # average price per kg in $MX for maize
+            n = mean(n, na.rm=T), # number of time series cases by state-municipality and agriculture type
+            n_Total = mean(n_Total, na.rm=T), # overall number of time series cases by state-municipality
+            AvgYield_Total = mean(AvgYield_Total, na.rm=T), # mean maize yield for all agriculture types
+            sdYield_Total = mean(sdYield_Total, na.rm=T), # standard deviation of maize yield for all agriculture types
+            cvYield_Total = mean(cvYield_Total, na.rm=T), # coefficient of variation of maize yield for all agriculture types
+            AvgYield_Irrig = mean(AvgYield_Irrig, na.rm=T), # mean maize yield for irrigated agriculture
+            sdYield_Irrig = mean(sdYield_Irrig, na.rm=T), # standard deviation of maize yield for irrigated agriculture
+            cvYield_Irrig = mean(cvYield_Irrig, na.rm=T), # coefficient of variation of maize yield for irrigated agriculture
+            AvgYield_Temp = mean(AvgYield_Temp, na.rm=T), # mean maize yield for temporal agriculture
+            sdYield_Temp = mean(sdYield_Temp, na.rm=T), # standard deviation of maize yield for temporal agriculture
+            cvYield_Temp = mean(cvYield_Temp, na.rm=T), # coefficient of variation of maize yield for temporal agriculture
+            IT_ratio_AvgYield = mean(IT_ratio_AvgYield, na.rm=T), # irrigation-temporal ratio for mean maize yields
+            IT_ratio_cvYield = mean(IT_ratio_cvYield, na.rm=T) # irrigation-temporal ratio for coefficient of variation of maize yields
+            # ungroup the data
+            ) %>% ungroup() %>% 
+  # remove a number of municipios that should not be in the CMex focal region dataset
+  filter(!(EstadoMunicipio %in% c("Coatetelco, Morelos", "Almoloya de Alquisiras, Mexico", "Amanalco, Mexico", "Iztapalapa, Distrito Federal", "Texcaltitlan, Mexico","Polotitlan, Mexico", "Temascalcingo, Mexico","Villa de Allende, Mexico", "Acambay de Ruiz Castaneda, Mexico", "Aculco, Mexico"))) %>% 
+  # remove irrigation maize yield cases for some municipalities that lack irrigation agriculture in the land use data
+  filter(!(EstadoMunicipio %in% c("Chigmecatitlan, Puebla", "Huitzilac, Morelos", "San Jose Teacalco, Tlaxcala", "Tlalnepantla, Morelos", "Totolapan, Morelos", "Acajete, Puebla", "Almoloya, Hidalgo", "Apan, Hidalgo", "Atlatlahucan, Morelos", "Emiliano Zapata, Hidalgo", "Mazatecochco de Jose Maria Morelos, Tlaxcala", "San Francisco Tetlanohcan, Tlaxcala", "San Pablo del Monte, Tlaxcala", "Tolcayuca, Hidalgo", "Tonanitla, Mexico", "Amaxac de Guerrero, Tlaxcala", "Jaltenco, Mexico") & AGType %in% "Riego"))
+
+#write.csv(SIAP_4, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
+
+#write.csv(SIAP_5, paste0(wd$data_r,"SIAP_5.csv"))
+
+
+```
+No Land Use:
+
+
+Tonanitla, Mexico
+Temporal
+Villa de Tezontepec, Hidalgo
+Riego
+
+
+
+
+No SIAP:
+
+Milpa Alta, Distrito Federal
+Riego
+Tlahuac, Distrito Federal
+Riego
+Xochimilco, Distrito Federal
+Riego
+
+Axapusco, Mexico
+Riego
+Ixtapaluca, Mexico
+Riego
+Ocuilan, Mexico
+Riego
+Valle de Chalco Solidaridad, Mexico
+Riego
+Villa Guerrero, Mexico
+Riego
+San Diego la Mesa Tochimiltzingo, Puebla
+Riego
+Santa Catari Tlaltempan, Puebla
+Riego
+Tzicatlacoyan, Puebla
+Riego
+Cuautitlan, Mexico
+Temporal
+
+
+### Merge SIAP with Land Use Polygons
+
+```{r, label='Merge SIAP with Land Use Polygons', message=FALSE,warning=FALSE}
+LU_Cases = LU_Cases %>% select(EstadoMunicipio, AGType)
+SIAP_Cases = SIAP_5 %>% select(EstadoMunicipio, AGType)
+#LU_Cases = st_drop_geometry(LU_Cases)
+SIAP_Cases <- SIAP_Cases[, c("EstadoMunicipio", "AGType")]
+
+LU_Cases$LU_Cases = TRUE
+SIAP_Cases$SIAP_Cases = TRUE
+
+#X = SIAP_Cases %>% full_join(LU_Cases, by = c("EstadoMunicipio", "AGType"))
+
+#X = stringdist_left_join(SIAP_Cases, LU_Cases, 
+#           by = c("EstadoMunicipio", "AGType"))
+
+
+
+SIAP_5 = SIAP_5 %>% mutate_all(~ str_replace_all(., c("San Antonio La Isla" = "San Antonio la Isla", 
+                                     "Mineral de La Reforma" = "Mineral de la Reforma",
+                                     "San Martin de Las Piramides" = "San Martin de las Piramides",
+                                     "Ixtapan de La Sal" = "Ixtapan de la Sal", 
+                                     "San Nicolas de Los Ranchos" = "San Nicolas de los Ranchos",
+                                     "San Salvador El Verde" = "San Salvador el Verde", 
+                                     "San Diego La Mesa Tochimiltzingo" = "San Diego la Mesa Tochimiltzingo",
+                                     "Huehuetlan El Grande" = "Huehuetlan el Grande",
+                                     "Tetla de La Solidaridad" = "Tetla de la Solidaridad")))
+
+
+SIAP_LU_poly = stringdist_left_join(LU2000d, SIAP_5, 
+           by = c("EstadoMunicipio", "AGType"))
+#SIAP_LU_poly_b = stringdist_left_join(SIAP_5, LU2000d, 
+#           by = c("EstadoMunicipio", "AGType"))
+
+SIAP_LU_poly <- SIAP_LU_poly %>% select(-ddr_ID, -ddr, -Cader_ID, -Cader, -AGType.y, -Municipio_ID.y, -Municipio.y, -Estado_ID.y, -Estado.y, -EstadoMunicipio.y, -Area_m2) %>% rename(EstadoMunicipio = EstadoMunicipio.x, Municipio = Municipio.x, Estado = Estado.x, Estado_ID = Estado_ID.x, Municipio_ID = Municipio_ID.x, AGType_Area_ha = Area_ha, AGType = AGType.x)
+
+#SIAP_LU_poly_Cases <- SIAP_LU_poly_Cases %>% select(-ddr_ID, -ddr, -Cader_ID, -Cader, -AGType.y, -Municipio_ID.x, -Municipio.x, -Estado_ID.x, -Estado.x, -EstadoMunicipio.x, -AGType.x, -Area_m2) %>% rename(EstadoMunicipio = EstadoMunicipio.y, Municipio = Municipio.y, Estado = Estado.y, Estado_ID = Estado_ID.y, Municipio_ID = Municipio_ID.y, AGType_Area_ha = Area_ha)
+
+#SIAP_LU_poly_Cases = st_drop_geometry(SIAP_LU_poly)
+#write.csv(SIAP_LU_poly_Cases, paste0(wd$data_r,"SIAP_LU_poly_Cases.csv"))
+#setdiff(SIAP_LU_poly_a$EstadoMunicipio.x, SIAP_LU_poly_b$EstadoMunicipio.y)
+#setdiff(SIAP_LU_poly_b$EstadoMunicipio.y, SIAP_LU_poly_a$EstadoMunicipio.x)
+#setdiff(SIAP_LU_poly_a$EstadoMunicipio.x, SIAP_LU_poly_b$EstadoMunicipio.x)
+#setdiff(SIAP_LU_poly_b$EstadoMunicipio.x, SIAP_LU_poly_a$EstadoMunicipio.x)
+#setdiff(SIAP_LU_poly_b$EstadoMunicipio.y, SIAP_LU_poly_a$EstadoMunicipio.y)
+#setdiff(SIAP_Cases, LU_Cases)
+```
+
+plot(Data2000s_poly["AGType"])
+
+
+
+### Merge 2000s Census Data with SIAP-Land-Use Polygons
+
+```{r, label='Merge 2000s Census Data with SIAP-Land-Use Polygons', message=FALSE,warning=FALSE}
+
+Data2000s_poly = SIAP_LU_poly %>% left_join(Census2000s, 
+           by = c("EstadoMunicipio", "Municipio", "Estado", "Estado_ID", "Municipio_ID"))
+
+#%>% select( -Municipio_ID.x, -Municipio.x, -Estado_ID.x, -Estado.x, -EstadoMunicipio.x) %>% rename(EstadoMunicipio = EstadoMunicipio.y, Municipio = Municipio.y, Estado = Estado.y, Estado_ID = Estado_ID.y, Municipio_ID = Municipio_ID.y)
+
+rm(LU_Cases, SIAP_Cases, SIAP_3, SIAP_2, SIAP_ID, SIAP, LU2000b, LU2000, AGCensus2007, 
+PopCensus2010, Municipios2000s, Municipios2000s_Cases, LU2000c, SIAP_4, LU2000d, SIAP_5, Census2000s, SIAP_LU_poly
+)
+
+#setdiff(Data2000s_poly$EstadoMunicipio, SIAP_LU_poly$EstadoMunicipio)
+#setdiff(SIAP_LU_poly$EstadoMunicipio, Data2000s_poly$EstadoMunicipio)
+
+save(Data2000s_poly, file = paste0(wd$data_r, "Data2000s_poly.rData"))
+
+st_write(Data2000s_poly, paste0(wd$data_r, "Data2000s_poly.gpkg"), driver = "GPKG", overwrite=T)
+
+
+
+load(paste0(wd$data_r, "Data2000s_poly.rData"))
+```
+
+ 
+ 
+ 
