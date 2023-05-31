@@ -102,17 +102,15 @@ rm(FUNCS)
 ## Load Data from Previous Script
 
 ```{r, label='Import Data from Part 1', message=FALSE,warning=FALSE}
-Municipios2000s <- st_read(paste0(wd$data_r, "Municipios2000s_Data.gpkg"))
+Municipios2000s <- st_read(paste0(wd$data_p, "Municipios2000s_Data.gpkg"))
 
-#load(paste0(wd$data_r, "Data2000s_poly.rData"))
-Data2000s_poly <- st_read(paste0(wd$data_r, "Data2000s_poly.gpkg"))
+Data2000s_poly <- st_read(paste0(wd$data_p, "Data2000s_poly.gpkg"))
 
-TopoEnv_r <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
+TopoEnv_r <- rast(paste0(wd$data_p, "TopoEnvData.tif"))
 
-#load(paste0(wd$data_r, "TopoEnvData_RastStack_resampled.rData"))
-Soil_r <- rast(paste0(wd$data_r, "Soil_r_resampled.tif"))
+Soil_r <- rast(paste0(wd$data_p, "Soil_r_resampled.tif"))
 
-Clim_r <- rast(paste0(wd$data_r, "Clim_r_resampled.tif"))
+Clim_r <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
 
 ```
 

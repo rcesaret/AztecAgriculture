@@ -141,7 +141,7 @@ Municipios2000s$Area_ha <- as.numeric(Municipios2000s$Area_m2)/10000
 # create copy of municipality dataframe without the polygons
 Municipios2000s_Cases = st_drop_geometry(Municipios2000s)
 # save municipality polygon data
-#st_write(Municipios2000s, paste0(wd$data_r, "Municipios2000s_Data.gpkg"), driver = "GPKG", overwrite=T)
+st_write(Municipios2000s, paste0(wd$data_p, "Municipios2000s_Data.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
 
 ```
 
@@ -340,7 +340,7 @@ LU2000e$Area_ha <- as.numeric(LU2000e$Area_m2)/10000
 LU_Cases = st_drop_geometry(LU2000e)
 #write.csv(st_drop_geometry(LU2000c), paste0(wd$data_r,"LU_Cases.csv"))
 
-st_write(LU2000e, dsn = paste0(wd$data_r, "AG_Model_2000s/test2.gpkg"),layer="test2", driver="GPKG")
+#st_write(LU2000e, dsn = paste0(wd$data_r, "AG_Model_2000s/test2.gpkg"),layer="test2", driver="GPKG")
 
 ```
 
@@ -401,7 +401,8 @@ SIAP_2 = SIAP %>%
     # to account for yield loss over the course of the growing season
     Yield = Product / Planted,
     # calculate the overall/average yield loss in tons per hectare
-    YieldLoss = Yield_orig - Yield)
+    YieldLoss = Yield_orig - Yield) %>% rowwise() %>% mutate(
+      YieldLoss = ifelse(YieldLoss < 0, 0, YieldLoss)) %>% ungroup()
 
 
 #SIAP_ID = SIAP_2 %>% select(-Year, -(Cycle_ID:Value)) %>% distinct(EstadoMunicipio, .keep_all = T, .remove_duplicates = TRUE)
@@ -422,8 +423,8 @@ SIAP_ID <- read.csv(paste0(wd$data_r,"SIAP_ID_EDITS.csv")) %>%
 SIAP_3 = SIAP_2 %>% left_join(SIAP_ID, by = c('Estado_ID', 'Estado', 'ddr_ID', 'ddr', 'Cader_ID', 'Cader', 'Municipio_ID', 'Municipio', 'EstadoMunicipio')) %>% 
   # filter the data to only include Maize stats and municipalities in the CMex focal region
   filter(Cultigen == "Maiz grano", INCLUDE == TRUE) %>%
-  # convert units -- tons to kg -- for yield and product
-  mutate(Yield = Yield * 1000, Yield_orig = Yield_orig * 1000, Product = Product* 1000)
+  # convert units -- tons to kg -- for yield, yield loss and product
+  mutate(Yield = Yield * 1000, Yield_orig = Yield_orig * 1000, Product = Product* 1000, YieldLoss = YieldLoss*1000)
 
 #write.csv(SIAP_3, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
 
@@ -550,6 +551,11 @@ SIAP_5 = SIAP_4 %>%
   # remove irrigation maize yield cases for some municipalities that lack irrigation agriculture in the land use data
   filter(!(EstadoMunicipio %in% c("Chigmecatitlan, Puebla", "Huitzilac, Morelos", "San Jose Teacalco, Tlaxcala", "Tlalnepantla, Morelos", "Totolapan, Morelos", "Acajete, Puebla", "Almoloya, Hidalgo", "Apan, Hidalgo", "Atlatlahucan, Morelos", "Emiliano Zapata, Hidalgo", "Mazatecochco de Jose Maria Morelos, Tlaxcala", "San Francisco Tetlanohcan, Tlaxcala", "San Pablo del Monte, Tlaxcala", "Tolcayuca, Hidalgo", "Tonanitla, Mexico", "Amaxac de Guerrero, Tlaxcala", "Jaltenco, Mexico") & AGType %in% "Riego"))
 
+#SIAP_5[is.nan(SIAP_5)] <- NA
+
+#SIAP_5 <- SIAP_5 %>% 
+#  mutate( )
+
 #write.csv(SIAP_4, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
 
 #write.csv(SIAP_5, paste0(wd$data_r,"SIAP_5.csv"))
@@ -672,10 +678,12 @@ PopCensus2010, Municipios2000s, Municipios2000s_Cases, LU2000c, SIAP_4, LU2000d,
 save(Data2000s_poly, file = paste0(wd$data_r, "Data2000s_poly.rData"))
 
 
-st_write(Data2000s_poly, paste0(wd$data_r, "Data2000s_poly.gpkg"), driver = "GPKG", overwrite=T)
+st_write(Data2000s_poly, paste0(wd$data_p, "Data2000s_poly.gpkg"), driver = "GPKG", overwrite=TRUE, append=FALSE)
 
+Data2000s_cases = st_drop_geometry(Data2000s_poly)
+write.csv(Data2000s_cases, paste0(wd$data_p,"Data2000s_poly.csv"))
 
-load(paste0(wd$data_r, "Data2000s_poly.rData"))
+#load(paste0(wd$data_r, "Data2000s_poly.rData"))
 ```
 
  

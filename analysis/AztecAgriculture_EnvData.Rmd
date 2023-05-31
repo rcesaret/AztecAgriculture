@@ -250,7 +250,7 @@ nam = c("DEM", "Slope", "Accum", "Accum_fd8", "TRI", "TWI", "STI", "SPI")
 
 names(TopoEnvData) = nam
 
-writeRaster(TopoEnvData, filename = paste0(wd$data_r, "TopoEnvData.tif"), overwrite=TRUE)
+writeRaster(TopoEnvData, filename = paste0(wd$data_p, "TopoEnvData.tif"), overwrite=TRUE, append=FALSE)
 
 TopoEnv_r <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
 
@@ -528,7 +528,7 @@ rm(SOCSi)
 Soil = c(BDRICM, BDRLOG, BDTICM, BD, S, Z, C, SOC, CEC, OCD, N, SOCS)
 
 # Export Soil Raster Stack
-writeRaster(Soil, filename = paste0(wd$data_r, "Soil_r_resampled.tif"), overwrite=TRUE)
+writeRaster(Soil, filename = paste0(wd$data_p, "Soil_r_resampled.tif"), overwrite=TRUE, append=FALSE)
 
 #Remove unnecessary variables
 rm(DEM_r, Slope, DepthWeights, m)
@@ -843,7 +843,7 @@ rm(rsds)
 
 Clim_r <- c(prec_r,pr_r,tmean_r,tmax_r,tmin_r,clt_r,rsds_r)
 #names(Clim_r)
-writeRaster(Clim_r, filename = paste0(wd$data_r, "Clim_r_resampled.tif"), overwrite=TRUE)
+writeRaster(Clim_r, filename = paste0(wd$data_p, "Clim_r_resampled.tif"), overwrite=TRUE, append=FALSE)
 
 
 ```
