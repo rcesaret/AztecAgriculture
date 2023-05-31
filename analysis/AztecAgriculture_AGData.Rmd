@@ -300,14 +300,6 @@ LU2000b <- LU2000 %>%
     Estado_ID == "21" ~ "Puebla",
     Estado_ID == "29" ~ "Tlaxcala"))
 
-##########################
-
-# ONE ISSUE MAY BE FIXED BY SWITCHING THJE ORDER OF LU2000c and LU2000d
-# Changing AGType for specific municipalities FIRST, and THEN merging the polygons!!!
-
-##########################
-
-
 # Join/merge (union) all land use polygons of the name agricultural type within each municipality
 LU2000c <- LU2000b %>% group_by(Type, Estado, Estado_ID, Municipio, Municipio_ID) %>% 
   summarise(geom = sf::st_union(geom)) %>% ungroup()
@@ -315,9 +307,6 @@ LU2000c <- LU2000b %>% group_by(Type, Estado, Estado_ID, Municipio, Municipio_ID
 # calculate the area of the merged polygons in square meters and hectares
 LU2000c$Area_m2 <- st_area(LU2000c)
 LU2000c$Area_ha <- as.numeric(LU2000c$Area_m2)/10000
-
-
-##########################
 
 
 LU2000d <- LU2000c %>% 
@@ -340,12 +329,18 @@ LU2000d <- LU2000c %>%
 #%>% group_by(AGType, Estado, Estado_ID, Municipio, Municipio_ID, EstadoMunicipio) %>% 
   #summarise(geom = sf::st_union(geom)) %>% ungroup()
 
-LU2000d$Area_m2 <- st_area(LU2000d)
-LU2000d$Area_ha <- as.numeric(LU2000d$Area_m2)/10000
+# Join/merge (union) all land use polygons of the name agricultural type within each municipality
+LU2000e <- LU2000d %>% group_by(AGType, Estado, Estado_ID, Municipio, Municipio_ID, EstadoMunicipio) %>% 
+  summarise(geom = sf::st_union(geom)) %>% ungroup()
 
-LU_Cases = st_drop_geometry(LU2000d)
+# calculate the area of the merged polygons in square meters and hectares
+LU2000e$Area_m2 <- st_area(LU2000e)
+LU2000e$Area_ha <- as.numeric(LU2000e$Area_m2)/10000
+
+LU_Cases = st_drop_geometry(LU2000e)
 #write.csv(st_drop_geometry(LU2000c), paste0(wd$data_r,"LU_Cases.csv"))
-#st_write(LU2000c, dsn = paste0(wd$data_r, "AG_Model_2000s/test2.gpkg"),layer="test2", driver="GPKG")
+
+st_write(LU2000e, dsn = paste0(wd$data_r, "AG_Model_2000s/test2.gpkg"),layer="test2", driver="GPKG")
 
 ```
 
@@ -395,13 +390,18 @@ SIAP_2 = SIAP %>%
                                     "alvaro Obregon" = "Alvaro Obregon", 
                                     "General Felipe angeles" = "General Felipe Angeles"))) %>%
   # Change incorrectly-designated character variables to numeric
-  mutate(#Estado_ID = as.integer(Estado_ID), ddr_ID = as.integer(ddr_ID),
-          #Cader_ID = as.integer(Cader_ID), Municipio_ID = as.integer(Municipio_ID),
-          #Units_ID = as.integer(Units_ID), Cultigen_ID = as.integer(Cultigen_ID),
-          Planted = as.numeric(Planted), Harvested = as.numeric(Harvested),
+  mutate(Planted = as.numeric(Planted), Harvested = as.numeric(Harvested),
           Lost = as.numeric(Lost), Product = as.numeric(Product),
           Yield = as.numeric(Yield), Price = as.numeric(Price),
-          Value = as.numeric(Value))
+          Value = as.numeric(Value)) %>% 
+  mutate(
+    # reported yield in the data == Product (tons) / hectares harvested
+    Yield_orig = Yield,
+    # we want to change the reported yield to == Product (tons) / hectares planted
+    # to account for yield loss over the course of the growing season
+    Yield = Product / Planted,
+    # calculate the overall/average yield loss in tons per hectare
+    YieldLoss = Yield_orig - Yield)
 
 
 #SIAP_ID = SIAP_2 %>% select(-Year, -(Cycle_ID:Value)) %>% distinct(EstadoMunicipio, .keep_all = T, .remove_duplicates = TRUE)
@@ -423,7 +423,7 @@ SIAP_3 = SIAP_2 %>% left_join(SIAP_ID, by = c('Estado_ID', 'Estado', 'ddr_ID', '
   # filter the data to only include Maize stats and municipalities in the CMex focal region
   filter(Cultigen == "Maiz grano", INCLUDE == TRUE) %>%
   # convert units -- tons to kg -- for yield and product
-  mutate(Yield = Yield * 1000, Product = Product* 1000)
+  mutate(Yield = Yield * 1000, Yield_orig = Yield_orig * 1000, Product = Product* 1000)
 
 #write.csv(SIAP_3, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
 
@@ -433,11 +433,14 @@ SIAP_4 = SIAP_3 %>%
   filter(Cycle == "Primavera-Verano") %>% 
   # group the data by state-municipality and agriculture type
   group_by(EstadoMunicipio, AGType) %>% 
-  # calculate variables for the maize yield time-series mean, standard deviation 
+  # calculate variables for the maize yield (and yield loss) time-series: mean, standard deviation 
   # and coefficient of variation by state-municipality and agriculture type
   mutate(AvgYield = mean(Yield, na.rm=T), 
          sdYield = sd(Yield, na.rm=T), 
-         cvYield = sdYield/AvgYield*100) %>% 
+         cvYield = sdYield/AvgYield*100,
+         AvgYieldLoss = mean(YieldLoss, na.rm=T), 
+         sdYieldLoss = sd(YieldLoss, na.rm=T), 
+         cvYieldLoss = sdYieldLoss/AvgYield*100) %>% 
   # calculate variable for the number of time series cases by state-municipality and agriculture type
   add_tally() %>% 
   # ungroup the data
@@ -447,8 +450,8 @@ SIAP_4 = SIAP_3 %>%
   mutate(zYield = (Yield - AvgYield)/sdYield) %>% 
   # group by state-municipality
   group_by(EstadoMunicipio) %>% 
-  # calculate variables for the mean, standard deviation and coefficient of variation 
-  # for each agriculture type by state-municipality
+  # calculate variables for the Yield and Yield Loss  mean, standard deviation and 
+  # coefficient of variation for each agriculture type by state-municipality
   mutate(AvgYield_Total = mean(Yield, na.rm=T), 
          sdYield_Total = sd(Yield, na.rm=T), 
          cvYield_Total = sdYield_Total/AvgYield_Total*100,
@@ -457,20 +460,32 @@ SIAP_4 = SIAP_3 %>%
          cvYield_Irrig = sdYield_Irrig/AvgYield_Irrig*100,
          AvgYield_Temp = mean(Yield[AGType == "Temporal"], na.rm=T),
          sdYield_Temp = sd(Yield[AGType == "Temporal"], na.rm=T),
-         cvYield_Temp = sdYield_Temp/AvgYield_Temp*100) %>% 
+         cvYield_Temp = sdYield_Temp/AvgYield_Temp*100,
+         AvgYieldLoss_Total = mean(YieldLoss, na.rm=T), 
+         sdYieldLoss_Total = sd(YieldLoss, na.rm=T), 
+         cvYieldLoss_Total = sdYieldLoss_Total/AvgYieldLoss_Total*100,
+         AvgYieldLoss_Irrig = mean(YieldLoss[AGType == "Riego"] , na.rm=T),
+         sdYieldLoss_Irrig = sd(YieldLoss[AGType == "Riego"] , na.rm=T),
+         cvYieldLoss_Irrig = sdYieldLoss_Irrig/AvgYieldLoss_Irrig*100,
+         AvgYieldLoss_Temp = mean(YieldLoss[AGType == "Temporal"], na.rm=T),
+         sdYieldLoss_Temp = sd(YieldLoss[AGType == "Temporal"], na.rm=T),
+         cvYieldLoss_Temp = sdYieldLoss_Temp/AvgYieldLoss_Temp*100) %>% 
   # calculate variable for the overall number of time series cases by state-municipality
   add_tally(name = "n_Total") %>% 
   # ungroup the data
   ungroup() %>% 
   # calculate additional variables of interest
   mutate(
-    # calculate the maize yield Z-score by state-municipality for all agriculture types
+    # calculate the maize yield and yield loss Z-score by state-municipality for all agriculture types
     zYield_Total = (Yield - AvgYield_Total)/sdYield_Total,
+    zYieldLoss_Total = (YieldLoss - AvgYieldLoss_Total)/sdYieldLoss_Total,
     # Calculate the ratio of mean irrigated maize yield to mean temporal maize yield for each state-municipality
     IT_ratio_AvgYield = AvgYield_Irrig/AvgYield_Temp,
+    IT_ratio_AvgYieldLoss = AvgYieldLoss_Irrig/AvgYieldLoss_Temp,
     # Calculate the ratio of the irrigated maize yield coefficient of variation to 
-    # the temporal maize yield coefficient of variation for each state-municipality
-    IT_ratio_cvYield = cvYield_Irrig/cvYield_Temp)
+    # the temporal maize yield and yield loss coefficient of variation for each state-municipality
+    IT_ratio_cvYield = cvYield_Irrig/cvYield_Temp,
+    IT_ratio_cvYieldLoss = cvYieldLoss_Irrig/cvYieldLoss_Temp)
 
 
 SIAP_5 = SIAP_4 %>% 
@@ -483,6 +498,14 @@ SIAP_5 = SIAP_4 %>%
             maxYield = max(Yield, na.rm=T), # maximum maize yield
             medYield = median(Yield, na.rm=T), # median maize yield
             cvYield = sdYield/AvgYield*100, # coefficient of variation of maize yield
+            
+            AvgYieldLoss = mean(YieldLoss, na.rm=T), # mean/average maize Yield Loss
+            sdYieldLoss = sd(YieldLoss, na.rm=T), # standard deviation of maize Yield Loss
+            minYieldLoss = min(YieldLoss, na.rm=T), # minimum maize Yield Loss
+            maxYieldLoss = max(YieldLoss, na.rm=T), # maximum maize Yield Loss
+            medYieldLoss = median(YieldLoss, na.rm=T), # median maize Yield Loss
+            cvYieldLoss = sdYieldLoss/AvgYieldLoss*100, # coefficient of variation of maize Yield Loss
+            
             AvgPlanted = mean(Planted, na.rm=T), # average hectares planted in maize
             AvgHarvested = mean(Harvested, na.rm=T), # average hectares harvested in maize
             sdHarvested = sd(Harvested, na.rm=T), # standard deviation of hectares planted in maize
@@ -495,6 +518,7 @@ SIAP_5 = SIAP_4 %>%
             AvgPrice = mean(Price, na.rm=T), # average price per kg in $MX for maize
             n = mean(n, na.rm=T), # number of time series cases by state-municipality and agriculture type
             n_Total = mean(n_Total, na.rm=T), # overall number of time series cases by state-municipality
+            
             AvgYield_Total = mean(AvgYield_Total, na.rm=T), # mean maize yield for all agriculture types
             sdYield_Total = mean(sdYield_Total, na.rm=T), # standard deviation of maize yield for all agriculture types
             cvYield_Total = mean(cvYield_Total, na.rm=T), # coefficient of variation of maize yield for all agriculture types
@@ -505,7 +529,20 @@ SIAP_5 = SIAP_4 %>%
             sdYield_Temp = mean(sdYield_Temp, na.rm=T), # standard deviation of maize yield for temporal agriculture
             cvYield_Temp = mean(cvYield_Temp, na.rm=T), # coefficient of variation of maize yield for temporal agriculture
             IT_ratio_AvgYield = mean(IT_ratio_AvgYield, na.rm=T), # irrigation-temporal ratio for mean maize yields
-            IT_ratio_cvYield = mean(IT_ratio_cvYield, na.rm=T) # irrigation-temporal ratio for coefficient of variation of maize yields
+            IT_ratio_cvYield = mean(IT_ratio_cvYield, na.rm=T), # irrigation-temporal ratio for coefficient of variation of maize yields
+            
+            AvgYieldLoss_Total = mean(AvgYieldLoss_Total, na.rm=T), # mean maize yield loss for all agriculture types
+            sdYieldLoss_Total = mean(sdYieldLoss_Total, na.rm=T), # standard deviation of maize yield loss for all agriculture types
+            cvYieldLoss_Total = mean(cvYieldLoss_Total, na.rm=T), # coefficient of variation of maize yield loss for all agriculture types
+            AvgYieldLoss_Irrig = mean(AvgYieldLoss_Irrig, na.rm=T), # mean maize yield loss for irrigated agriculture
+            sdYieldLoss_Irrig = mean(sdYieldLoss_Irrig, na.rm=T), # standard deviation of maize yield loss for irrigated agriculture
+            cvYieldLoss_Irrig = mean(cvYieldLoss_Irrig, na.rm=T), # coefficient of variation of maize yield loss for irrigated agriculture
+            AvgYieldLoss_Temp = mean(AvgYieldLoss_Temp, na.rm=T), # mean maize yield loss for temporal agriculture
+            sdYieldLoss_Temp = mean(sdYieldLoss_Temp, na.rm=T), # standard deviation of maize yield loss for temporal agriculture
+            cvYieldLoss_Temp = mean(cvYieldLoss_Temp, na.rm=T), # coefficient of variation of maize yield loss for temporal agriculture
+            IT_ratio_AvgYieldLoss = mean(IT_ratio_AvgYieldLoss, na.rm=T), # irrigation-temporal ratio for mean maize yield loss
+            IT_ratio_cvYieldLoss = mean(IT_ratio_cvYieldLoss, na.rm=T) # irrigation-temporal ratio for coefficient of variation of maize yield loss
+            
             # ungroup the data
             ) %>% ungroup() %>% 
   # remove a number of municipios that should not be in the CMex focal region dataset
@@ -562,13 +599,13 @@ Temporal
 ### Merge SIAP with Land Use Polygons
 
 ```{r, label='Merge SIAP with Land Use Polygons', message=FALSE,warning=FALSE}
-LU_Cases = LU_Cases %>% select(EstadoMunicipio, AGType)
-SIAP_Cases = SIAP_5 %>% select(EstadoMunicipio, AGType)
+#LU_Cases = LU_Cases %>% select(EstadoMunicipio, AGType)
+#SIAP_Cases = SIAP_5 %>% select(EstadoMunicipio, AGType)
 #LU_Cases = st_drop_geometry(LU_Cases)
-SIAP_Cases <- SIAP_Cases[, c("EstadoMunicipio", "AGType")]
+#SIAP_Cases <- SIAP_Cases[, c("EstadoMunicipio", "AGType")]
 
-LU_Cases$LU_Cases = TRUE
-SIAP_Cases$SIAP_Cases = TRUE
+#LU_Cases$LU_Cases = TRUE
+#SIAP_Cases$SIAP_Cases = TRUE
 
 #X = SIAP_Cases %>% full_join(LU_Cases, by = c("EstadoMunicipio", "AGType"))
 
@@ -588,17 +625,22 @@ SIAP_5 = SIAP_5 %>% mutate_all(~ str_replace_all(., c("San Antonio La Isla" = "S
                                      "Tetla de La Solidaridad" = "Tetla de la Solidaridad")))
 
 
-SIAP_LU_poly = stringdist_left_join(LU2000d, SIAP_5, 
-           by = c("EstadoMunicipio", "AGType"))
-#SIAP_LU_poly_b = stringdist_left_join(SIAP_5, LU2000d, 
+SIAP_LU_poly = LU2000e %>% left_join(SIAP_5, by = c("EstadoMunicipio", "AGType"))
+
+SIAP_LU_poly_Cases = st_drop_geometry(SIAP_LU_poly)
+
+#SIAP_LU_poly = stringdist_left_join(LU2000e, SIAP_5, 
 #           by = c("EstadoMunicipio", "AGType"))
 
-SIAP_LU_poly <- SIAP_LU_poly %>% select(-ddr_ID, -ddr, -Cader_ID, -Cader, -AGType.y, -Municipio_ID.y, -Municipio.y, -Estado_ID.y, -Estado.y, -EstadoMunicipio.y, -Area_m2) %>% rename(EstadoMunicipio = EstadoMunicipio.x, Municipio = Municipio.x, Estado = Estado.x, Estado_ID = Estado_ID.x, Municipio_ID = Municipio_ID.x, AGType_Area_ha = Area_ha, AGType = AGType.x)
+###SIAP_LU_poly_b = stringdist_left_join(SIAP_5, LU2000d, 
+###           by = c("EstadoMunicipio", "AGType"))
 
-#SIAP_LU_poly_Cases <- SIAP_LU_poly_Cases %>% select(-ddr_ID, -ddr, -Cader_ID, -Cader, -AGType.y, -Municipio_ID.x, -Municipio.x, -Estado_ID.x, -Estado.x, -EstadoMunicipio.x, -AGType.x, -Area_m2) %>% rename(EstadoMunicipio = EstadoMunicipio.y, Municipio = Municipio.y, Estado = Estado.y, Estado_ID = Estado_ID.y, Municipio_ID = Municipio_ID.y, AGType_Area_ha = Area_ha)
+SIAP_LU_poly <- SIAP_LU_poly %>% select(-ddr_ID, -ddr, -Cader_ID, -Cader, -Municipio_ID.y, -Municipio.y, -Estado_ID.y, -Estado.y, -Area_m2) %>% rename( Municipio = Municipio.x, Estado = Estado.x, Estado_ID = Estado_ID.x, Municipio_ID = Municipio_ID.x, AGType_Area_ha = Area_ha)
 
-#SIAP_LU_poly_Cases = st_drop_geometry(SIAP_LU_poly)
+SIAP_LU_poly_Cases <- SIAP_LU_poly_Cases %>% select(-ddr_ID, -ddr, -Cader_ID, -Cader, -Municipio_ID.y, -Municipio.y, -Estado_ID.y, -Estado.y, -Area_m2) %>% rename( Municipio = Municipio.x, Estado = Estado.x, Estado_ID = Estado_ID.x, Municipio_ID = Municipio_ID.x, AGType_Area_ha = Area_ha)
+
 #write.csv(SIAP_LU_poly_Cases, paste0(wd$data_r,"SIAP_LU_poly_Cases.csv"))
+
 #setdiff(SIAP_LU_poly_a$EstadoMunicipio.x, SIAP_LU_poly_b$EstadoMunicipio.y)
 #setdiff(SIAP_LU_poly_b$EstadoMunicipio.y, SIAP_LU_poly_a$EstadoMunicipio.x)
 #setdiff(SIAP_LU_poly_a$EstadoMunicipio.x, SIAP_LU_poly_b$EstadoMunicipio.x)
@@ -629,13 +671,45 @@ PopCensus2010, Municipios2000s, Municipios2000s_Cases, LU2000c, SIAP_4, LU2000d,
 
 save(Data2000s_poly, file = paste0(wd$data_r, "Data2000s_poly.rData"))
 
-st_write(Data2000s_poly, paste0(wd$data_r, "Data2000s_poly.gpkg"), driver = "GPKG", overwrite=T)
 
+st_write(Data2000s_poly, paste0(wd$data_r, "Data2000s_poly.gpkg"), driver = "GPKG", overwrite=T)
 
 
 load(paste0(wd$data_r, "Data2000s_poly.rData"))
 ```
 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
  
  
  

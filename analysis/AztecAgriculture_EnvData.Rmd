@@ -337,6 +337,7 @@ Slope <- TopoEnv_r[[2]]
 #Municipios2000s <- st_read(paste0(wd$data_r, "AG_Model_2000s/CMex_Municipios_2000s.gpkg"))
 
 # Create Municipios Mask Raster for input into RF_ImputeRast function
+Municipios2000s <- st_read(paste0(wd$data_r, "AG_Model_2000s/CMex_Municipios_2000s.gpkg"))
 resample_100m_b = resample_100m
 values(resample_100m_b) <- 1
 m <- mask(resample_100m_b, Municipios2000s)
