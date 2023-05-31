@@ -139,7 +139,17 @@ Clim_r_sub <- subset(Clim_r, c("prec_04", "prec_05", "prec_06", "prec_07", "prec
 ```
 
 
+When aggregating average values of individual months into single values for a range of months, you have several options depending on your specific requirements and the nature of the data. Here are a few approaches commonly used in statistical modeling:
 
+Summation: Add up the values for the individual months within the range to obtain a single value. This approach is appropriate when the variable you are aggregating is additive in nature, such as precipitation or degree days. For example, if you want to aggregate May through July, you would sum the values for May, June, and July.
+
+Averaging: Calculate the average of the values for the individual months within the range. This approach works well when the variable you are aggregating represents a continuous process, such as temperature. For example, if you want to aggregate May through July, you would calculate the average of the values for May, June, and July.
+
+Maximum/Minimum: Use the maximum or minimum value among the individual months within the range. This approach is suitable when you want to capture the extreme values or the peak of a certain variable over a period. For instance, if you want to aggregate May through July, you would select the highest or lowest value among May, June, and July.
+
+Weighted Average: Assign weights to the individual months based on their importance or contribution to the overall season and calculate the weighted average. This approach allows you to give more emphasis to certain months within the range. For example, if you believe June is more critical to the growing season than May or July, you can assign a higher weight to June in the calculation of the weighted average.
+
+The choice of aggregation method depends on the specific characteristics of your data and the particular research question you are investigating. Consider the temporal dynamics, significance of individual months, and the underlying relationship between the climate variables and the agricultural growing season when selecting the most appropriate aggregation method. Additionally, it is advisable to document and justify the chosen method in your research to ensure transparency and reproducibility.
 
 ### Extract Raster Values
 
@@ -157,10 +167,10 @@ clim_vals <- exact_extract(x = Clim_r_sub, y = Data2000s_poly, fun = "mean",
                            max_cells_in_memory = 8e+08, stack_apply=T, 
                            append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
 
-env_vals <- topo_vals %>% left_join(soil_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType")) #%>% 
-                          #left_join(clim_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+env_vals <- topo_vals %>% left_join(soil_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>% 
+                          left_join(clim_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
 
-env_vals = merge(topo_vals, soil_vals, all = F, sort = F)
+#env_vals = merge(topo_vals, soil_vals, all = F, sort = F)
 
 ```
 
@@ -347,6 +357,14 @@ Data2000s_poly <- Data2000s_poly %>% mutate(
   maxYield = as.numeric(maxYield),
   medYield = as.numeric(medYield),
   cvYield = as.numeric(cvYield),
+  
+  AvgYieldLoss = as.numeric(AvgYieldLoss),
+  sdYieldLoss = as.numeric(sdYieldLoss),
+  minYieldLoss = as.numeric(minYieldLoss),
+  maxYieldLoss = as.numeric(maxYieldLoss),
+  medYieldLoss = as.numeric(medYieldLoss),
+  cvYieldLoss = as.numeric(cvYieldLoss),
+  
   AvgPlanted = as.numeric(AvgPlanted),
   AvgHarvested = as.numeric(AvgHarvested),
   sdHarvested = as.numeric(sdHarvested),
@@ -370,6 +388,19 @@ Data2000s_poly <- Data2000s_poly %>% mutate(
   cvYield_Temp = as.numeric(cvYield_Temp),
   IT_ratio_AvgYield = as.numeric(IT_ratio_AvgYield),
   IT_ratio_cvYield = as.numeric(IT_ratio_cvYield),
+  
+  AvgYieldLoss_Total = as.numeric(AvgYieldLoss_Total),
+  sdYieldLoss_Total = as.numeric(sdYieldLoss_Total),
+  cvYieldLoss_Total = as.numeric(cvYieldLoss_Total),
+  AvgYieldLoss_Irrig = as.numeric(AvgYieldLoss_Irrig),
+  sdYieldLoss_Irrig = as.numeric(sdYieldLoss_Irrig),
+  cvYieldLoss_Irrig = as.numeric(cvYieldLoss_Irrig),
+  AvgYieldLoss_Temp = as.numeric(AvgYieldLoss_Temp),
+  sdYieldLoss_Temp = as.numeric(sdYieldLoss_Temp),
+  cvYieldLoss_Temp = as.numeric(cvYieldLoss_Temp),
+  IT_ratio_AvgYieldLoss = as.numeric(IT_ratio_AvgYieldLoss),
+  IT_ratio_cvYieldLoss = as.numeric(IT_ratio_cvYieldLoss),
+  
   Pct_Tract_Mechaniz_pu = as.numeric(Pct_Tract_Mechaniz_pu),
   Pct_Tract_Animal_pu = as.numeric(Pct_Tract_Animal_pu),
   Pct_Tract_Manual_pu = as.numeric(Pct_Tract_Manual_pu),
@@ -377,16 +408,44 @@ Data2000s_poly <- Data2000s_poly %>% mutate(
   Temporal_PU = as.numeric(Temporal_PU)
   )
 
+```
+
+
+```{r, label='Prepare Agricultural Data', message=FALSE,warning=FALSE}
+
 x = st_drop_geometry(Data2000s_poly)# %>% filter(-1:3)
-x = x[-c(1:3, 31, 50, 87),]
-#x = x %>% filter(EstadoMunicipio != "Axapusco, Mexico")
-x = x[,-c(1:5)]
-x = as.data.frame(x)
-Tot = x %>% select(-cvLost, -AvgYield_Irrig, -sdYield_Irrig, -cvYield_Irrig, -AvgYield_Temp, -sdYield_Temp, -cvYield_Temp, -IT_ratio_AvgYield, -IT_ratio_cvYield) %>% filter(complete.cases(.))
+x = x %>% filter(!(EstadoMunicipio %in% c("Ixtapaluca, Mexico", "Valle de Chalco Solidaridad, Mexico", "Milpa Alta, Distrito Federal", "Tlahuac, Distrito Federal", "Xochimilco, Distrito Federal", "Axapusco, Mexico") & AGType %in% "Riego"))
+
+#x = x[,-c(1:5)]
+#x = as.data.frame(x)
+Tot = x %>% select(-AvgYield_Total, -sdYield_Total, -cvYield_Total, 
+                   -AvgYield_Irrig, -sdYield_Irrig, -cvYield_Irrig, -AvgYield_Temp, 
+                   -sdYield_Temp, -cvYield_Temp, -IT_ratio_AvgYield, -IT_ratio_cvYield, 
+                   -AvgYieldLoss_Total, -sdYieldLoss_Total, -cvYieldLoss_Total, 
+                   -AvgYieldLoss_Irrig, -sdYieldLoss_Irrig, -cvYieldLoss_Irrig, 
+                   -AvgYieldLoss_Temp, -sdYieldLoss_Temp, -cvYieldLoss_Temp, 
+                   -IT_ratio_AvgYieldLoss,  -IT_ratio_cvYieldLoss, -minYieldLoss) %>% 
+  filter(complete.cases(.))
+
+
+# Find rows with NA, NaN, or Inf values
+#rows_with_na <- apply(Tot, 1, function(row) any(is.na(row) | is.nan(row) | is.infinite(row)))
+
+# Find columns with NA, NaN, or Inf values
+#columns_with_na <- apply(Tot, 2, function(column) any(is.na(column) | is.nan(column) | is.infinite(column)))
+
+# Print the rows and columns with NA, NaN, or Inf values
+#cat("Rows with NA, NaN, or Inf values:\n")
+#print(which(rows_with_na))
+#cat("\n")
+#cat("Columns with NA, NaN, or Inf values:\n")
+#print(which(columns_with_na))
+
+
 
 Temp = Tot %>% filter(AGType == "Temporal") %>% select(-AGType)
 Irrig = Tot %>% filter(AGType == "Riego") %>% select(-AGType)
-Tot = Tot %>% select(-AGType)
+#####Tot = Tot %>% select(-AGType)
 #y = as.matrix(y)
 #colSums(is.na(y) | is.infinite(y))
 #missing_rows <- which(rowSums(is.na(y) | is.infinite(y)) > 0)
@@ -394,7 +453,46 @@ Tot = Tot %>% select(-AGType)
 #cat("Columns with missing or infinite values:", missing_cols, "\n")
 
 ```
+--n = 1 case--
+***- Riego
+Malinalco, Mexico 
+Chicoloapan, Mexico
+Chimalhuacan, Mexico
 
+sdYield     cvYield sdYieldLoss cvYieldLoss sdHarvested cvHarvested      sdLost      cvLost 
+
+
+***- Riego
+Ixtapaluca, Mexico 
+Valle de Chalco Solidaridad, Mexico
+Milpa Alta, Distrito Federal
+Tlahuac, Distrito Federal
+Xochimilco, Distrito Federal
+Axapusco, Mexico
+
+
+
+
+-AvgYieldLoss_Irrig, -sdYieldLoss_Irrig, -cvYieldLoss_Irrig, -AvgYieldLoss_Temp, -sdYieldLoss_Temp, -cvYieldLoss_Temp, -IT_ratio_AvgYieldLoss,  -IT_ratio_cvYieldLoss
+
+
+AvgYield_Irrig	
+         sdYield_Irrig	
+         cvYield_Irrig	
+         AvgYield_Temp	
+         sdYield_Temp	
+         cvYield_Temp	
+         IT_ratio_AvgYield	
+         IT_ratio_cvYield
+
+         AvgYieldLoss_Irrig	
+         sdYieldLoss_Irrig	
+         cvYieldLoss_Irrig	
+         AvgYieldLoss_Temp	
+         sdYieldLoss_Temp	
+         cvYieldLoss_Temp	
+         IT_ratio_AvgYieldLoss	
+         IT_ratio_cvYieldLoss
 
 "AGType_Area_ha"        
 
@@ -439,14 +537,14 @@ Tot = Tot %>% select(-AGType)
 
 # sdYield, cvYield, sdHarvested, cvHarvested, sdLost                
 
-pca_tot <- prcomp(Tot, center = TRUE, scale. = TRUE)
-loadings_tot = as.data.frame(pca_tot$rotation, row.names = colnames(Tot))
+pca_tot <- prcomp(Tot[,-c(1:6)], center = TRUE, scale. = TRUE)
+loadings_tot = as.data.frame(pca_tot$rotation, row.names = colnames(Tot[,-c(1:6)]))
 
-pca_temp <- prcomp(Temp, center = TRUE, scale. = TRUE)
-loadings_temp = as.data.frame(pca_temp$rotation, row.names = colnames(Temp))
+pca_temp <- prcomp(Temp[,-c(1:5)], center = TRUE, scale. = TRUE)
+loadings_temp = as.data.frame(pca_temp$rotation, row.names = colnames(Temp[,-c(1:5)]))
 
-pca_irrig <- prcomp(Irrig, center = TRUE, scale. = TRUE)
-loadings_irrig = as.data.frame(pca_irrig$rotation, row.names = colnames(Irrig))
+pca_irrig <- prcomp(Irrig[,-c(1:5)], center = TRUE, scale. = TRUE)
+loadings_irrig = as.data.frame(pca_irrig$rotation, row.names = colnames(Irrig[,-c(1:5)]))
 
 #res <- cor(y)
 #res = as.data.frame(round(res, 2))
@@ -454,6 +552,21 @@ loadings_irrig = as.data.frame(pca_irrig$rotation, row.names = colnames(Irrig))
 ```
 
 
+```{r}
+hist(Temp$AvgYield, breaks = seq(0, 5200, by = 200), xlim = c(0,5200))
+hist(Irrig$AvgYield, breaks = seq(2000, 10250, by = 250), xlim = c(2000,10250))
+#rescale to 1500-8000
+hist(Tot$AvgYield, breaks = seq(0, 10250, by = 250), xlim = c(0,10250))
+hist(log(Irrig$AvgYield))
+hist(log(Tot$AvgYield))
+
+plot(Tot$LU_Total_perHa, Tot$AvgYield)
+plot(log(Tot$LU_Total_perHa), log(Tot$AvgYield))
+plot(Irrig$LU_Total_perHa, Irrig$AvgYield)
+plot(log(Irrig$LU_Total_perHa), (Irrig$AvgYield))
+plot(Temp$LU_Total_perHa, Temp$AvgYield)
+plot(log(Temp$LU_Total_perHa), log(Temp$AvgYield))
+```
 
 
 
@@ -506,7 +619,23 @@ high_elev <- high_elev[,which(names(high_elev) != "DEM")]
 
 # Random Forest Model
 
+When using a Random Forest model, there are several approaches you can employ to narrow down the variables used as input. These methods can help improve the model's performance, reduce overfitting, and enhance interpretability. Here are some commonly used approaches:
 
+Feature Importance: Random Forest models provide a measure of feature importance, which indicates the relative contribution of each variable in predicting the target variable. You can use these importance scores to identify the most influential variables and select only the top-ranked ones for your model.
+
+Recursive Feature Elimination (RFE): RFE is an iterative process that starts with all variables and progressively eliminates the least important ones. It trains the model on a subset of features, calculates their importance, and removes the least important feature. The process is repeated until a desired number of features is reached or a specified stopping criterion is met.
+
+Selecting a Threshold: You can set a threshold for feature importance and select variables that exceed that threshold. This approach allows you to include only the most relevant variables in your model, discarding those with lower importance.
+
+Correlation Analysis: Identify variables that have a high correlation with the target variable and retain those while eliminating highly correlated variables among themselves. This helps reduce redundancy and focuses on variables that have a stronger relationship with the target.
+
+Domain Knowledge and Expert Opinion: Leverage your domain knowledge or consult subject matter experts to identify variables that are most likely to impact the target variable. This approach can help you narrow down the variables and focus on those that are known to be relevant in the specific context.
+
+Stepwise Selection: Implement a stepwise selection algorithm, such as forward selection, backward elimination, or a combination of both. These methods iteratively add or remove variables based on statistical metrics like p-values, AIC, or BIC, to find the optimal subset of variables for your model.
+
+L1 Regularization (LASSO): Apply L1 regularization, such as the LASSO (Least Absolute Shrinkage and Selection Operator), which can shrink the coefficients of irrelevant variables to zero, effectively excluding them from the model.
+
+It is important to note that the selection of variables should be guided by the specific problem, the available data, and the goals of your analysis. Experimentation, validation, and careful consideration of the trade-offs between model complexity and performance are crucial in determining the final set of variables for your Random Forest model.
 ```{r}
 
 train <- na.omit(train)

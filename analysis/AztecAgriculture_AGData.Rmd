@@ -553,8 +553,9 @@ SIAP_5 = SIAP_4 %>%
 
 #SIAP_5[is.nan(SIAP_5)] <- NA
 
-#SIAP_5 <- SIAP_5 %>% 
-#  mutate( )
+SIAP_5 <- SIAP_5 %>% rowwise() %>%
+  mutate(cvYieldLoss = ifelse(is.nan(cvYieldLoss), 0, cvYieldLoss),
+         cvLost = ifelse(is.nan(cvLost), 0, cvLost)) %>% ungroup()
 
 #write.csv(SIAP_4, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
 
@@ -562,6 +563,32 @@ SIAP_5 = SIAP_4 %>%
 
 
 ```
+
+
+AvgYield_Irrig	
+         sdYield_Irrig	
+         cvYield_Irrig	
+         AvgYield_Temp	
+         sdYield_Temp	
+         cvYield_Temp	
+         IT_ratio_AvgYield	
+         IT_ratio_cvYield
+
+         AvgYieldLoss_Irrig	
+         sdYieldLoss_Irrig	
+         cvYieldLoss_Irrig	
+         AvgYieldLoss_Temp	
+         sdYieldLoss_Temp	
+         cvYieldLoss_Temp	
+         IT_ratio_AvgYieldLoss	
+         IT_ratio_cvYieldLoss
+
+
+
+
+
+
+
 No Land Use:
 
 
@@ -675,7 +702,7 @@ PopCensus2010, Municipios2000s, Municipios2000s_Cases, LU2000c, SIAP_4, LU2000d,
 #setdiff(Data2000s_poly$EstadoMunicipio, SIAP_LU_poly$EstadoMunicipio)
 #setdiff(SIAP_LU_poly$EstadoMunicipio, Data2000s_poly$EstadoMunicipio)
 
-save(Data2000s_poly, file = paste0(wd$data_r, "Data2000s_poly.rData"))
+#save(Data2000s_poly, file = paste0(wd$data_r, "Data2000s_poly.rData"))
 
 
 st_write(Data2000s_poly, paste0(wd$data_p, "Data2000s_poly.gpkg"), driver = "GPKG", overwrite=TRUE, append=FALSE)
