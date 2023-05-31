@@ -351,14 +351,14 @@ LU2000d <- LU2000c %>%
   filter(!(EstadoMunicipio %in% c("Coatetelco, Morelos", "Almoloya de Alquisiras, Mexico", "Amanalco, Mexico", "Iztapalapa, Distrito Federal", "Texcaltitlan, Mexico","Polotitlan, Mexico", "Temascalcingo, Mexico","Villa de Allende, Mexico", "Acambay de Ruiz Castaneda, Mexico", "Aculco, Mexico"))) %>% 
   # 
  mutate(AGType = case_when(
-    EstadoMunicipio == "Tzicatlacoyan, Puebla" & Type == "Riego" ~ "Temporal",
-    EstadoMunicipio == "Santa Catarina Tlaltempan, Puebla" & Type == "Riego" ~ "Temporal",
-    EstadoMunicipio == "San Diego la Mesa Tochimiltzingo, Puebla" & Type == "Riego" ~ "Temporal",
-    EstadoMunicipio == "Ocuilan, Mexico" & Type == "Riego" ~ "Temporal",
-    EstadoMunicipio == "Cocotitlan, Mexico" & Type == "Riego" ~ "Temporal",
-    EstadoMunicipio == "Villa Guerrero, Mexico" & Type == "Riego" ~ "Temporal",
-    EstadoMunicipio == "Tonanitla, Mexico" & Type == "Riego" ~ "Temporal",
-    EstadoMunicipio == "Cuautitlan, Mexico" & Type == "Temporal" ~ "Riego",
+    EstadoMunicipio == "Tzicatlacoyan, Puebla" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "Santa Catarina Tlaltempan, Puebla" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "San Diego la Mesa Tochimiltzingo, Puebla" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "Ocuilan, Mexico" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "Cocotitlan, Mexico" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "Villa Guerrero, Mexico" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "Tonanitla, Mexico" & Type == "Riego" ~ "Temporal", #############################
+    EstadoMunicipio == "Cuautitlan, Mexico" & Type == "Temporal" ~ "Riego", #############################
     .default = Type)) %>% select(-Type)
 
 #%>% group_by(AGType, Estado, Estado_ID, Municipio, Municipio_ID, EstadoMunicipio) %>% 
@@ -451,12 +451,28 @@ SIAP_3 = SIAP_2 %>% left_join(SIAP_ID, by = c('Estado_ID', 'Estado', 'ddr_ID', '
 
 #write.csv(SIAP_3, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
 
-################################################################################
-#   STOPPED ANNOTATION HERE
-################################################################################
 
-SIAP_4 = SIAP_3 %>% filter(Cycle == "Primavera-Verano") %>% group_by(EstadoMunicipio, AGType) %>% 
-  mutate(AvgYield = mean(Yield, na.rm=T), sdYield = sd(Yield, na.rm=T), cvYield = sdYield/AvgYield*100) %>% add_tally() %>% ungroup() %>% mutate(zYield = (Yield - AvgYield)/sdYield) %>% group_by(EstadoMunicipio) %>% 
+SIAP_4 = SIAP_3 %>% 
+  # only consider Spring-Summer crop cycle yields (exclude Autumn-Winter yields)
+  filter(Cycle == "Primavera-Verano") %>% 
+  # group the data by state-municipality and agriculture type
+  group_by(EstadoMunicipio, AGType) %>% 
+  # calculate variables for the maize yield time-series mean, standard deviation 
+  # and coefficient of variation by state-municipality and agriculture type
+  mutate(AvgYield = mean(Yield, na.rm=T), 
+         sdYield = sd(Yield, na.rm=T), 
+         cvYield = sdYield/AvgYield*100) %>% 
+  # calculate variable for the number of time series cases by state-municipality and agriculture type
+  add_tally() %>% 
+  # ungroup the data
+  ungroup() %>% 
+  # calculate the maize yield Z-score by state-municipality and agriculture type
+  # using the state-municipality / agriculture type mean and st.dev
+  mutate(zYield = (Yield - AvgYield)/sdYield) %>% 
+  # group by state-municipality
+  group_by(EstadoMunicipio) %>% 
+  # calculate variables for the mean, standard deviation and coefficient of variation 
+  # for each agriculture type by state-municipality
   mutate(AvgYield_Total = mean(Yield, na.rm=T), 
          sdYield_Total = sd(Yield, na.rm=T), 
          cvYield_Total = sdYield_Total/AvgYield_Total*100,
@@ -466,44 +482,60 @@ SIAP_4 = SIAP_3 %>% filter(Cycle == "Primavera-Verano") %>% group_by(EstadoMunic
          AvgYield_Temp = mean(Yield[AGType == "Temporal"], na.rm=T),
          sdYield_Temp = sd(Yield[AGType == "Temporal"], na.rm=T),
          cvYield_Temp = sdYield_Temp/AvgYield_Temp*100) %>% 
-  add_tally(name = "n_Total") %>% ungroup() %>% 
-  mutate(zYield_Total = (Yield - AvgYield_Total)/sdYield_Total,
-         IT_ratio_AvgYield = AvgYield_Irrig/AvgYield_Temp,
-         IT_ratio_cvYield = cvYield_Irrig/cvYield_Temp)
+  # calculate variable for the overall number of time series cases by state-municipality
+  add_tally(name = "n_Total") %>% 
+  # ungroup the data
+  ungroup() %>% 
+  # calculate additional variables of interest
+  mutate(
+    # calculate the maize yield Z-score by state-municipality for all agriculture types
+    zYield_Total = (Yield - AvgYield_Total)/sdYield_Total,
+    # Calculate the ratio of mean irrigated maize yield to mean temporal maize yield for each state-municipality
+    IT_ratio_AvgYield = AvgYield_Irrig/AvgYield_Temp,
+    # Calculate the ratio of the irrigated maize yield coefficient of variation to 
+    # the temporal maize yield coefficient of variation for each state-municipality
+    IT_ratio_cvYield = cvYield_Irrig/cvYield_Temp)
 
 
-SIAP_5 = SIAP_4 %>% group_by(Estado_ID, Estado, ddr_ID, ddr, Cader_ID, Cader, Municipio_ID, Municipio, EstadoMunicipio, AGType) %>%
-  summarize(AvgYield = mean(Yield, na.rm=T),
-            sdYield = sd(Yield, na.rm=T),
-            minYield = min(Yield, na.rm=T),
-            maxYield = max(Yield, na.rm=T),
-            medYield = median(Yield, na.rm=T),
-            cvYield = sdYield/AvgYield*100,
-            AvgPlanted = mean(Planted, na.rm=T),
-            AvgHarvested = mean(Harvested, na.rm=T),
-            sdHarvested = sd(Harvested, na.rm=T),
-            cvHarvested = sdHarvested/AvgHarvested*100,
-            AvgLost = mean(Lost, na.rm=T),
-            sdLost = sd(Lost, na.rm=T),
-            cvLost = sdLost/AvgLost*100,
-            AvgProduct = mean(Product, na.rm=T),
-            AvgValue = mean(Value, na.rm=T),
-            AvgPrice = mean(Price, na.rm=T),
-            #ORD = mean(ORD, na.rm=T),
-            n = mean(n, na.rm=T),
-            n_Total = mean(n_Total, na.rm=T),
-            AvgYield_Total = mean(AvgYield_Total, na.rm=T),
-            sdYield_Total = mean(sdYield_Total, na.rm=T),
-            cvYield_Total = mean(cvYield_Total, na.rm=T),
-            AvgYield_Irrig = mean(AvgYield_Irrig, na.rm=T),
-            sdYield_Irrig = mean(sdYield_Irrig, na.rm=T),
-            cvYield_Irrig = mean(cvYield_Irrig, na.rm=T),
-            AvgYield_Temp = mean(AvgYield_Temp, na.rm=T),
-            sdYield_Temp = mean(sdYield_Temp, na.rm=T),
-            cvYield_Temp = mean(cvYield_Temp, na.rm=T),
-            IT_ratio_AvgYield = mean(IT_ratio_AvgYield, na.rm=T),
-            IT_ratio_cvYield = mean(IT_ratio_cvYield, na.rm=T)) %>% ungroup() %>% 
-  filter(!(EstadoMunicipio %in% c("Coatetelco, Morelos", "Almoloya de Alquisiras, Mexico", "Amanalco, Mexico", "Iztapalapa, Distrito Federal", "Texcaltitlan, Mexico","Polotitlan, Mexico", "Temascalcingo, Mexico","Villa de Allende, Mexico", "Acambay de Ruiz Castaneda, Mexico", "Aculco, Mexico"))) %>% filter(!(EstadoMunicipio %in% c("Chigmecatitlan, Puebla", "Huitzilac, Morelos", "San Jose Teacalco, Tlaxcala", "Tlalnepantla, Morelos", "Totolapan, Morelos", "Acajete, Puebla", "Almoloya, Hidalgo", "Apan, Hidalgo", "Atlatlahucan, Morelos", "Emiliano Zapata, Hidalgo", "Mazatecochco de Jose Maria Morelos, Tlaxcala", "San Francisco Tetlanohcan, Tlaxcala", "San Pablo del Monte, Tlaxcala", "Tolcayuca, Hidalgo", "Tonanitla, Mexico", "Amaxac de Guerrero, Tlaxcala", "Jaltenco, Mexico") & AGType %in% "Riego"))
+SIAP_5 = SIAP_4 %>% 
+  # group by all of the ID variables (effectively at the resolution of each agriculture type and state-municipality)
+  group_by(Estado_ID, Estado, ddr_ID, ddr, Cader_ID, Cader, Municipio_ID, Municipio, EstadoMunicipio, AGType) %>%
+  # summarize the dataset by state-municipality and agriculture type
+  summarize(AvgYield = mean(Yield, na.rm=T), # mean/average maize yield
+            sdYield = sd(Yield, na.rm=T), # standard deviation of maize yield
+            minYield = min(Yield, na.rm=T), # minimum maize yield
+            maxYield = max(Yield, na.rm=T), # maximum maize yield
+            medYield = median(Yield, na.rm=T), # median maize yield
+            cvYield = sdYield/AvgYield*100, # coefficient of variation of maize yield
+            AvgPlanted = mean(Planted, na.rm=T), # average hectares planted in maize
+            AvgHarvested = mean(Harvested, na.rm=T), # average hectares harvested in maize
+            sdHarvested = sd(Harvested, na.rm=T), # standard deviation of hectares planted in maize
+            cvHarvested = sdHarvested/AvgHarvested*100, # coefficient of variation of hectares planted in maize
+            AvgLost = mean(Lost, na.rm=T), # average number of hectares of maize lost (i.e. planted but not harvested)
+            sdLost = sd(Lost, na.rm=T), # standard deviation of hectares of maize lost (i.e. planted but not harvested)
+            cvLost = sdLost/AvgLost*100, # coefficient of variation of hectares of maize lost (i.e. planted but not harvested)
+            AvgProduct = mean(Product, na.rm=T), # average total kg of maize produced
+            AvgValue = mean(Value, na.rm=T), # average total value in $MX of maize produced
+            AvgPrice = mean(Price, na.rm=T), # average price per kg in $MX for maize
+            n = mean(n, na.rm=T), # number of time series cases by state-municipality and agriculture type
+            n_Total = mean(n_Total, na.rm=T), # overall number of time series cases by state-municipality
+            AvgYield_Total = mean(AvgYield_Total, na.rm=T), # mean maize yield for all agriculture types
+            sdYield_Total = mean(sdYield_Total, na.rm=T), # standard deviation of maize yield for all agriculture types
+            cvYield_Total = mean(cvYield_Total, na.rm=T), # coefficient of variation of maize yield for all agriculture types
+            AvgYield_Irrig = mean(AvgYield_Irrig, na.rm=T), # mean maize yield for irrigated agriculture
+            sdYield_Irrig = mean(sdYield_Irrig, na.rm=T), # standard deviation of maize yield for irrigated agriculture
+            cvYield_Irrig = mean(cvYield_Irrig, na.rm=T), # coefficient of variation of maize yield for irrigated agriculture
+            AvgYield_Temp = mean(AvgYield_Temp, na.rm=T), # mean maize yield for temporal agriculture
+            sdYield_Temp = mean(sdYield_Temp, na.rm=T), # standard deviation of maize yield for temporal agriculture
+            cvYield_Temp = mean(cvYield_Temp, na.rm=T), # coefficient of variation of maize yield for temporal agriculture
+            IT_ratio_AvgYield = mean(IT_ratio_AvgYield, na.rm=T), # irrigation-temporal ratio for mean maize yields
+            IT_ratio_cvYield = mean(IT_ratio_cvYield, na.rm=T) # irrigation-temporal ratio for coefficient of variation of maize yields
+            # ungroup the data
+            ) %>% ungroup() %>% 
+  # remove a number of municipios that should not be in the CMex focal region dataset
+  filter(!(EstadoMunicipio %in% c("Coatetelco, Morelos", "Almoloya de Alquisiras, Mexico", "Amanalco, Mexico", "Iztapalapa, Distrito Federal", "Texcaltitlan, Mexico","Polotitlan, Mexico", "Temascalcingo, Mexico","Villa de Allende, Mexico", "Acambay de Ruiz Castaneda, Mexico", "Aculco, Mexico"))) %>% 
+  # remove irrigation maize yield cases for some municipalities that lack irrigation agriculture in the land use data
+  filter(!(EstadoMunicipio %in% c("Chigmecatitlan, Puebla", "Huitzilac, Morelos", "San Jose Teacalco, Tlaxcala", "Tlalnepantla, Morelos", "Totolapan, Morelos", "Acajete, Puebla", "Almoloya, Hidalgo", "Apan, Hidalgo", "Atlatlahucan, Morelos", "Emiliano Zapata, Hidalgo", "Mazatecochco de Jose Maria Morelos, Tlaxcala", "San Francisco Tetlanohcan, Tlaxcala", "San Pablo del Monte, Tlaxcala", "Tolcayuca, Hidalgo", "Tonanitla, Mexico", "Amaxac de Guerrero, Tlaxcala", "Jaltenco, Mexico") & AGType %in% "Riego"))
 
 #write.csv(SIAP_4, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
 
