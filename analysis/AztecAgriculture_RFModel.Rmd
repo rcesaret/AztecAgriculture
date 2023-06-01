@@ -168,9 +168,13 @@ clim_vals <- exact_extract(x = Clim_r_sub, y = Data2000s_poly, fun = "mean",
                            append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
 
 env_vals <- topo_vals %>% left_join(soil_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>% 
-                          left_join(clim_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+                          left_join(clim_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>% 
+                          mutate(AGType = as.factor(AGType))
+  
 
 #env_vals = merge(topo_vals, soil_vals, all = F, sort = F)
+
+rm(topo_vals, soil_vals, clim_vals)
 
 ```
 
@@ -212,8 +216,6 @@ geol <- stack(depth, cation, slope)
 geol_vals <- extract(geol,points)
 clim_vals <- extract(clim,points)
 ```
-
-
 
 
 
@@ -443,8 +445,7 @@ Tot = x %>% select(-AvgYield_Total, -sdYield_Total, -cvYield_Total,
 
 
 
-Temp = Tot %>% filter(AGType == "Temporal") %>% select(-AGType)
-Irrig = Tot %>% filter(AGType == "Riego") %>% select(-AGType)
+
 #####Tot = Tot %>% select(-AGType)
 #y = as.matrix(y)
 #colSums(is.na(y) | is.infinite(y))
@@ -531,20 +532,46 @@ AvgYield_Irrig
 
 
 
-### PCA for Agricultural Variable Selection
+
+## Merge Raster Data with AG Data
+
+```{r}
+
+Train = Tot %>% select(-Estado_ID, -Municipio_ID) %>% 
+  left_join(env_vals, by=c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>%
+  select(AGType, Estado, Municipio, EstadoMunicipio, AvgYield, sdYield, cvYield, AvgYieldLoss, sdYieldLoss, cvYieldLoss, Pop_Total, Pop_Urban, UrbRatio, Pct_Primary, Pct_Rented_ha, Pct_Rest_ha, Pct_Fallow_ha, Pct_FertilChem_ha, Pct_FertilManure_ha, Pct_ImprovSeed_ha, Pct_Herbicides_ha, Pct_Insecticides_ha, Pct_ControlledBurn_ha, TotalLabor, TotalLabor_perHa, PctContractLabor, Pct_Pasture_ha, LU_Total, LU_Total_perHa, mean.Slope, mean.Accum, mean.TRI, mean.TWI, mean.STI, mean.SPI, mean.BD, mean.S, mean.Z, mean.C, mean.SOC, mean.CEC, mean.OCD, mean.N, mean.BDRICM, mean.BDTICM, mean.prec_04, mean.prec_05, mean.prec_06, mean.prec_07, mean.prec_08, mean.prec_09, mean.prec_10, mean.prec_11, mean.pr_04, mean.pr_05, mean.pr_06, mean.pr_07, mean.pr_08, mean.pr_09, mean.pr_10, mean.pr_11, mean.tmean_04, mean.tmean_05, mean.tmean_06, mean.tmean_07, mean.tmean_08, mean.tmean_09, mean.tmean_10, mean.tmean_11, mean.tmin_04, mean.tmin_05, mean.tmin_06, mean.tmin_07, mean.tmin_08, mean.tmin_09, mean.tmin_10, mean.tmin_11, mean.clt_04, mean.clt_05, mean.clt_06, mean.clt_07, mean.clt_08, mean.clt_09, mean.clt_10, mean.clt_11, mean.rsds_04, mean.rsds_05, mean.rsds_06, mean.rsds_07, mean.rsds_08, mean.rsds_09, mean.rsds_10, mean.rsds_11)
+
+Temp = Train %>% filter(AGType == "Temporal") %>% select(-AGType)
+Irrig = Train %>% filter(AGType == "Riego") %>% select(-AGType)
+
+```
+
+
+```{r}
+
+
+
+```
+
+
+
+
+
+
+### PCA for Variable Selection
 
 ```{r, label='PCA for Agricultural Variable Selection', message=FALSE,warning=FALSE}
 
 # sdYield, cvYield, sdHarvested, cvHarvested, sdLost                
 
-pca_tot <- prcomp(Tot[,-c(1:6)], center = TRUE, scale. = TRUE)
-loadings_tot = as.data.frame(pca_tot$rotation, row.names = colnames(Tot[,-c(1:6)]))
+pca_tot <- prcomp(Train[,-c(1:4)], center = TRUE, scale. = TRUE)
+loadings_tot = as.data.frame(pca_tot$rotation, row.names = colnames(Train[,-c(1:4)]))
 
-pca_temp <- prcomp(Temp[,-c(1:5)], center = TRUE, scale. = TRUE)
-loadings_temp = as.data.frame(pca_temp$rotation, row.names = colnames(Temp[,-c(1:5)]))
+pca_temp <- prcomp(Temp[,-c(1:3)], center = TRUE, scale. = TRUE)
+loadings_temp = as.data.frame(pca_temp$rotation, row.names = colnames(Temp[,-c(1:3)]))
 
-pca_irrig <- prcomp(Irrig[,-c(1:5)], center = TRUE, scale. = TRUE)
-loadings_irrig = as.data.frame(pca_irrig$rotation, row.names = colnames(Irrig[,-c(1:5)]))
+pca_irrig <- prcomp(Irrig[,-c(1:3)], center = TRUE, scale. = TRUE)
+loadings_irrig = as.data.frame(pca_irrig$rotation, row.names = colnames(Irrig[,-c(1:3)]))
 
 #res <- cor(y)
 #res = as.data.frame(round(res, 2))
