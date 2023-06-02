@@ -278,7 +278,6 @@ SIAP_4 = SIAP_3 %>% filter(Cycle == "Primavera-Verano") %>% group_by(EstadoMunic
   mutate(AvgYield = mean(Yield, na.rm=T), sdYield = sd(Yield, na.rm=T), cvYield = sdYield/AvgYield*100) %>% add_tally() %>% ungroup() %>% mutate(zYield = (Yield - AvgYield)/sdYield) %>% group_by(EstadoMunicipio) %>% 
   mutate(AvgYield_T = mean(Yield, na.rm=T), sdYield_T = sd(Yield, na.rm=T), cvYield_T = sdYield_T/AvgYield_T*100) %>% add_tally(name = "n_T") %>% ungroup() %>% mutate(zYield_T = (Yield - AvgYield_T)/sdYield_T)
 
-write.csv(SIAP_4, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
 
 ```
 
