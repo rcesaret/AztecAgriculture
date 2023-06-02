@@ -102,8 +102,265 @@ rm(FUNCS)
 
 
 
+# ****Comparative Yields Over Time Analysis
 
-# Agricultural Data
+```{r}
+CY <- read.csv(paste0(wd$data_r,"ComparativeYields.csv"))
+CY$Series <- factor(CY$Series, levels = c("AG Census 1960", "Sanders Aztec BOM Model", "AG Census 1991", "Sanders mid-20th Century BOM", "SIAP 2003-2021 Average"))
+x = ggbetweenstats(
+  data = dplyr::filter(CY, Size == "Total"),
+  x = Series, ## grouping/independent variable
+  y = Yield, ## dependent variables
+  type = "robust", ## type of statistics
+  xlab = "", ## label for the x-axis
+  ylab = "Maize Yield (kg/ha)", ## label for the y-axis
+  ## turn off messages
+  ggtheme = ggplot2::theme_gray(), ## a different theme
+  package = "yarrr", ## package from which color palette is to be taken
+  palette = "info2", ## choosing a different color palette
+  title = "",
+  caption = "",
+  centrality.label.args = list(size = 4, nudge_x = 0,nudge_y = 3000, segment.linetype = 0,
+    min.segment.length = 0)
+) + ## modifying the plot further
+  ggplot2::scale_y_continuous(
+    limits = c(0, 7000),
+    breaks = seq(from = 0, to = 7000, by = 500)
+  ) 
+```
+
+
+
+```{r}
+CY2 <- read.csv(paste0(wd$data_r,"ComparativeYields.csv"))
+
+CY2 = CY2 %>% filter(Series == "Sanders mid-20th Century BOM" | Series == "AG Census 1960" | Series == "Sanders Aztec BOM Model") %>% rowwise() %>% mutate(Size = ifelse(Series == "Sanders mid-20th Century BOM" | Series == "Sanders Aztec BOM Model", '', Size)) %>% ungroup() %>% unite(SizeSeries, Series, Size, sep = "\n") %>% mutate_all(~ str_replace_all(., c(" BOM" = ""))) %>% mutate(Yield = as.numeric(Yield))
+CY2$Series <- factor(CY2$SizeSeries, levels = c("Sanders mid-20th Century\n", "Sanders Aztec Model\n", "AG Census 1960\nSmall", "AG Census 1960\nLarge", "AG Census 1960\nEjido", "AG Census 1960\nTotal"))
+x2 = ggbetweenstats(
+  data = dplyr::filter(CY2, !is.na(Yield)),
+  x = Series, ## grouping/independent variable
+  y = Yield, ## dependent variables
+  type = "robust", ## type of statistics
+  xlab = "", ## label for the x-axis
+  ylab = "Maize Yield (kg/ha)", ## label for the y-axis
+  ## turn off messages
+  ggtheme = ggplot2::theme_gray(), ## a different theme
+  package = "yarrr", ## package from which color palette is to be taken
+  palette = "info2", ## choosing a different color palette
+  title = "",
+  caption = "",
+  centrality.label.args = list(size = 4, nudge_x = 0,nudge_y = 6000, segment.linetype = 0,
+    min.segment.length = 0)
+) + ## modifying the plot further
+  ggplot2::scale_y_continuous(
+    limits = c(0, 7000),
+    breaks = seq(from = 0, to = 5000, by = 500)
+  ) 
+
+x2
+```
+
+
+## ****CMex Yield Data over time
+
+
+```{r}
+
+
+Colonial <- read.csv(paste0(wd$data_r,"Colonial_MaizeYields.csv"))
+
+AGCensus1960 <- read.csv(paste0(wd$data_r,"AGCensus1960_MaizeYields.csv"))
+
+AGCensus1991 <- read.csv(paste0(wd$data_r,"AGCensus1991_MaizeYields.csv"))
+
+AGCensus2007 <- read.csv(paste0(wd$data_r,"AGCensus2007_MaizeYields.csv"))
+
+SandersAztec <- read.csv(paste0(wd$data_r,"SandersModelAztecBOM.csv"))
+
+SandersC20 <- read.csv(paste0(wd$data_r,"SandersC20EthnogBOM.csv"))
+
+#SIAP_4_2021 = SIAP_4 %>% filter(Year == 2021) %>% group_by(EstadoMunicipio) %>% 
+#  summarise(AvgYield2021 = sum(Product, na.rm=T)/sum(Harvested, na.rm=T))
+
+EarlyColonial = Colonial %>% filter(Period == "C16 Sample") #%>% filter(TimeSeries == F) 
+EarlyColonial_dens = density(EarlyColonial$Yield)
+EarlyColonial_dens <- data.frame(EarlyColonial_dens$x, EarlyColonial_dens$y, EarlyColonial_dens$bw, EarlyColonial_dens$n, "C16 Sample")
+names(EarlyColonial_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
+
+LateColonial = Colonial %>% filter(Period == "C18 Sample")  #%>% filter(TimeSeries == F) 
+LateColonial_dens = density(LateColonial$Yield)
+LateColonial_dens <- data.frame(LateColonial_dens$x, LateColonial_dens$y, LateColonial_dens$bw, LateColonial_dens$n, "C18 Sample")
+names(LateColonial_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
+
+
+
+
+AGCensus1960_T = AGCensus1960 %>% #filter(Size == "Total") %>% 
+  filter(Size == "Ejido" | Size == "Small" | Size == "Large") %>% 
+  filter(!is.na(Maize1960_ha))
+s = sum(AGCensus1960_T$Maize1960_ha, na.rm = T)
+AGCensus1960_T_dens = density(AGCensus1960_T$Maize1960_kgha, weights = AGCensus1960_T$Maize1960_ha / s, from = 0, na.rm = T)
+AGCensus1960_T_dens <- data.frame(AGCensus1960_T_dens$x, AGCensus1960_T_dens$y, AGCensus1960_T_dens$bw, AGCensus1960_T_dens$n, "1960 AG Census, C. Mexico")
+names(AGCensus1960_T_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
+
+AGCensus1991_T = AGCensus1991 %>% filter(!is.na(Yield)) 
+AGCensus1991_dens = density(AGCensus1991_T$Yield)
+AGCensus1991_dens <- data.frame(AGCensus1991_dens$x, AGCensus1991_dens$y, AGCensus1991_dens$bw, AGCensus1991_dens$n, "1991 AG Census, C. Mexico")
+names(AGCensus1991_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
+
+AGCensus2007_T = AGCensus2007 %>% filter(!is.na(Yield)) 
+s = sum(AGCensus2007_T$Harvested_ha, na.rm = T)
+AGCensus2007_dens = density(AGCensus2007_T$Yield, weights = AGCensus2007_T$Harvested_ha / s, from = 0, na.rm = T)
+AGCensus2007_dens <- data.frame(AGCensus2007_dens$x, AGCensus2007_dens$y, AGCensus2007_dens$bw, AGCensus2007_dens$n, "2007 AG Census, C. Mexico")
+names(AGCensus2007_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
+
+SandersAztec_dens = density(SandersAztec$Yield)
+SandersAztec_dens <- data.frame(SandersAztec_dens$x, SandersAztec_dens$y, SandersAztec_dens$bw, SandersAztec_dens$n, "Sanders Model, Aztec BOM")
+names(SandersAztec_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
+
+SandersC20_dens = density(SandersC20$YieldAvg)
+SandersC20_dens <- data.frame(SandersC20_dens$x, SandersC20_dens$y, SandersC20_dens$bw, SandersC20_dens$n, "Sanders mid-20th Century BOM")
+names(SandersC20_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
+
+```
+
+
+## ****SIAP Yield Data
+
+```{r}
+
+
+# Read-in the data
+SIAP <- read.csv(paste0(wd$data_r,"Cierre_agricola_mun_2003_2021.csv"))
+
+r = c("Ciudad de Mexico / DF", "Ciudad de Mexico")
+
+SIAP_2 = SIAP %>% filter(Estado == "Ciudad de Mexico / DF" | 
+                           Estado == "Ciudad de Mexico" |
+                           Estado == "Mexico" |
+                           Estado == "Puebla" |
+                           Estado == "Morelos" |
+                           Estado == "Hidalgo" |
+                           Estado == "Tlaxcala") %>% 
+   mutate_all(~ str_replace_all(., c("Ciudad de Mexico / DF" = "Distrito Federal", 
+                                     "Ciudad de Mexico" = "Distrito Federal",
+                                     "QUECHOLAC" = "Quecholac",
+                                     "alvaro Obregon" = "Alvaro Obregon"))) %>%
+   mutate(Estado_ID = as.integer(Estado_ID), ddr_ID = as.integer(ddr_ID),
+          Cader_ID = as.integer(Cader_ID), Municipio_ID = as.integer(Municipio_ID),
+          Units_ID = as.integer(Units_ID), Cultigen_ID = as.integer(Cultigen_ID),
+          Planted = as.numeric(Planted), Harvested = as.numeric(Harvested),
+          Lost = as.numeric(Lost), Product = as.numeric(Product),
+          Yield = as.numeric(Yield), Price = as.numeric(Price),
+          Value = as.numeric(Value))
+
+
+SIAP_ID = SIAP_2 %>% select(-Year, -(Cycle_ID:Value)) %>% distinct(EstadoMunicipio, .keep_all = T, .remove_duplicates = TRUE)
+
+write.csv(SIAP_ID, paste0(wd$data_r,"SIAP_ID.csv"))
+#unique(SIAP_2$EstadoMunicipio)
+
+SIAP_ID <- read.csv(paste0(wd$data_r,"SIAP_ID_EDITS.csv"))
+
+SIAP_3 = SIAP_2 %>% left_join(SIAP_ID, by = c('Estado_ID', 'Estado', 'ddr_ID', 'ddr', 'Cader_ID', 'Cader', 'Municipio_ID', 'Municipio', 'EstadoMunicipio')) %>% filter(
+  Cultigen == "Maiz grano", INCLUDE == TRUE) %>%
+  mutate(Yield = Yield * 1000, Product = Product* 1000)
+
+write.csv(SIAP_3, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
+
+SIAP_4 = SIAP_3 %>% filter(Cycle == "Primavera-Verano") %>% group_by(EstadoMunicipio, AGType) %>% 
+  mutate(AvgYield = mean(Yield, na.rm=T), sdYield = sd(Yield, na.rm=T), cvYield = sdYield/AvgYield*100) %>% add_tally() %>% ungroup() %>% mutate(zYield = (Yield - AvgYield)/sdYield) %>% group_by(EstadoMunicipio) %>% 
+  mutate(AvgYield_T = mean(Yield, na.rm=T), sdYield_T = sd(Yield, na.rm=T), cvYield_T = sdYield_T/AvgYield_T*100) %>% add_tally(name = "n_T") %>% ungroup() %>% mutate(zYield_T = (Yield - AvgYield_T)/sdYield_T)
+
+write.csv(SIAP_4, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
+
+```
+
+
+
+
+
+```{r}
+SIAP_4_2003 = SIAP_4 %>% filter(Year == 2003) %>% group_by(EstadoMunicipio) %>% 
+  summarise(AvgYield2003 = sum(Product, na.rm=T)/sum(Harvested, na.rm=T))
+
+SIAP_4_2003 = density(SIAP_4_2003$AvgYield2003)
+
+SIAP_4_2003 <- data.frame(SIAP_4_2003$x, SIAP_4_2003$y, SIAP_4_2003$bw, SIAP_4_2003$n, "SIAP 2003 C. Mexico")
+names(SIAP_4_2003) <- c("Yield", "Density", "Bandwidth", "n", "Series")
+
+
+
+SIAP_4_2021 = SIAP_4 %>% filter(Year == 2021) %>% group_by(EstadoMunicipio) %>% 
+  summarise(AvgYield2021 = sum(Product, na.rm=T)/sum(Harvested, na.rm=T))
+
+SIAP_4_2021 = density(SIAP_4_2021$AvgYield2021)
+
+SIAP_4_2021 <- data.frame(SIAP_4_2021$x, SIAP_4_2021$y, SIAP_4_2021$bw, SIAP_4_2021$n, "SIAP 2003 C. Mexico")
+names(SIAP_4_2021) <- c("Yield", "Density", "Bandwidth", "n", "Series")
+
+
+SIAP_4_Avg = SIAP_4 %>% group_by(EstadoMunicipio) %>% 
+  summarise(AvgYield = sum(Product, na.rm=T)/sum(Harvested, na.rm=T), AvgHarvested = mean(Harvested, na.rm=T))
+s = sum(SIAP_4_Avg$AvgHarvested, na.rm = T)
+SIAP_4_Avg = density(SIAP_4_Avg$AvgYield, weights = SIAP_4_Avg$AvgHarvested / s, na.rm=T, from=0)
+
+SIAP_4_Avg <- data.frame(SIAP_4_Avg$x, SIAP_4_Avg$y, SIAP_4_Avg$bw, SIAP_4_Avg$n, "SIAP C. Mexico 2003-2021 Average")
+names(SIAP_4_Avg) <- c("Yield", "Density", "Bandwidth", "n", "Series")
+```
+
+SandersC20_dens$Height
+SandersAztec_dens$Height
+AGCensus2007_dens$Height
+AGCensus1991_dens$Height
+AGCensus1960_T_dens$Height
+LateColonial_dens$Height
+EarlyColonial_dens$Height
+
+
+RIDGELINE PLOT
+
+```{r}
+SIAP_4_Avg$Height = 1100
+SandersC20_dens$Height = 1200
+SandersAztec_dens$Height = 550
+AGCensus2007_dens$Height = 1200
+AGCensus1991_dens$Height = 900
+AGCensus1960_T_dens$Height = 350
+LateColonial_dens$Height = 1200
+EarlyColonial_dens$Height = 2000
+
+Dens.df = rbind(EarlyColonial_dens,LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_Avg)#AGCensus2007_dens
+
+Dens.df$Series <- factor(Dens.df$Series, levels = c("C16 Sample", "C18 Sample", "Sanders Model, Aztec BOM", "1960 AG Census, C. Mexico", "Sanders mid-20th Century BOM", "1991 AG Census, C. Mexico", "SIAP C. Mexico 2003-2021 Average"))
+
+
+#Dens.df <- Dens.df %>%  mutate(Series = fct_relevel(Series, levels = "C16 Sample", "C18 Sample", "Sanders Model, Aztec BOM", "1960 AG Census, C. Mexico", "Sanders mid-20th Century BOM", "1991 AG Census, C. Mexico", "SIAP C. Mexico 2003-2021 Average"))
+
+
+ggp1 <- ggplot() + 
+  geom_ridgeline(data=Dens.df, aes(x=Yield, y=Series, height=Density*Height, fill=Series),color="black", alpha=0.3,size=0.7)+
+  #scale_fill_discrete(name = "Distribution", labels = c("Theoretical Beta (Prior)", "Empirical Aoristic (Conditional)", "Final Bayesian Prior (Posterior)") ) +
+  #scale_colour_discrete(name = "Distribution", labels = c("Theoretical Beta (Prior)", "Empirical Aoristic (Conditional)", "Final Bayesian Prior (Posterior)"), drop = FALSE)+
+  #geom_vline(data=MP, aes(xintercept = years), linetype = "dashed", alpha=0.6)+
+    labs(x ="Yield kg/ha", y = "Probability Density")+#title="Bayesian Construction of Regional-Scale Popularity Curves", subtitle = "Ceramic Complexes in the S. Basin of Mexico", 
+    #guides(fill = guide_legend(nrow = 3))+
+    theme_bw()+
+  #scale_y_discrete(expand = c(.05, .05)) +
+    scale_x_continuous(limits= c(0,7000)) +#,breaks = MyBreaks,labels = MyLabs
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, color="black", size=9), 
+          axis.text.y = element_text(color="black", face="bold"), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"))
+          #legend.justification=c(0,1), legend.position=c(0.55,0.97), #legend.title=element_text(color="black", face="bold"),#element_blank(),
+          #legend.spacing.y = unit(0.1,"line"),legend.key = element_rect(colour = "transparent", fill = "white"), 
+          #legend.background = element_rect(colour = 'black', fill = 'white', linetype='solid'), 
+         # plot.title = element_text(hjust = 0.5, face="bold"), plot.subtitle = element_text(hjust = 0.5, face="bold"))+theme(plot.background = element_rect(fill = "white", colour = NA))
+
+ggp1
+```
+
+# 2000s Agricultural Data
 
 ## Municipios
 
@@ -444,6 +701,11 @@ hist(unique(SIAP_3$TotYield), breaks = seq(0, 12500, by = 250), xlim = c(0,12500
 hist(log(unique(SIAP_3$TotYield)), breaks = 50)
 hist(SIAP_3$Yield, breaks = seq(0, 13000, by = 250), xlim = c(0,13000))
 hist(log(SIAP_3$Yield), breaks = 50)
+
+
+
+
+
 ```
 
 

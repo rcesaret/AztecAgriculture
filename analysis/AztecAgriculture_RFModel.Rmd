@@ -76,7 +76,8 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "ggnewscale", "lbmech", "data.table", "tidyterra","gridExtra", 
               "cowplot", "scam", "rmarkdown", "spatialreg","spdep", "ggridges", 
               "ggnewscale", "scales", "ggstatsplot", "stringi", "fuzzyjoin", 
-              "mgcv", "randomForest", "ranger", "exactextractr", "kableExtra")
+              "mgcv", "randomForest", "ranger", "exactextractr", "kableExtra",
+              "Boruta", "mlbench", "caret")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -90,7 +91,7 @@ invisible(lapply(packages, library, character.only = TRUE))
 rm(packages,installed_packages)
 
 #Read in custom R functions located in the wd$funcs directory folder
-FUNCS <- list("RescaleSpatRast.R", "Terra_df.R", "RF_ImputeRast.R")
+FUNCS <- list("RescaleSpatRast.R", "Terra_df.R", "RF_ImputeRast.R", "linear_rescale.R")
 invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
 rm(FUNCS)
 
@@ -113,6 +114,40 @@ Soil_r <- rast(paste0(wd$data_p, "Soil_r_resampled.tif"))
 Clim_r <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
 
 ```
+
+
+# High Elevations
+
+
+```{r, label='High Elevations', message=FALSE,warning=FALSE}
+
+DEM <- raster(paste0(wd$data_r,"DEM_r.tif"))
+
+#high_elev <- rast(high_elev)
+
+high_elev[high_elev < 3100] <- NA
+
+high_elev[high_elev >= 3100] <- 1
+
+#### EDIT FROM HERE ####
+
+
+high_elev <- rasterToPoints(high_elev,spatial=TRUE)
+
+rand <- sample(nrow(high_elev), nrow(points)/4, replace=FALSE)
+
+high_elev <- high_elev[rand,]
+high_elev$Irr <- sample(0:1,nrow(high_elev),replace=TRUE)
+set.seed(54865132)
+high_elev$Fert <- sample(0:1,nrow(high_elev),replace=TRUE)
+high_elev$MUNICIPIO <- "HIGH"
+high_elev$X <- high_elev@coords[,'x']
+high_elev$Y <- high_elev@coords[,'y']
+high_elev$Suit <- 0
+high_elev$Maize <- 0
+high_elev <- high_elev[,which(names(high_elev) != "DEM")]
+```
+
 
 
 
@@ -139,17 +174,6 @@ Clim_r_sub <- subset(Clim_r, c("prec_04", "prec_05", "prec_06", "prec_07", "prec
 ```
 
 
-When aggregating average values of individual months into single values for a range of months, you have several options depending on your specific requirements and the nature of the data. Here are a few approaches commonly used in statistical modeling:
-
-Summation: Add up the values for the individual months within the range to obtain a single value. This approach is appropriate when the variable you are aggregating is additive in nature, such as precipitation or degree days. For example, if you want to aggregate May through July, you would sum the values for May, June, and July.
-
-Averaging: Calculate the average of the values for the individual months within the range. This approach works well when the variable you are aggregating represents a continuous process, such as temperature. For example, if you want to aggregate May through July, you would calculate the average of the values for May, June, and July.
-
-Maximum/Minimum: Use the maximum or minimum value among the individual months within the range. This approach is suitable when you want to capture the extreme values or the peak of a certain variable over a period. For instance, if you want to aggregate May through July, you would select the highest or lowest value among May, June, and July.
-
-Weighted Average: Assign weights to the individual months based on their importance or contribution to the overall season and calculate the weighted average. This approach allows you to give more emphasis to certain months within the range. For example, if you believe June is more critical to the growing season than May or July, you can assign a higher weight to June in the calculation of the weighted average.
-
-The choice of aggregation method depends on the specific characteristics of your data and the particular research question you are investigating. Consider the temporal dynamics, significance of individual months, and the underlying relationship between the climate variables and the agricultural growing season when selecting the most appropriate aggregation method. Additionally, it is advisable to document and justify the chosen method in your research to ensure transparency and reproducibility.
 
 ### Extract Raster Values
 
@@ -220,126 +244,7 @@ clim_vals <- extract(clim,points)
 
 
 
-### DELETE Rescale/Normalize Rasters
-
-```{r, label='Rescale Rasters', message=FALSE,warning=FALSE, eval = FALSE}
-
-rescale <- function(z,stdev=2) {
-z[z < -stdev] <- -stdev
-z[z > stdev] <- stdev
-z <- (z + stdev) / (stdev*2)
-}
-
-# Subset the variables/layers you want
-
-
-Soil_r_sub_z = Soil_r_sub
-Soil_r_sub_zrs = Soil_r_sub
-for (i in 1:nlyr(Soil_r_sub)) {
-  Soil_r_sub_z[[i]] <- raster.Zscore(Soil_r_sub[[i]])
-  Soil_r_sub_zrs[[i]] <- rescale(Soil_r_sub_z[[i]])
-}
-writeRaster(Soil_r_sub_z, filename = paste0(wd$data_r, "ll.tif"),  overwrite=TRUE)
-writeRaster(Soil_r_sub_zrs, filename = paste0(wd$data_r, "Soil_r_sub_zrs.tif"), overwrite=TRUE)
-
-
-
-
-
-TopoEnv_r_sub_z = TopoEnv_r_sub
-TopoEnv_r_sub_zrs = TopoEnv_r_sub
-for (i in 1:nlyr(TopoEnv_r_sub)) {
-  TopoEnv_r_sub_z[[i]] <- raster.Zscore(TopoEnv_r_sub[[i]])
-  TopoEnv_r_sub_zrs[[i]] <- rescale(TopoEnv_r_sub_z[[i]])
-}
-writeRaster(TopoEnv_r_sub_z, filename = paste0(wd$data_r, "TopoEnv_r_sub_z.tif"), overwrite=TRUE)
-writeRaster(TopoEnv_r_sub_zrs, filename = paste0(wd$data_r, "TopoEnv_r_sub_zrs.tif"), overwrite=TRUE)
-
-
-prec <- subset(Clim_r, c("prec_04", "prec_05", "prec_06", "prec_07", "prec_08", "prec_09", "prec_10", "prec_11"))
-
-prec_z = prec
-prec_zrs = prec
-for (i in 1:nlyr(prec)) {
-  prec_z[[i]] <- raster.Zscore(prec[[i]])
-}
-writeRaster(prec_z, filename = paste0(wd$data_r, "prec_z.tif"), overwrite=TRUE)
-prec_z <- rast(paste0(wd$data_r, "prec_z.tif"))
-for (i in 1:nlyr(prec_z)) {
-  prec_zrs[[i]] <- rescale(prec_z[[i]])
-}
-
-pr <- subset(Clim_r, c("pr_04", "pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", "pr_11"))
-pr_z = pr
-pr_zrs = pr
-for (i in 1:nlyr(pr)) {
-  pr_z[[i]] <- raster.Zscore(pr[[i]])
-}
-for (i in 1:nlyr(prec_z)) {
-  pr_zrs[[i]] <- rescale(pr_z[[i]])
-}
-
-tmean <- subset(Clim_r, c("tmean_04", "tmean_05", "tmean_06", "tmean_07", "tmean_08", "tmean_09", "tmean_10", "tmean_11"))
-tmean_z = tmean
-tmean_zrs = tmean
-for (i in 1:nlyr(tmean)) {
-  tmean_z[[i]] <- raster.Zscore(tmean[[i]])
-}
-for (i in 1:nlyr(tmeanec_z)) {
-  tmean_zrs[[i]] <- rescale(tmean_z[[i]])
-}
-
-tmin <- subset(Clim_r, c("tmin_04","tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10","tmin_11"))
-tmin_z = tmin
-tmin_zrs = tmin
-for (i in 1:nlyr(tmin)) {
-  tmin_z[[i]] <- raster.Zscore(tmin[[i]])
-}
-for (i in 1:nlyr(tminec_z)) {
-  tmin_zrs[[i]] <- rescale(tmin_z[[i]])
-}
-
-
-
-Clim_r_sub <- subset(Clim_r, c("prec_04", "prec_05", "prec_06", "prec_07", "prec_08", "prec_09", "prec_10", "prec_11",
-                               "pr_04", "pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", "pr_11",
-                               "tmean_04", "tmean_05", "tmean_06", "tmean_07", "tmean_08", "tmean_09", "tmean_10", "tmean_11", 
-                               "tmin_04","tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10","tmin_11"#,
-                               "clt_04", "clt_05", "clt_06", "clt_07", "clt_08", "clt_09", "clt_10", "clt_11", 
-                               "rsds_04", "rsds_05", "rsds_06", "rsds_07", "rsds_08", "rsds_09", "rsds_10", "rsds_11"
-                               ))
-#Clim_r_sub_z = Clim_r_sub
-#Clim_r_sub_zrs = Clim_r_sub
-#for (i in 1:nlyr(Clim_r_sub)) {
-#  Clim_r_sub_z[[i]] <- raster.Zscore(Clim_r_sub[[i]])
-#  Clim_r_sub_zrs[[i]] <- rescale(Clim_r_sub_z[[i]])
-#}
-
-writeRaster(Clim_r_sub_z, filename = paste0(wd$data_r, "Clim_r_sub_z.tif"), overwrite=TRUE)
-writeRaster(Clim_r_sub_zrs, filename = paste0(wd$data_r, "Clim_r_sub_zrs.tif"), overwrite=TRUE)
-
-
-
-
-# Merge subsetted environmental rasters
-all <- c(Clim_r_sub, Soil_r_sub, TopoEnv_r_sub)
-all_z <- c(Clim_r_sub_z, Soil_r_sub_z, TopoEnv_r_sub_z)
-all_zrs <- c(Clim_r_sub_zrs, Soil_r_sub_zrs, TopoEnv_r_sub_zrs)
-
-
-
-all_df <- exact_extract(x = all, y = Data2000s_poly, fun = "mean", max_cells_in_memory = 8e+10)
-save(all_df, file = paste0(wd$data_r, "EnvRastPolyExtract_df.rData"))
-
-all_z_df <- exact_extract(x = all_z, y = Data2000s_poly, fun = "mean", max_cells_in_memory = 8e+10)
-save(all_z_df, file = paste0(wd$data_r, "EnvRastPolyExtract_z_df.rData"))
-
-all_zrs_df <- exact_extract(x = all_zrs, y = Data2000s_poly, fun = "mean", max_cells_in_memory = 8e+10)
-save(all_zrs_df, file = paste0(wd$data_r, "EnvRastPolyExtract_zrs_df.rData"))
-
-
-```
-
+Rescaling/Normalizing the data is unnecessary!! 
 Random Forest algorithm is not a distance-based model - it is a tree-based model. Each node in a Random Forest is not comparing feature values, it is simply splitting a sorted list that requires absolute values for branching. The algorithm is based on partitioning the data to make predictions, therefore, it does not require normalization.
 
 https://www.kdnuggets.com/2022/07/random-forest-algorithm-need-normalization.html#:~:text=Each%20node%20in%20a%20Random,it%20does%20not%20require%20normalization.
@@ -443,16 +348,6 @@ Tot = x %>% select(-AvgYield_Total, -sdYield_Total, -cvYield_Total,
 #cat("Columns with NA, NaN, or Inf values:\n")
 #print(which(columns_with_na))
 
-
-
-
-#####Tot = Tot %>% select(-AGType)
-#y = as.matrix(y)
-#colSums(is.na(y) | is.infinite(y))
-#missing_rows <- which(rowSums(is.na(y) | is.infinite(y)) > 0)
-#missing_cols <- which(colSums(is.na(y) | is.infinite(y)) > 0)
-#cat("Columns with missing or infinite values:", missing_cols, "\n")
-
 ```
 --n = 1 case--
 ***- Riego
@@ -495,32 +390,6 @@ AvgYield_Irrig
          IT_ratio_AvgYieldLoss	
          IT_ratio_cvYieldLoss
 
-"AGType_Area_ha"        
-
-
-"sdYield"              
- [11] "minYield"              "maxYield"              "medYield"              "cvYield"               "AvgPlanted"           
- [16] "AvgHarvested"          "sdHarvested"           "cvHarvested"           "AvgLost"               "sdLost"               
- [21] "cvLost"                "AvgProduct"            "AvgValue"              "AvgPrice"              "n"                    
- [26] "n_Total"               "AvgYield_Total"        "sdYield_Total"         "cvYield_Total"         "AvgYield_Irrig"       
- [31] "sdYield_Irrig"         "cvYield_Irrig"         "AvgYield_Temp"         "sdYield_Temp"          "cvYield_Temp"         
- [36] "IT_ratio_AvgYield"     "IT_ratio_cvYield"      
- 
- 
- "Area_ha"               "Pop_Total"             "Pop_Rural"            
- [41] "Pop_Urban"             "UrbRatio"              "Pop_Pct_Rural"         "Pop_Employed"          "Primary"              
- [46]            "AG_Workers"            "Pct_AG_Workers"        "Total_PU"              "Total_ha"             
- [51] "Primary_PU"            "Primary_ha"            "AG_ha"                 "Pasture_ha"            "CommonLands_ha"       
- [56] "Private_ha"            "Owned_ha"              "Rented_ha"             "Pct_Rented_ha"         "Rest_ha"              
- [61]            "Fallow_ha"                      "Riego_PU"Temporal_PU              "Reigo_ha"             
- [66] ""           "Temporal_ha"              "TotalLabor"            "TotalLabor_perHa"      "PctContractLabor"      "ContractLabor_Tot"    
- [81] "ContractLabor_More6Mo" "ContractLabor_Less6Mo" "FamLabor_Tot"          "MechanizEquip"         "Tractors"             
- [86] "Threshers"             "MotorizedCranes"       "OtherMachinery"        "DraftAnimals_Total"    "DraftAnimals_Oxen"    
- [91] "DraftAnimals_Horses"   "DraftAnimals_Mules"    "DraftAnimals_Asses"    "PopDens"               "PopDensRural"         
- [96] "PrimaryEmployDens"     "TotalLaborDens"        "AGPasture_ha"          "PrimaryEmploy_perHa"   "AG_Workers_perHa"     
-[101] "MechanizEquip_perHa"   "DraftAnimals_perHa"    "Pct_AG_ha"                     "LU_MechanizEquip"     
-[106] "LU_DraftAnimals"       "LU_FamLabor"           "LU_ContractFull"       "LU_ContractPart"                    
-[111] 
 
 
 ### CHINAMPAS SBOM
@@ -537,22 +406,22 @@ AvgYield_Irrig
 
 ```{r}
 
-Train = Tot %>% select(-Estado_ID, -Municipio_ID) %>% 
+Train_Total = Tot %>% select(-Estado_ID, -Municipio_ID) %>% 
   left_join(env_vals, by=c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>%
-  select(AGType, Estado, Municipio, EstadoMunicipio, AvgYield, sdYield, cvYield, AvgYieldLoss, sdYieldLoss, cvYieldLoss, Pop_Total, Pop_Urban, UrbRatio, Pct_Primary, Pct_Rented_ha, Pct_Rest_ha, Pct_Fallow_ha, Pct_FertilChem_ha, Pct_FertilManure_ha, Pct_ImprovSeed_ha, Pct_Herbicides_ha, Pct_Insecticides_ha, Pct_ControlledBurn_ha, TotalLabor, TotalLabor_perHa, PctContractLabor, Pct_Pasture_ha, LU_Total, LU_Total_perHa, mean.Slope, mean.Accum, mean.TRI, mean.TWI, mean.STI, mean.SPI, mean.BD, mean.S, mean.Z, mean.C, mean.SOC, mean.CEC, mean.OCD, mean.N, mean.BDRICM, mean.BDTICM, mean.prec_04, mean.prec_05, mean.prec_06, mean.prec_07, mean.prec_08, mean.prec_09, mean.prec_10, mean.prec_11, mean.pr_04, mean.pr_05, mean.pr_06, mean.pr_07, mean.pr_08, mean.pr_09, mean.pr_10, mean.pr_11, mean.tmean_04, mean.tmean_05, mean.tmean_06, mean.tmean_07, mean.tmean_08, mean.tmean_09, mean.tmean_10, mean.tmean_11, mean.tmin_04, mean.tmin_05, mean.tmin_06, mean.tmin_07, mean.tmin_08, mean.tmin_09, mean.tmin_10, mean.tmin_11, mean.clt_04, mean.clt_05, mean.clt_06, mean.clt_07, mean.clt_08, mean.clt_09, mean.clt_10, mean.clt_11, mean.rsds_04, mean.rsds_05, mean.rsds_06, mean.rsds_07, mean.rsds_08, mean.rsds_09, mean.rsds_10, mean.rsds_11)
+  select(AGType, AvgYield, sdYield, cvYield, AvgYieldLoss, sdYieldLoss, cvYieldLoss, Pop_Total, Pop_Urban, UrbRatio, Pct_Primary, Pct_Rented_ha, Pct_Rest_ha, Pct_Fallow_ha, Pct_FertilChem_ha, Pct_FertilManure_ha, Pct_ImprovSeed_ha, Pct_Herbicides_ha, Pct_Insecticides_ha, Pct_ControlledBurn_ha, TotalLabor, TotalLabor_perHa, PctContractLabor, Pct_Pasture_ha, LU_Total, LU_Total_perHa, mean.DEM, mean.Slope, mean.Accum, mean.TRI, mean.TWI, mean.STI, mean.SPI, mean.BD, mean.S, mean.Z, mean.C, mean.SOC, mean.CEC, mean.OCD, mean.N, mean.BDRICM, mean.BDTICM, mean.prec_04, mean.prec_05, mean.prec_06, mean.prec_07, mean.prec_08, mean.prec_09, mean.prec_10, mean.prec_11, mean.pr_04, mean.pr_05, mean.pr_06, mean.pr_07, mean.pr_08, mean.pr_09, mean.pr_10, mean.pr_11, mean.tmean_04, mean.tmean_05, mean.tmean_06, mean.tmean_07, mean.tmean_08, mean.tmean_09, mean.tmean_10, mean.tmean_11, mean.tmin_04, mean.tmin_05, mean.tmin_06, mean.tmin_07, mean.tmin_08, mean.tmin_09, mean.tmin_10, mean.tmin_11, mean.clt_04, mean.clt_05, mean.clt_06, mean.clt_07, mean.clt_08, mean.clt_09, mean.clt_10, mean.clt_11, mean.rsds_04, mean.rsds_05, mean.rsds_06, mean.rsds_07, mean.rsds_08, mean.rsds_09, mean.rsds_10, mean.rsds_11) %>%
+  mutate(AGType = as.factor(AGType))
 
-Temp = Train %>% filter(AGType == "Temporal") %>% select(-AGType)
-Irrig = Train %>% filter(AGType == "Riego") %>% select(-AGType)
+Train_Temp = Train %>% filter(AGType == "Temporal") %>% select(-AGType)
+
+Train_Irrig = Train %>% filter(AGType == "Riego") %>% select(-AGType)
+
+Train_Env = Tot %>% select(-Estado_ID, -Municipio_ID) %>% 
+  left_join(env_vals, by=c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>%
+  select(AGType, mean.DEM, mean.Slope, mean.Accum, mean.TRI, mean.TWI, mean.STI, mean.SPI, mean.BD, mean.S, mean.Z, mean.C, mean.SOC, mean.CEC, mean.OCD, mean.N, mean.BDRICM, mean.BDTICM, mean.prec_04, mean.prec_05, mean.prec_06, mean.prec_07, mean.prec_08, mean.prec_09, mean.prec_10, mean.prec_11, mean.pr_04, mean.pr_05, mean.pr_06, mean.pr_07, mean.pr_08, mean.pr_09, mean.pr_10, mean.pr_11, mean.tmean_04, mean.tmean_05, mean.tmean_06, mean.tmean_07, mean.tmean_08, mean.tmean_09, mean.tmean_10, mean.tmean_11, mean.tmin_04, mean.tmin_05, mean.tmin_06, mean.tmin_07, mean.tmin_08, mean.tmin_09, mean.tmin_10, mean.tmin_11, mean.clt_04, mean.clt_05, mean.clt_06, mean.clt_07, mean.clt_08, mean.clt_09, mean.clt_10, mean.clt_11, mean.rsds_04, mean.rsds_05, mean.rsds_06, mean.rsds_07, mean.rsds_08, mean.rsds_09, mean.rsds_10, mean.rsds_11) %>%
+  mutate(AGType = as.factor(AGType))
+
 
 ```
-
-
-```{r}
-
-
-
-```
-
 
 
 
@@ -595,52 +464,93 @@ plot(Temp$LU_Total_perHa, Temp$AvgYield)
 plot(log(Temp$LU_Total_perHa), log(Temp$AvgYield))
 ```
 
+### Boruta for Variable Selection
 
+Random Forest feature selection, why we need feature selection?
+
+When we have too many features in the datasets and we want to develop a prediction model like a neural network will take a lot of time and reduces the accuracy of the prediction model.
+
+We need to make use of the Boruta algorithm and is based on random forest.
+
+How Boruta works?
+Suppose if you have 100 variables in the dataset, each attributes creates shadow attributes, and in each shadow attribute, all the values are shuffled and creates randomness in the dataset.
+
+Based on these datasets will create a classification model with shadow attributes and original attributes and then assess the importance of the attributes.
+https://www.r-bloggers.com/2021/05/random-forest-feature-selection/
+Boruta is an all relevant feature selection wrapper algorithm, capable of working with any classification method that output variable importance measure (VIM); by default, Boruta uses Random
+Forest. The method performs a top-down search for relevant features by comparing original attributes’ importance with importance achievable at random, estimated using their permuted copies,
+and progressively eliminating irrelevant features to stabilise that test.
+https://cran.r-project.org/web/packages/Boruta/Boruta.pdf
+
+```{r}
+#Response = Train$AvgYield
+#Predictors = Train %>% select(-EstadoMunicipio, -Estado, -Municipio, -AvgYield)
+TrainB = Train %>% select(-EstadoMunicipio, -Estado, -Municipio)
+
+TrainB2 = Tot %>% select(-Estado_ID, -Municipio_ID) %>% 
+  left_join(env_vals, by=c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>%
+  select(-EstadoMunicipio, -Estado, -Municipio) %>%
+  select(AGType, AvgYield, cvYield, AvgYieldLoss, cvYieldLoss, Pop_Total, Pop_Rural, Pop_Urban, UrbRatio, Pop_Pct_Rural, Primary, Pct_Primary, AG_Workers, Pct_AG_Workers, Pct_Rented_ha, Pct_Rest_ha, Pct_Fallow_ha, Pct_FertilChem_ha, Pct_FertilManure_ha, Pct_ImprovSeed_ha, Pct_Herbicides_ha, Pct_Insecticides_ha, Pct_ControlledBurn_ha, TotalLabor, TotalLabor_perHa, PrimaryEmploy_perHa, AG_Workers_perHa, PctContractLabor, LU_Total, LU_Total_perHa, PopDensRural, PopDens, mean.DEM, mean.Slope, mean.Accum, mean.TRI, mean.TWI, mean.STI, mean.SPI, mean.BD, mean.S, mean.Z, mean.C, mean.SOC, mean.CEC, mean.OCD, mean.N, mean.BDRICM, mean.BDTICM, mean.prec_04, mean.prec_05, mean.prec_06, mean.prec_07, mean.prec_08, mean.prec_09, mean.prec_10, mean.prec_11, mean.pr_04, mean.pr_05, mean.pr_06, mean.pr_07, mean.pr_08, mean.pr_09, mean.pr_10, mean.pr_11, mean.tmean_04, mean.tmean_05, mean.tmean_06, mean.tmean_07, mean.tmean_08, mean.tmean_09, mean.tmean_10, mean.tmean_11, mean.tmin_04, mean.tmin_05, mean.tmin_06, mean.tmin_07, mean.tmin_08, mean.tmin_09, mean.tmin_10, mean.tmin_11, mean.clt_04, mean.clt_05, mean.clt_06, mean.clt_07, mean.clt_08, mean.clt_09, mean.clt_10, mean.clt_11, mean.rsds_04, mean.rsds_05, mean.rsds_06, mean.rsds_07, mean.rsds_08, mean.rsds_09, mean.rsds_10, mean.rsds_11) %>% 
+  mutate(Fertilizer = Pct_FertilManure_ha + Pct_FertilChem_ha) %>% 
+  mutate(AGType = as.factor(AGType))
+
+boruta <- Boruta(AvgYield ~ ., data = TrainB, maxRuns = 1000)#, doTrace = 2
+boruta2 <- Boruta(AvgYield ~ ., data = TrainB2, maxRuns = 1000)#, doTrace = 2
+print(boruta)
+boruta[["finalDecision"]]
+plot(boruta, las = 2, cex.axis = 0.7)
+plot(boruta2, las = 2, cex.axis = 0.7)
+
+bor <- TentativeRoughFix(boruta)
+bor[["finalDecision"]]
+bor2 <- TentativeRoughFix(boruta2)
+bor2[["finalDecision"]]
+
+b=attStats(boruta)
+b2=attStats(boruta2)
+
+form=getConfirmedFormula(boruta)
+```
+Pop_Total   
+Pop_Urban 
+Primary                                
+Primary                                Rejected
+Pct_Primary                            Rejected
+AG_Workers                             Rejected
+Pct_AG_Workers                         Rejected
+Pct_Rented_ha                          Rejected
+Pct_Rest_ha                            Rejected
+Pct_Fallow_ha                          Rejected
+Pct_FertilManure_ha                    Rejected
+Pct_ImprovSeed_ha                      Rejected
+Pct_Insecticides_ha                    Rejected
+Pct_ControlledBurn_ha                  Rejected
+Pct_Tract_Mechaniz_pu                  Rejected
+Pct_Tract_Manual_pu                    Rejected
+Pct_Pasture_ha                         Rejected
+LU_FamLabor                            Rejected
+LU_MechanizEquip                       Rejected
+LU_DraftAnimals                        Rejected
+PopDensRural                           Rejected
+Temporal_PU                            Rejected
+PopDensRural 
 
 ### Subset Agricultural Variables
 
 ```{r, label='Subset Agricultural Variables', message=FALSE,warning=FALSE}
 
-x <- Data2000s_poly %>% select(EstadoMunicipio, AvgYield, AGType, LU_Total_perHa, Pct_Primary, Pct_FertilChem_ha, Pct_FertilManure_ha, UrbRatio, Pct_AG_ha, TotalLaborDens, Pop_Pct_Rural, TotalLabor_perHa, Pct_Pasture_ha, geom)
+Train = Tot %>% select(-Estado_ID, -Municipio_ID) %>% 
+  left_join(env_vals, by=c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>%
+  select(AGType, Estado, Municipio, EstadoMunicipio, AvgYield, sdYield, cvYield, AvgYieldLoss, sdYieldLoss, cvYieldLoss, Pop_Total, Pop_Urban, UrbRatio, Pct_Primary, Pct_Rented_ha, Pct_Rest_ha, Pct_Fallow_ha, Pct_FertilChem_ha, Pct_FertilManure_ha, Pct_ImprovSeed_ha, Pct_Herbicides_ha, Pct_Insecticides_ha, Pct_ControlledBurn_ha, TotalLabor, TotalLabor_perHa, PctContractLabor, Pct_Pasture_ha, LU_Total, LU_Total_perHa, mean.Slope, mean.Accum, mean.TRI, mean.TWI, mean.STI, mean.SPI, mean.BD, mean.S, mean.Z, mean.C, mean.SOC, mean.CEC, mean.OCD, mean.N, mean.BDRICM, mean.BDTICM, mean.prec_04, mean.prec_05, mean.prec_06, mean.prec_07, mean.prec_08, mean.prec_09, mean.prec_10, mean.prec_11, mean.pr_04, mean.pr_05, mean.pr_06, mean.pr_07, mean.pr_08, mean.pr_09, mean.pr_10, mean.pr_11, mean.tmean_04, mean.tmean_05, mean.tmean_06, mean.tmean_07, mean.tmean_08, mean.tmean_09, mean.tmean_10, mean.tmean_11, mean.tmin_04, mean.tmin_05, mean.tmin_06, mean.tmin_07, mean.tmin_08, mean.tmin_09, mean.tmin_10, mean.tmin_11, mean.clt_04, mean.clt_05, mean.clt_06, mean.clt_07, mean.clt_08, mean.clt_09, mean.clt_10, mean.clt_11, mean.rsds_04, mean.rsds_05, mean.rsds_06, mean.rsds_07, mean.rsds_08, mean.rsds_09, mean.rsds_10, mean.rsds_11)%>%
+  mutate(AGType = as.factor(AGType))
+
+Temp = Train %>% filter(AGType == "Temporal") %>% select(-AGType)
+Irrig = Train %>% filter(AGType == "Riego") %>% select(-AGType)
 
 ```
 
 
 
-
-
-
-# High Elevations
-
-
-```{r, label='High Elevations', message=FALSE,warning=FALSE}
-
-DEM <- raster(paste0(wd$data_r,"DEM_r.tif"))
-
-#high_elev <- rast(high_elev)
-
-high_elev[high_elev < 3100] <- NA
-
-high_elev[high_elev >= 3100] <- 1
-
-#### EDIT FROM HERE ####
-
-
-high_elev <- rasterToPoints(high_elev,spatial=TRUE)
-
-rand <- sample(nrow(high_elev), nrow(points)/4, replace=FALSE)
-
-high_elev <- high_elev[rand,]
-high_elev$Irr <- sample(0:1,nrow(high_elev),replace=TRUE)
-set.seed(54865132)
-high_elev$Fert <- sample(0:1,nrow(high_elev),replace=TRUE)
-high_elev$MUNICIPIO <- "HIGH"
-high_elev$X <- high_elev@coords[,'x']
-high_elev$Y <- high_elev@coords[,'y']
-high_elev$Suit <- 0
-high_elev$Maize <- 0
-high_elev <- high_elev[,which(names(high_elev) != "DEM")]
-```
 
 
 
@@ -668,9 +578,9 @@ It is important to note that the selection of variables should be guided by the 
 train <- na.omit(train)
 
 
-rf <- ranger(Maize ~ ., data = train[, !(names(train) %in% cols)]
-, num.trees = 1000, write.forest = TRUE)
+rf_yield <- ranger(formula=form, data = Train, num.trees = 1000, importance='impurity', write.forest = TRUE)
 
+print(m.lzn.ra)
 
 test_out <- predict(rf,test)
 test$predicted <- test_out$predictions
