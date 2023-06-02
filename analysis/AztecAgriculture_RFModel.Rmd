@@ -392,13 +392,6 @@ AvgYield_Irrig
 
 
 
-### CHINAMPAS SBOM
-
-```{r, label='xxx', message=FALSE,warning=FALSE}
-
-```
-
-
 
 
 
