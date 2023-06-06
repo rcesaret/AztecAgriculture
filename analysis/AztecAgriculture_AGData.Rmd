@@ -80,7 +80,7 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
               "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra", 
-              "goft", "MASS", "NSM3")
+              "goft", "MASS", "NSM3", "ggsn")
 
 
 # Install packages not yet installed
@@ -101,364 +101,6 @@ rm(FUNCS)
 
 ```
 
-
-
-
-# ****Comparative Yields Over Time Analysis
-
-```{r}
-CY <- read.csv(paste0(wd$data_r,"ComparativeYields.csv"))
-CY$Series <- factor(CY$Series, levels = c("AG Census 1960", "Sanders Aztec BOM Model", "AG Census 1991", "Sanders mid-20th Century BOM", "SIAP 2003-2021 Average"))
-x = ggbetweenstats(
-  data = dplyr::filter(CY, Size == "Total"),
-  x = Series, ## grouping/independent variable
-  y = Yield, ## dependent variables
-  type = "robust", ## type of statistics
-  xlab = "", ## label for the x-axis
-  ylab = "Maize Yield (kg/ha)", ## label for the y-axis
-  ## turn off messages
-  ggtheme = ggplot2::theme_gray(), ## a different theme
-  package = "yarrr", ## package from which color palette is to be taken
-  palette = "info2", ## choosing a different color palette
-  title = "",
-  caption = "",
-  centrality.label.args = list(size = 4, nudge_x = 0,nudge_y = 3000, segment.linetype = 0,
-    min.segment.length = 0)
-) + ## modifying the plot further
-  ggplot2::scale_y_continuous(
-    limits = c(0, 7000),
-    breaks = seq(from = 0, to = 7000, by = 500)
-  ) 
-x
-```
-
-
-
-```{r}
-CY2 <- read.csv(paste0(wd$data_r,"ComparativeYields.csv"))
-
-CY2 = CY2 %>% filter(Series == "Sanders mid-20th Century BOM" | Series == "AG Census 1960" | Series == "Sanders Aztec BOM Model") %>% rowwise() %>% mutate(Size = ifelse(Series == "Sanders mid-20th Century BOM" | Series == "Sanders Aztec BOM Model", '', Size)) %>% ungroup() %>% unite(SizeSeries, Series, Size, sep = "\n") %>% mutate_all(~ str_replace_all(., c(" BOM" = ""))) %>% mutate(Yield = as.numeric(Yield))
-CY2$Series <- factor(CY2$SizeSeries, levels = c("Sanders mid-20th Century\n", "Sanders Aztec Model\n", "AG Census 1960\nSmall", "AG Census 1960\nLarge", "AG Census 1960\nEjido", "AG Census 1960\nTotal"))
-x2 = ggbetweenstats(
-  data = dplyr::filter(CY2, !is.na(Yield)),
-  x = Series, ## grouping/independent variable
-  y = Yield, ## dependent variables
-  type = "robust", ## type of statistics
-  xlab = "", ## label for the x-axis
-  ylab = "Maize Yield (kg/ha)", ## label for the y-axis
-  ## turn off messages
-  ggtheme = ggplot2::theme_gray(), ## a different theme
-  package = "yarrr", ## package from which color palette is to be taken
-  palette = "info2", ## choosing a different color palette
-  title = "",
-  caption = "",
-  centrality.label.args = list(size = 4, nudge_x = 0,nudge_y = 6000, segment.linetype = 0,
-    min.segment.length = 0)
-) + ## modifying the plot further
-  ggplot2::scale_y_continuous(
-    limits = c(0, 7000),
-    breaks = seq(from = 0, to = 5000, by = 500)
-  ) 
-
-x2
-```
-
-
-## ****CMex Yield Data over time
-
-
-```{r}
-
-
-Colonial <- read.csv(paste0(wd$data_r,"Colonial_MaizeYields.csv"))
-
-AGCensus1960 <- read.csv(paste0(wd$data_r,"AGCensus1960_MaizeYields.csv"))
-
-AGCensus1991 <- read.csv(paste0(wd$data_r,"AGCensus1991_MaizeYields.csv"))
-
-AGCensus2007 <- read.csv(paste0(wd$data_r,"AGCensus2007_MaizeYields.csv"))
-
-SandersAztec <- read.csv(paste0(wd$data_r,"SandersModelAztecBOM.csv"))
-
-SandersC20 <- read.csv(paste0(wd$data_r,"SandersC20EthnogBOM.csv"))
-
-#SIAP_4_2021 = SIAP_4 %>% filter(Year == 2021) %>% group_by(EstadoMunicipio) %>% 
-#  summarise(AvgYield2021 = sum(Product, na.rm=T)/sum(Harvested, na.rm=T))
-
-EarlyColonial = Colonial %>% filter(Period == "C16 Sample") #%>% filter(TimeSeries == F) 
-EarlyColonial_dens = density(EarlyColonial$Yield)
-EarlyColonial_dens <- data.frame(EarlyColonial_dens$x, EarlyColonial_dens$y, EarlyColonial_dens$bw, EarlyColonial_dens$n, "C16 Sample")
-names(EarlyColonial_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
-
-LateColonial = Colonial %>% filter(Period == "C18 Sample")  #%>% filter(TimeSeries == F) 
-LateColonial_dens = density(LateColonial$Yield)
-LateColonial_dens <- data.frame(LateColonial_dens$x, LateColonial_dens$y, LateColonial_dens$bw, LateColonial_dens$n, "C18 Sample")
-names(LateColonial_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
-
-
-
-
-AGCensus1960_T = AGCensus1960 %>% #filter(Size == "Total") %>% 
-  filter(Size == "Ejido" | Size == "Small" | Size == "Large") %>% 
-  filter(INCLUDE == TRUE) %>% 
-  filter(!is.na(Maize1960_ha))
-s = sum(AGCensus1960_T$Maize1960_ha, na.rm = T)
-#AGCensus1960_T_dens = density(AGCensus1960_T$Maize1960_kgha, weights = AGCensus1960_T$Maize1960_ha / s, from = 0, na.rm = T)
-AGCensus1960_T_dens = density(AGCensus1960_T$Maize1960_kgha, na.rm = T)
-AGCensus1960_T_dens <- data.frame(AGCensus1960_T_dens$x, AGCensus1960_T_dens$y, AGCensus1960_T_dens$bw, AGCensus1960_T_dens$n, "1960 AG Census, C. Mexico")
-names(AGCensus1960_T_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
-
-AGCensus1991_T = AGCensus1991 %>% filter(!is.na(Yield)) 
-AGCensus1991_dens = density(AGCensus1991_T$Yield, na.rm = T)
-AGCensus1991_dens <- data.frame(AGCensus1991_dens$x, AGCensus1991_dens$y, AGCensus1991_dens$bw, AGCensus1991_dens$n, "1991 AG Census, C. Mexico")
-names(AGCensus1991_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
-
-AGCensus2007_T = AGCensus2007 %>% filter(!is.na(Yield)) 
-s = sum(AGCensus2007_T$Harvested_ha, na.rm = T)
-#AGCensus2007_dens = density(AGCensus2007_T$Yield, weights = AGCensus2007_T$Harvested_ha / s, from = 0, na.rm = T)
-AGCensus2007_dens = density(AGCensus2007_T$Yield, na.rm = T)
-AGCensus2007_dens <- data.frame(AGCensus2007_dens$x, AGCensus2007_dens$y, AGCensus2007_dens$bw, AGCensus2007_dens$n, "2007 AG Census, C. Mexico")
-names(AGCensus2007_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
-
-SandersAztec_dens = density(SandersAztec$Yield)
-SandersAztec_dens <- data.frame(SandersAztec_dens$x, SandersAztec_dens$y, SandersAztec_dens$bw, SandersAztec_dens$n, "Sanders Model, Aztec BOM")
-names(SandersAztec_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
-
-SandersC20_dens = density(SandersC20$YieldAvg)
-SandersC20_dens <- data.frame(SandersC20_dens$x, SandersC20_dens$y, SandersC20_dens$bw, SandersC20_dens$n, "Sanders mid-20th Century BOM")
-names(SandersC20_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series")
-
-```
-
-
-## ****SIAP Yield Data
-
-```{r}
-
-
-# Read-in the data
-SIAP <- read.csv(paste0(wd$data_r,"Cierre_agricola_mun_2003_2021.csv"))
-
-r = c("Ciudad de Mexico / DF", "Ciudad de Mexico")
-
-SIAP_2 = SIAP %>% filter(Estado == "Ciudad de Mexico / DF" | 
-                           Estado == "Ciudad de Mexico" |
-                           Estado == "Mexico" |
-                           Estado == "Puebla" |
-                           Estado == "Morelos" |
-                           Estado == "Hidalgo" |
-                           Estado == "Tlaxcala") %>% 
-   mutate_all(~ str_replace_all(., c("Ciudad de Mexico / DF" = "Distrito Federal", 
-                                     "Ciudad de Mexico" = "Distrito Federal",
-                                     "QUECHOLAC" = "Quecholac",
-                                     "alvaro Obregon" = "Alvaro Obregon"))) %>%
-   mutate(Estado_ID = as.integer(Estado_ID), ddr_ID = as.integer(ddr_ID),
-          Cader_ID = as.integer(Cader_ID), Municipio_ID = as.integer(Municipio_ID),
-          Units_ID = as.integer(Units_ID), Cultigen_ID = as.integer(Cultigen_ID),
-          Planted = as.numeric(Planted), Harvested = as.numeric(Harvested),
-          Lost = as.numeric(Lost), Product = as.numeric(Product),
-          Yield = as.numeric(Yield), Price = as.numeric(Price),
-          Value = as.numeric(Value))
-
-
-SIAP_ID = SIAP_2 %>% select(-Year, -(Cycle_ID:Value)) %>% distinct(EstadoMunicipio, .keep_all = T, .remove_duplicates = TRUE)
-
-write.csv(SIAP_ID, paste0(wd$data_r,"SIAP_ID.csv"))
-#unique(SIAP_2$EstadoMunicipio)
-
-SIAP_ID <- read.csv(paste0(wd$data_r,"SIAP_ID_EDITS.csv"))
-
-SIAP_3 = SIAP_2 %>% left_join(SIAP_ID, by = c('Estado_ID', 'Estado', 'ddr_ID', 'ddr', 'Cader_ID', 'Cader', 'Municipio_ID', 'Municipio', 'EstadoMunicipio')) %>% filter(
-  Cultigen == "Maiz grano", INCLUDE == TRUE) %>%
-  mutate(Yield = Yield * 1000, Product = Product* 1000)
-
-write.csv(SIAP_3, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
-
-SIAP_4 = SIAP_3 %>% filter(Cycle == "Primavera-Verano") %>% group_by(EstadoMunicipio, AGType) %>% 
-  mutate(AvgYield = mean(Yield, na.rm=T), sdYield = sd(Yield, na.rm=T), cvYield = sdYield/AvgYield*100) %>% add_tally() %>% ungroup() %>% mutate(zYield = (Yield - AvgYield)/sdYield) %>% group_by(EstadoMunicipio) %>% 
-  mutate(AvgYield_T = mean(Yield, na.rm=T), sdYield_T = sd(Yield, na.rm=T), cvYield_T = sdYield_T/AvgYield_T*100) %>% add_tally(name = "n_T") %>% ungroup() %>% mutate(zYield_T = (Yield - AvgYield_T)/sdYield_T)
-
-
-```
-
-
-
-
-
-```{r}
-#SIAP_4_2003 = SIAP_4 %>% filter(Year == 2003) %>% group_by(EstadoMunicipio) %>% summarise(AvgYield2003 = sum(Product, na.rm=T)/sum(Harvested, na.rm=T))
-#SIAP_4_2003 = density(SIAP_4_2003$AvgYield2003)
-
-SIAP_4_2003a = SIAP_4 %>% filter(Year == 2003) 
-SIAP_4_2003 = density(SIAP_4_2003a$Yield)
-
-SIAP_4_2003 <- data.frame(SIAP_4_2003$x, SIAP_4_2003$y, SIAP_4_2003$bw, SIAP_4_2003$n, "SIAP 2003 C. Mexico")
-names(SIAP_4_2003) <- c("Yield", "Density", "Bandwidth", "n", "Series")
-
-
-
-#SIAP_4_2021 = SIAP_4 %>% filter(Year == 2021) %>% group_by(EstadoMunicipio) %>% summarise(AvgYield2021 = sum(Product, na.rm=T)/sum(Harvested, na.rm=T))
-#SIAP_4_2021 = density(SIAP_4_2021$AvgYield2021)
-
-SIAP_4_2020a = SIAP_4 %>% filter(Year == 2020) 
-SIAP_4_2020 = density(SIAP_4_2020a$Yield)
-
-SIAP_4_2020 <- data.frame(SIAP_4_2020$x, SIAP_4_2020$y, SIAP_4_2020$bw, SIAP_4_2020$n, "SIAP 2020 C. Mexico")
-names(SIAP_4_2020) <- c("Yield", "Density", "Bandwidth", "n", "Series")
-
-
-#SIAP_4_Avg = SIAP_4 %>% group_by(EstadoMunicipio) %>% summarise(AvgYield = sum(Product, na.rm=T)/sum(Harvested, na.rm=T), AvgHarvested = mean(Harvested, na.rm=T))
-#s = sum(SIAP_4_Avg$AvgHarvested, na.rm = T)
-#SIAP_4_Avg = density(SIAP_4_Avg$AvgYield, weights = SIAP_4_Avg$AvgHarvested / s, na.rm=T, from=0)
-SIAP_4_Avg1 = SIAP_4 %>% group_by(EstadoMunicipio, AGType) %>% summarise(AvgYield = mean(Yield, na.rm=T))
-
-SIAP_4_Avg = density(SIAP_4_Avg1$AvgYield, na.rm=T)
-
-SIAP_4_Avg <- data.frame(SIAP_4_Avg$x, SIAP_4_Avg$y, SIAP_4_Avg$bw, SIAP_4_Avg$n, "SIAP C. Mexico 2003-2021 Average")
-names(SIAP_4_Avg) <- c("Yield", "Density", "Bandwidth", "n", "Series")
-```
-
-SandersC20_dens$Height
-SandersAztec_dens$Height
-AGCensus2007_dens$Height
-AGCensus1991_dens$Height
-AGCensus1960_T_dens$Height
-LateColonial_dens$Height
-EarlyColonial_dens$Height
-
-
-RIDGELINE PLOT
-
-```{r}
-SIAP_4_Avg$Height = 1100
-SIAP_4_2020$Height = 1100
-AGCensus2007_dens$Height = 1100
-SIAP_4_2003$Height = 1100
-SandersC20_dens$Height = 1200
-SandersAztec_dens$Height = 550
-AGCensus2007_dens$Height = 1200
-AGCensus1991_dens$Height = 900
-AGCensus1960_T_dens$Height = 350
-LateColonial_dens$Height = 1200
-EarlyColonial_dens$Height = 2000
-
-Dens.df = rbind(EarlyColonial_dens,LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003, AGCensus2007_dens, SIAP_4_2020, SIAP_4_Avg)#AGCensus2007_dens
-
-Dens.df$Series <- factor(Dens.df$Series, levels = c("C16 Sample", "C18 Sample", "Sanders Model, Aztec BOM", "1960 AG Census, C. Mexico", "Sanders mid-20th Century BOM", "1991 AG Census, C. Mexico", "SIAP 2003 C. Mexico", "2007 AG Census, C. Mexico", "SIAP 2020 C. Mexico", "SIAP C. Mexico 2003-2021 Average"))
-
-
-#Dens.df <- Dens.df %>%  mutate(Series = fct_relevel(Series, levels = "C16 Sample", "C18 Sample", "Sanders Model, Aztec BOM", "1960 AG Census, C. Mexico", "Sanders mid-20th Century BOM", "1991 AG Census, C. Mexico", "SIAP C. Mexico 2003-2021 Average"))
-
-
-ggp1 <- ggplot() + 
-  geom_ridgeline(data=Dens.df, aes(x=Yield, y=Series, height=Density*Height, fill=Series),color="black", alpha=0.3,size=0.7)+
-  #scale_fill_discrete(name = "Distribution", labels = c("Theoretical Beta (Prior)", "Empirical Aoristic (Conditional)", "Final Bayesian Prior (Posterior)") ) +
-  #scale_colour_discrete(name = "Distribution", labels = c("Theoretical Beta (Prior)", "Empirical Aoristic (Conditional)", "Final Bayesian Prior (Posterior)"), drop = FALSE)+
-  #geom_vline(data=MP, aes(xintercept = years), linetype = "dashed", alpha=0.6)+
-    labs(x ="Yield kg/ha", y = "Probability Density")+#title="Bayesian Construction of Regional-Scale Popularity Curves", subtitle = "Ceramic Complexes in the S. Basin of Mexico", 
-    #guides(fill = guide_legend(nrow = 3))+
-    theme_bw()+
-  #scale_y_discrete(expand = c(.05, .05)) +
-    scale_x_continuous(limits= c(0,11000)) +#,breaks = MyBreaks,labels = MyLabs
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, color="black", size=9), 
-          axis.text.y = element_text(color="black", face="bold"), 
-          axis.title.x = element_text(color="black", size=14, face="bold"),
-          axis.title.y = element_text(color="black", size=14, face="bold"))
-          #legend.justification=c(0,1), legend.position=c(0.55,0.97), #legend.title=element_text(color="black", face="bold"),#element_blank(),
-          #legend.spacing.y = unit(0.1,"line"),legend.key = element_rect(colour = "transparent", fill = "white"), 
-          #legend.background = element_rect(colour = 'black', fill = 'white', linetype='solid'), 
-         # plot.title = element_text(hjust = 0.5, face="bold"), plot.subtitle = element_text(hjust = 0.5, face="bold"))+theme(plot.background = element_rect(fill = "white", colour = NA))
-
-ggp1
-```
-
-```{r}
-gamma_test(AGCensus1960_T$Maize1960_kgha)
-gamma_test(LateColonial$Yield)
-gamma_test(EarlyColonial$Yield)
-gamma_test(AGCensus1991_T$Yield)
-gamma_test(AGCensus2007_T$Yield)
-gamma_test(SandersAztec$Yield)
-gamma_test(SandersC20$YieldAvg)
-gamma_test(SIAP_4_2003$Yield[SIAP_4_2003$Yield > 0])
-gamma_test(SIAP_4_2020a$Yield[SIAP_4_2020a$Yield > 0])
-gamma_test(SIAP_4_Avg1$AvgYield)
-
-gamma_fit(x)
-```
-
-
-```{r}
-ColonialTS = Colonial %>% filter(TimeSeries == T)  %>% group_by(Name) %>% 
-  mutate(Yield_rs = linear_rescale(Yield),
-         Yield_z = (Yield - mean(Yield))/sd(Yield),
-         ks = ks.test(Yield, "pnorm",fitdistr(Yield,"normal")$estimate[1],fitdistr(Yield,"normal")$estimate[2])$p.value,
-         shapiro = shapiro.test(Yield)$p.value ) %>% ungroup()
-
-ChiconautlaC16TS = ColonialTS %>% filter(Name == "Chiconautla") 
-CoatepecC16TS = ColonialTS %>% filter(Name == "Coatepec") 
-ZapotlanC16TS = ColonialTS %>% filter(Name == "Zapotlan") 
-TizayucaC16TS = ColonialTS %>% filter(Name == "Tizayuca") 
-TepepolcoC16TS = ColonialTS %>% filter(Name == "Tepepolco") 
-SanMartinNotarioC16TS = ColonialTS %>% filter(Name == "Haz. San Martin Notario") 
-SanJoseAcolmanC16TS = ColonialTS %>% filter(Name == "Haz. San Jose Acolman") 
-SanDiegoPinalC16TS = ColonialTS %>% filter(Name == "Haz. San Diego Pinal") 
-hist(ChiconautlaC16TS$Yield, breaks =8)
-hist(CoatepecC16TS$Yield, breaks =8)
-hist(ZapotlanC16TS$Yield, breaks =8)
-hist(TizayucaC16TS$Yield, breaks =8)
-hist(TepepolcoC16TS$Yield, breaks =8)
-hist(SanMartinNotarioC16TS$Yield, breaks =8)
-hist(SanJoseAcolmanC16TS$Yield, breaks =8)
-hist(SanDiegoPinalC16TS$Yield, breaks =8)
-hist(ColonialTS$Yield_rs)
-hist(ColonialTS$Yield_z)
-hist(ColonialTS$Yield)
-
-x=ks.test(ChiconautlaC16TS$Yield, "pnorm",fitdistr(ChiconautlaC16TS$Yield,"normal")$estimate[1],fitdistr(ChiconautlaC16TS$Yield,"normal")$estimate[2])
-
-ecdf.ks.CI(ChiconautlaC16TS$Yield, family="sans", main= "Chiconautla C16 TS", cex.main=2, font.main=2, font.lab=2, xlab="Yield", ylab="ECDF(Yield)")
-fit<-fitdistr(ChiconautlaC16TS$Yield,"normal")$estimate
-Norm1 <- rnorm(10000, fit[1],fit[2])
-lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
-
-ecdf.ks.CI(CoatepecC16TS$Yield, family="sans", main= "Coatepec C16 TS", cex.main=2, font.main=2, font.lab=2, xlab="Yield", ylab="ECDF(Yield)")
-fit<-fitdistr(CoatepecC16TS$Yield,"normal")$estimate
-Norm1 <- rnorm(10000, fit[1],fit[2])
-lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
-
-ecdf.ks.CI(SanDiegoPinalC16TS$Yield, family="sans", main= "SanDiegoPinal C18 TS", cex.main=2, font.main=2, font.lab=2, xlab="Yield", ylab="ECDF(Yield)")
-fit<-fitdistr(SanDiegoPinalC16TS$Yield,"normal")$estimate
-Norm1 <- rnorm(10000, fit[1],fit[2])
-lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
-```
-
-
-
-
-
-Tepepolco
-Haz. SanMartinNotario
-Haz. SanJoseAcolman
-Haz. SanDiegoPinal
-
-
-
-p <- data %>%
-  mutate(text = fct_reorder(text, value)) %>%
-  ggplot( aes(x=value, color=text, fill=text)) +
-    geom_histogram(alpha=0.6, binwidth = 5) +
-    scale_fill_viridis(discrete=TRUE) +
-    scale_color_viridis(discrete=TRUE) +
-    theme_ipsum() +
-    theme(
-      legend.position="none",
-      panel.spacing = unit(0.1, "lines"),
-      strip.text.x = element_text(size = 8)
-    ) +
-    xlab("") +
-    ylab("Assigned Probability (%)") +
-    facet_wrap(~text)
 
 
 # 2000s Agricultural Data
@@ -796,18 +438,6 @@ SIAP_3 = SIAP_2 %>% left_join(SIAP_ID, by = c('Estado_ID', 'Estado', 'ddr_ID', '
 ```
 
 
-```{r, 'Rescale SIAP 2003-2021 Yield Data', message=FALSE, warning=FALSE}
-
-hist(unique(SIAP_3$TotYield), breaks = seq(0, 12500, by = 250), xlim = c(0,12500))
-hist(log(unique(SIAP_3$TotYield)), breaks = 50)
-hist(SIAP_3$Yield, breaks = seq(0, 13000, by = 250), xlim = c(0,13000))
-hist(log(SIAP_3$Yield), breaks = 50)
-
-
-
-
-
-```
 
 
 
@@ -970,107 +600,6 @@ AvgYield_Irrig
 
 Tecamac, Mexico
 
-
-```{r}
-a = SIAP_4 %>% filter(AGType == "Temporal") %>% filter(!is.na(zYield))
-hist(a$zYield)
-ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
-ecdf.ks.CI(a$zYield, family="sans", main= "Temporal", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
-fit<-fitdistr(a$zYield,"normal")$estimate
-Norm1 <- rnorm(100000, fit[1],fit[2])
-lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
-#shapiro.test(a$zYield)
-
-a = SIAP_4 %>% filter(AGType == "Riego") %>% filter(!is.na(zYield))
-hist(a$zYield)
-ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
-ecdf.ks.CI(a$zYield, family="sans", main= "Riego", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
-fit<-fitdistr(a$zYield,"normal")$estimate
-Norm1 <- rnorm(100000, fit[1],fit[2])
-lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
-shapiro.test(a$zYield)
-
-a = SIAP_4 %>% filter(!is.na(zYield))
-hist(a$zYield)
-ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
-ecdf.ks.CI(a$zYield, family="sans", main= "Both", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
-fit<-fitdistr(a$zYield,"normal")$estimate
-Norm1 <- rnorm(100000, fit[1],fit[2])
-lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
-#shapiro.test(a$zYield)
-
-a = SIAP_4 %>% filter(EstadoMunicipio == "Tlalpan, Distrito Federal" & AGType == "Temporal")
-hist(a$zYield)
-ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
-ecdf.ks.CI(a$zYield, family="sans", main= "Tlalpan Temporal", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
-fit<-fitdistr(a$zYield,"normal")$estimate
-Norm1 <- rnorm(100000, fit[1],fit[2])
-lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
-shapiro.test(a$zYield)
-
-
-a = SIAP_4 %>% filter(EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Temporal")
-hist(a$zYield)
-ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
-ecdf.ks.CI(a$zYield, family="sans", main= "Xochimilco Temporal", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
-fit<-fitdistr(a$zYield,"normal")$estimate
-Norm1 <- rnorm(100000, fit[1],fit[2])
-lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
-shapiro.test(a$zYield)
-
-
-a = SIAP_4 %>% filter(EstadoMunicipio == "Epazoyucan, Hidalgo" & AGType == "Temporal")
-hist(a$zYield)
-ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
-ecdf.ks.CI(a$zYield, family="sans", main= "Epazoyucan Temporal", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
-fit<-fitdistr(a$zYield,"normal")$estimate
-Norm1 <- rnorm(100000, fit[1],fit[2])
-lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
-shapiro.test(a$zYield)
-
-
-a = SIAP_4 %>% filter(EstadoMunicipio == "Tecamac, Mexico" & AGType == "Temporal")
-hist(a$zYield)
-ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
-ecdf.ks.CI(a$zYield, family="sans", main= "Tecamac Temporal", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
-fit<-fitdistr(a$zYield,"normal")$estimate
-Norm1 <- rnorm(100000, fit[1],fit[2])
-lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
-shapiro.test(a$zYield)
-
-```
-
-
-```{r}
-hist(SIAP_5$AvgYield)
-gamma_test(SIAP_5$AvgYield)
-a= SIAP_5 %>% filter(AGType == "Temporal")
-gamma_test(a$AvgYield)
-hist(a$AvgYield)
-a= SIAP_5 %>% filter(AGType == "Riego")
-gamma_test(a$AvgYield)
-hist(a$AvgYield)
-
-hist(SIAP_5$cvYield)
-gamma_test(SIAP_5$cvYield)
-a= SIAP_5 %>% filter(AGType == "Temporal")
-gamma_test(a$cvYield)
-hist(a$cvYield)
-a= SIAP_5 %>% filter(AGType == "Riego")
-gamma_test(a$cvYield)
-hist(a$cvYield)
-
-hist(SIAP_5$sdYield)
-gamma_test(SIAP_5$sdYield)
-a= SIAP_5 %>% filter(AGType == "Temporal")
-gamma_test(a$sdYield)
-hist(a$sdYield)
-a= SIAP_5 %>% filter(AGType == "Riego")
-gamma_test(a$sdYield)
-hist(a$sdYield)
-```
-
-
 No Land Use:
 
 
@@ -1184,8 +713,7 @@ Data2000s_poly = SIAP_LU_poly %>% left_join(Census2000s,
 
 #%>% select( -Municipio_ID.x, -Municipio.x, -Estado_ID.x, -Estado.x, -EstadoMunicipio.x) %>% rename(EstadoMunicipio = EstadoMunicipio.y, Municipio = Municipio.y, Estado = Estado.y, Estado_ID = Estado_ID.y, Municipio_ID = Municipio_ID.y)
 
-rm(LU_Cases, SIAP_Cases, SIAP_3, SIAP_2, SIAP_ID, SIAP, LU2000b, LU2000, AGCensus2007, 
-PopCensus2010, Municipios2000s, Municipios2000s_Cases, LU2000c, SIAP_4, LU2000d, SIAP_5, Census2000s, SIAP_LU_poly
+rm(LU_Cases, SIAP_Cases, SIAP_2, SIAP_ID, SIAP, LU2000b, LU2000, LU2000c, LU2000d, Census2000s, SIAP_LU_poly
 )
 
 #setdiff(Data2000s_poly$EstadoMunicipio, SIAP_LU_poly$EstadoMunicipio)
@@ -1214,12 +742,960 @@ write.csv(Data2000s_cases, paste0(wd$data_p,"Data2000s_poly.csv"))
  
  
  
- 
- 
- 
- 
- 
- 
+
+
+# Comparative Analysis of CMex Yields Over Time 
+
+## Import Comparative Data
+
+```{r, label='Import Comparative Data', message=FALSE,warning=FALSE}
+
+CY <- read.csv(paste0(wd$data_r,"ComparativeYields.csv"))
+
+Colonial <- read.csv(paste0(wd$data_r,"Colonial_MaizeYields.csv"))
+
+AGCensus1960 <- read.csv(paste0(wd$data_r,"AGCensus1960_MaizeYields.csv"))
+
+AGCensus1991 <- read.csv(paste0(wd$data_r,"AGCensus1991_MaizeYields.csv"))
+
+AGCensus2007 <- read.csv(paste0(wd$data_r,"AGCensus2007_MaizeYields.csv"))
+
+SandersAztec <- read.csv(paste0(wd$data_r,"SandersModelAztecBOM.csv"))
+
+SandersC20 <- read.csv(paste0(wd$data_r,"SandersC20EthnogBOM.csv"))
+
+```
+
+## Ridgeline Density Plot
+
+```{r, label='Ridgeline Density Plot', message=FALSE,warning=FALSE}
+
+EarlyColonial = Colonial %>% filter(Period == "C16 Sample") %>% filter(TimeSeries == F) 
+#nnn = nrow(EarlyColonial)
+#EarlyColonial <- EarlyColonial %>% rowwise() %>% mutate(Weight = ifelse(TimeSeries == F,1,0.25)) %>% ungroup() %>% mutate(Weight = Weight/nnn)
+EarlyColonial_dens = density(EarlyColonial$Yield, from=0, weights=EarlyColonial$Weight)
+EarlyColonial_dens <- data.frame(EarlyColonial_dens$x, EarlyColonial_dens$y, EarlyColonial_dens$bw, EarlyColonial_dens$n, "16th Century Sample", "Local-level sample of recorded yields")
+names(EarlyColonial_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+LateColonial = Colonial %>% filter(Period == "C18 Sample") %>% filter(TimeSeries == F) 
+#nnn = nrow(LateColonial)
+#LateColonial <- LateColonial %>% rowwise() %>% mutate(Weight = ifelse(TimeSeries == F,1,0.25)) %>% ungroup() %>% mutate(Weight = Weight/nnn)
+LateColonial_dens = density(LateColonial$Yield, from=0, weights=LateColonial$Weight)
+LateColonial_dens <- data.frame(LateColonial_dens$x, LateColonial_dens$y, LateColonial_dens$bw, LateColonial_dens$n, "18th Century Sample", "Local-level sample of recorded yields")
+names(LateColonial_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+AGCensus1960_A = AGCensus1960 %>% #filter(Size == "Total") %>% 
+  filter(Size == "Ejido" | Size == "Small" | Size == "Large") %>% 
+  filter(INCLUDE == TRUE) %>% 
+  filter(!is.na(Maize1960_ha))
+s = sum(AGCensus1960_A$Maize1960_ha, na.rm = T)
+#AGCensus1960_T_dens = density(AGCensus1960_T$Maize1960_kgha, weights = AGCensus1960_T$Maize1960_ha / s, from = 0, na.rm = T)
+AGCensus1960_A_dens = density(AGCensus1960_A$Maize1960_kgha, na.rm = T, from=0)
+AGCensus1960_A_dens <- data.frame(AGCensus1960_A_dens$x, AGCensus1960_A_dens$y, AGCensus1960_A_dens$bw, AGCensus1960_A_dens$n, "1960 Agricultural Census", "Municipal averages by type of land tenure\n(ejidos, large (>5 ha) and small (<5 ha) holdings)"
+)
+names(AGCensus1960_A_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+AGCensus1960_T = AGCensus1960 %>% #filter(Size == "Total") %>% 
+  filter(Size == "Total") %>% 
+  filter(INCLUDE == TRUE) %>% 
+  filter(!is.na(Maize1960_ha))
+s = sum(AGCensus1960_T$Maize1960_ha, na.rm = T)
+#AGCensus1960_T_dens = density(AGCensus1960_T$Maize1960_kgha, weights = AGCensus1960_T$Maize1960_ha / s, from = 0, na.rm = T)
+AGCensus1960_T_dens = density(AGCensus1960_T$Maize1960_kgha, na.rm = T, from=0)
+AGCensus1960_T_dens <- data.frame(AGCensus1960_T_dens$x, AGCensus1960_T_dens$y, AGCensus1960_T_dens$bw, AGCensus1960_T_dens$n, "1960 Agricultural Census", "Overall municipal averages")
+names(AGCensus1960_T_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+AGCensus1991_T = AGCensus1991 %>% filter(!is.na(Yield)) 
+AGCensus1991_dens = density(AGCensus1991_T$Yield, na.rm = T, from=0)
+AGCensus1991_dens <- data.frame(AGCensus1991_dens$x, AGCensus1991_dens$y, AGCensus1991_dens$bw, AGCensus1991_dens$n, "1991 Agricultural Census", "Overall municipal averages")
+names(AGCensus1991_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+AGCensus2007_T = AGCensus2007 %>% filter(!is.na(Yield)) 
+s = sum(AGCensus2007_T$Harvested_ha, na.rm = T)
+#AGCensus2007_dens = density(AGCensus2007_T$Yield, weights = AGCensus2007_T$Harvested_ha / s, from = 0, na.rm = T)
+AGCensus2007_dens = density(AGCensus2007_T$Yield, na.rm = T, from=0)
+AGCensus2007_dens <- data.frame(AGCensus2007_dens$x, AGCensus2007_dens$y, AGCensus2007_dens$bw, AGCensus2007_dens$n, "2007 Agricultural Census", "Overall municipal averages")
+names(AGCensus2007_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+SandersAztec_dens = density(SandersAztec$Yield, from=0)
+SandersAztec_dens <- data.frame(SandersAztec_dens$x, SandersAztec_dens$y, SandersAztec_dens$bw, SandersAztec_dens$n, "Sanders Aztec Model\n (BOM Only)", "Model derived from mid-20th century data")
+names(SandersAztec_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+SandersC20_dens = density(SandersC20$YieldAvg, from=0)
+SandersC20_dens <- data.frame(SandersC20_dens$x, SandersC20_dens$y, SandersC20_dens$bw, SandersC20_dens$n, "Sanders mid-20th Century\nSample (BOM Only)", "Local-level sample of recorded yields")
+names(SandersC20_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+
+SIAP_4_2003 = SIAP_4 %>% filter(Year == 2003) 
+SIAP_4_2003 = density(SIAP_4_2003$Yield, from=0)
+SIAP_4_2003 <- data.frame(SIAP_4_2003$x, SIAP_4_2003$y, SIAP_4_2003$bw, SIAP_4_2003$n, "SIAP 2003", "Municipal Averages by cultivation type\n(irrigation and temporal)")
+names(SIAP_4_2003) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+SIAP_4_2003a = SIAP_4 %>% filter(Year == 2003) %>% group_by(EstadoMunicipio) %>% summarize(Yield = sum(Product, na.rm=T) / sum(Planted, na.rm=T))
+SIAP_4_2003a = density(SIAP_4_2003a$Yield)
+SIAP_4_2003a <- data.frame(SIAP_4_2003a$x, SIAP_4_2003a$y, SIAP_4_2003a$bw, SIAP_4_2003a$n, "SIAP 2003", "Overall municipal averages")
+names(SIAP_4_2003a) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+SIAP_4_2020 = SIAP_4 %>% filter(Year == 2020) 
+SIAP_4_2020 = density(SIAP_4_2020$Yield, from=0)
+SIAP_4_2020 <- data.frame(SIAP_4_2020$x, SIAP_4_2020$y, SIAP_4_2020$bw, SIAP_4_2020$n, "SIAP 2020", "Municipal Averages by cultivation type\n(irrigation and temporal)")
+names(SIAP_4_2020) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+SIAP_4_2020a = SIAP_4 %>% filter(Year == 2020) %>% group_by(EstadoMunicipio) %>% summarize(Yield = sum(Product, na.rm=T) / sum(Planted, na.rm=T))
+SIAP_4_2020a = density(SIAP_4_2020a$Yield, from=0)
+SIAP_4_2020a <- data.frame(SIAP_4_2020a$x, SIAP_4_2020a$y, SIAP_4_2020a$bw, SIAP_4_2020a$n, "SIAP 2020", "Overall municipal averages")
+names(SIAP_4_2020a) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+SIAP_4_Avg = SIAP_4 %>% group_by(EstadoMunicipio, AGType) %>% summarise(AvgYield = mean(Yield, na.rm=T))
+SIAP_4_Avg = density(SIAP_4_Avg$AvgYield, na.rm=T, from=0)
+SIAP_4_Avg <- data.frame(SIAP_4_Avg$x, SIAP_4_Avg$y, SIAP_4_Avg$bw, SIAP_4_Avg$n, "SIAP 2003-2021 Average", "Municipal Averages by cultivation type\n(irrigation and temporal)")
+names(SIAP_4_Avg) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+SIAP_4_Avg_T = SIAP_4 %>% group_by(EstadoMunicipio) %>% summarise(AvgYield = sum(Product, na.rm=T) / sum(Planted, na.rm=T))
+SIAP_4_Avg_T = density(SIAP_4_Avg_T$AvgYield, na.rm=T, from=0)
+SIAP_4_Avg_T <- data.frame(SIAP_4_Avg_T$x, SIAP_4_Avg_T$y, SIAP_4_Avg_T$bw, SIAP_4_Avg_T$n, "SIAP 2003-2021 Average", "Overall municipal averages")
+names(SIAP_4_Avg_T) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+
+SIAP_4_Avg_T$Height = 1200
+SIAP_4_Avg$Height = 1200
+SIAP_4_2020a$Height = 2000
+SIAP_4_2020$Height = 2000
+AGCensus2007_dens$Height = 2000
+SIAP_4_2003a$Height = 1500
+SIAP_4_2003$Height = 1500
+SandersC20_dens$Height = 1300
+SandersAztec_dens$Height = 550
+AGCensus2007_dens$Height = 1200
+AGCensus1991_dens$Height = 900
+AGCensus1960_A_dens$Height = 350
+AGCensus1960_T_dens$Height = 350
+LateColonial_dens$Height = 1200
+EarlyColonial_dens$Height = 2500
+
+Dens.df = rbind(EarlyColonial_dens,LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, AGCensus1960_A_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003, SIAP_4_2003a, AGCensus2007_dens, SIAP_4_2020, SIAP_4_2020a, SIAP_4_Avg, SIAP_4_Avg_T)
+
+rm(EarlyColonial_dens,LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003, AGCensus2007_dens, SIAP_4_2020, SIAP_4_Avg, s, nnn)
+
+Dens.df$Series <- factor(Dens.df$Series, levels = c("16th Century Sample", "18th Century Sample", "Sanders Aztec Model\n (BOM Only)", "1960 Agricultural Census", "Sanders mid-20th Century\nSample (BOM Only)", "1991 Agricultural Census", "SIAP 2003", "2007 Agricultural Census", "SIAP 2020", "SIAP 2003-2021 Average"))
+
+#"Overall municipal averages","Municipal Averages by cultivation type\n(irrigation and temporal)","Municipal averages by type of land tenure\n(ejidos, large (>5 ha) and small (<5 ha) holdings)","Local-level sample of recorded yields","Model derived from mid-20th century data"
+ggp1 <- ggplot() + 
+  geom_ridgeline(data=Dens.df, aes(x=Yield, y=Series, height=Density*Height, fill=Data, color=Data), alpha=0.2,size=0.5)+
+  scale_fill_discrete(name = "Data Specifications") +#, labels = c("Theoretical Beta (Prior)", "Empirical Aoristic (Conditional)", "Final Bayesian Prior (Posterior)") 
+  scale_colour_discrete(name = "Data Specifications", drop = FALSE)+#, labels = c("Theoretical Beta (Prior)", "Empirical Aoristic (Conditional)", "Final Bayesian Prior (Posterior)")
+  guides(fill = guide_legend(byrow = TRUE), color = guide_legend(byrow = TRUE)) +
+  #geom_vline(data=MP, aes(xintercept = years), linetype = "dashed", alpha=0.6)+
+    labs(x ="Maize Yield (kg / ha)", y = "Probability Density")+#title="Bayesian Construction of Regional-Scale Popularity Curves", subtitle = "Ceramic Complexes in the S. Basin of Mexico", 
+    #guides(fill = guide_legend(nrow = 3))+
+    theme_bw()+
+  #scale_y_discrete(expand = c(.05, .05)) +
+    scale_x_continuous(limits= c(0,11000), breaks=seq(0,11000,1000)) +#,breaks = MyBreaks,labels = MyLabs
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", face="bold"), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.55,0.55), 
+          legend.title=element_text(color="black", face="bold", size = 14),#element_blank(),
+          legend.spacing.y = unit(0.2,"cm"),
+          legend.key = element_rect(colour = "transparent", fill = "transparent"),
+          legend.text = element_text(colour="black", size = 10))
+          #legend.background = element_rect(colour = 'black', fill = 'white', linetype='solid'), 
+         # plot.title = element_text(hjust = 0.5, face="bold"), plot.subtitle = element_text(hjust = 0.5, face="bold"))+theme(plot.background = element_rect(fill = "white", colour = NA))
+
+
+#save figure
+ggsave("RidgelineComparativeYields.png", plot = ggp1, device = "png", path = wd$figs, scale = 1, width = 10, height = 7,   units = "in",  dpi = 1500)
+
+rm(ggp1)
+
+# import figure for display
+knitr::include_graphics(paste0(wd$figs,"RidgelineComparativeYields.png"), FALSE)
+
+```
+
+
+## ***Histograms 
+
+```{r, label='Histograms', message=FALSE,warning=FALSE}
+
+```
+
+
+## ***Gamma Tests
+
+```{r, label='Gamma Tests', message=FALSE,warning=FALSE}
+gamma_test(AGCensus1960_T$Maize1960_kgha)
+gamma_test(LateColonial$Yield)
+gamma_test(EarlyColonial$Yield)
+gamma_test(AGCensus1991_T$Yield)
+gamma_test(AGCensus2007_T$Yield)
+gamma_test(SandersAztec$Yield)
+gamma_test(SandersC20$YieldAvg)
+gamma_test(SIAP_4_2003$Yield[SIAP_4_2003$Yield > 0])
+gamma_test(SIAP_4_2020a$Yield[SIAP_4_2020a$Yield > 0])
+gamma_test(SIAP_4_Avg1$AvgYield)
+
+gamma_fit(x)
+```
+
+
+## ***MANOVA Violin Plots
+
+```{r, label='MANOVA Violin Plots', message=FALSE,warning=FALSE}
+CY <- read.csv(paste0(wd$data_r,"ComparativeYields.csv"))
+CY$Series <- factor(CY$Series, levels = c("AG Census 1960", "Sanders Aztec BOM Model", "AG Census 1991", "Sanders mid-20th Century BOM", "SIAP 2003-2021 Average"))
+x = ggbetweenstats(
+  data = dplyr::filter(CY, Size == "Total"),
+  x = Series, ## grouping/independent variable
+  y = Yield, ## dependent variables
+  type = "robust", ## type of statistics
+  xlab = "", ## label for the x-axis
+  ylab = "Maize Yield (kg/ha)", ## label for the y-axis
+  ## turn off messages
+  ggtheme = ggplot2::theme_gray(), ## a different theme
+  package = "yarrr", ## package from which color palette is to be taken
+  palette = "info2", ## choosing a different color palette
+  title = "",
+  caption = "",
+  centrality.label.args = list(size = 4, nudge_x = 0,nudge_y = 3000, segment.linetype = 0,
+    min.segment.length = 0)
+) + ## modifying the plot further
+  ggplot2::scale_y_continuous(
+    limits = c(0, 7000),
+    breaks = seq(from = 0, to = 7000, by = 500)
+  ) 
+x
+
+CY2 <- read.csv(paste0(wd$data_r,"ComparativeYields.csv"))
+
+CY2 = CY2 %>% filter(Series == "Sanders mid-20th Century BOM" | Series == "AG Census 1960" | Series == "Sanders Aztec BOM Model") %>% rowwise() %>% mutate(Size = ifelse(Series == "Sanders mid-20th Century BOM" | Series == "Sanders Aztec BOM Model", '', Size)) %>% ungroup() %>% unite(SizeSeries, Series, Size, sep = "\n") %>% mutate_all(~ str_replace_all(., c(" BOM" = ""))) %>% mutate(Yield = as.numeric(Yield))
+CY2$Series <- factor(CY2$SizeSeries, levels = c("Sanders mid-20th Century\n", "Sanders Aztec Model\n", "AG Census 1960\nSmall", "AG Census 1960\nLarge", "AG Census 1960\nEjido", "AG Census 1960\nTotal"))
+x2 = ggbetweenstats(
+  data = dplyr::filter(CY2, !is.na(Yield)),
+  x = Series, ## grouping/independent variable
+  y = Yield, ## dependent variables
+  type = "robust", ## type of statistics
+  xlab = "", ## label for the x-axis
+  ylab = "Maize Yield (kg/ha)", ## label for the y-axis
+  ## turn off messages
+  ggtheme = ggplot2::theme_gray(), ## a different theme
+  package = "yarrr", ## package from which color palette is to be taken
+  palette = "info2", ## choosing a different color palette
+  title = "",
+  caption = "",
+  centrality.label.args = list(size = 4, nudge_x = 0,nudge_y = 6000, segment.linetype = 0,
+    min.segment.length = 0)
+) + ## modifying the plot further
+  ggplot2::scale_y_continuous(
+    limits = c(0, 7000),
+    breaks = seq(from = 0, to = 5000, by = 500)
+  ) 
+
+x2
+```
+
+
+
+```{r, label='Ridgeline Density Plot', message=FALSE,warning=FALSE}
+
+h1 = ggplot(SIAP_4,aes(x = Yield)) +
+  geom_histogram(aes(group = AGType, fill = AGType),alpha = 0.5, position = "identity", binwidth = 300, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("cyan1", "indianred1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  geom_density(aes(group = AGType, color = AGType, y=360 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  scale_color_manual(name = "Agriculture Type",values = c("cyan2", "firebrick1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  labs(x ="Maize Yield (kg / ha)", y = "Count")+
+    theme_bw()+
+    scale_x_continuous(limits= c(0,12000), breaks=seq(0,12000,2000)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.5,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+df = SIAP_4 %>% group_by(EstadoMunicipio, Year) %>% summarize(Yield = sum(Product, na.rm=T) / sum(Planted, na.rm=T))
+df$Series <- "Municipal Average"
+df2 = SIAP_4 %>% select(EstadoMunicipio, Year, Yield) %>% mutate(Series = "Both Irrigation and Temporal")
+df = rbind(df,df2)
+
+h2 = ggplot(df,aes(x = Yield)) +
+  geom_histogram(aes(group = Series, fill = Series),alpha = 0.5, position = "identity", binwidth = 300, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("grey75", "greenyellow"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Average", "Both"))+
+  geom_density(aes(group = Series, color = Series, y=360 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  scale_color_manual(name = "Agriculture Type",values = c("black", "green"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Average", "Both"))+
+  labs(x ="Maize Yield (kg / ha)", y = "Count")+
+    theme_bw()+
+    scale_x_continuous(limits= c(0,12000), breaks=seq(0,12000,2000)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.5,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+ggp2 = plot_grid(h1, h2, labels = c('A', 'B'), label_size = 24)
+
+
+#save figure
+ggsave("Hists_SIAP_AGType.png", plot = ggp2, device = "png", path = wd$figs, scale = 1, width = 8, height = 4.5,   units = "in",  dpi = 1500)
+
+rm(ggp2, h1, h2, df, df2)
+
+# import figure for display
+knitr::include_graphics(paste0(wd$figs,"Hists_SIAP_AGType.png"), FALSE)
+```
+
+
+## Maize Yield Maps
+
+### Merge Data and Join with Municipio Polygons
+•	Merge 1960, 1991, 2007 and SIAP data with municipios polygons
+
+```{r, label='Merge Data and Join with Municipio Polygons', message=FALSE,warning=FALSE}
+AGC1960 = AGCensus1960 %>% filter(INCLUDE == TRUE) %>% 
+  select(Location, State, INCLUDE, Size, Maize1960_kg, Maize1960_ha) %>%
+  rename(Municipio = Location, Estado = State) %>%
+  mutate(Municipio = str_to_title(Municipio)) %>%
+  mutate_all(~ str_replace_all(., c(" De " = " de ", 
+                                    " Del " = " del ", 
+                                    " La " = " la ", 
+                                    " Las " = " las ", 
+                                    " Los " = " los ",
+                                    " El " = " el ",
+                                    "Ziltlaltepec" = "Zitlaltepec",
+                                    "Atltzayanca" = "Altzayanca"))) %>%
+  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>%  
+  group_by(Municipio, Estado, EstadoMunicipio, Size) %>%
+  summarize(Yield = sum(as.numeric(Maize1960_kg), na.rm=T) / sum(as.numeric(Maize1960_ha), na.rm=T))  %>%
+  pivot_wider(names_from = Size, values_from = Yield, values_fill = NA) %>% 
+  mutate(across(everything(), ~ifelse(is.nan(.), NA, .))) %>% 
+  rename(Y_1960_E = Ejido, Y_1960_S = Small, Y_1960_L = Large, Y_1960_Total = Total)
+
+AGC1991 = AGCensus1991 %>% 
+  select(Name, State, Yield) %>%
+  rename(Municipio = Name, Estado = State, Y_1991_Total = Yield) %>%
+  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>%
+  mutate_all(~ str_replace_all(., c(" De " = " de ", 
+                                    " Del " = " del ", 
+                                    " La " = " la ", 
+                                    " Las " = " las ", 
+                                    " Los " = " los ",
+                                    " El " = " el ",
+                                    "Ziltlaltepec" = "Zitlaltepec",
+                                    "Atltzayanca" = "Altzayanca"))) %>%
+  mutate(AGType = "Total")
+
+AGC2007 = AGCensus2007 %>% 
+  select(Name, State, Yield) %>%
+  rename(Municipio = Name, Estado = State, Y_2007_Total = Yield) %>%
+  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>%
+  mutate_all(~ str_replace_all(., c(" De " = " de ", 
+                                    " Del " = " del ", 
+                                    " La " = " la ", 
+                                    " Las " = " las ", 
+                                    " Los " = " los ",
+                                    " El " = " el ",
+                                    "Ziltlaltepec" = "Zitlaltepec",
+                                    "Atltzayanca" = "Altzayanca"))) %>%
+  mutate(AGType = "Total")
+
+x = SIAP_4 %>% 
+  select(Municipio, Estado, EstadoMunicipio, Year, AGType, Harvested, Product) %>%
+  group_by(Municipio, Estado, EstadoMunicipio, Year) %>% 
+  summarize(AGType = "Total",
+    Yield = sum(Product, na.rm=T) / sum(Harvested, na.rm=T))
+
+SIAP_annual = SIAP_4 %>% 
+  select(Municipio, Estado, EstadoMunicipio, Year, AGType, Yield) %>%
+  mutate(AGType = case_when(
+    AGType == "Riego" ~ "Irrig",
+    AGType == "Temporal" ~ "Temp"))
+
+SIAP_annual = rbind(SIAP_annual,x)
+
+SIAP_annual = SIAP_annual %>%
+  pivot_wider(
+    names_from = c(Year, AGType),
+    names_glue = "Y_{Year}_{AGType}",
+    values_from = Yield)
+
+SIAP_AvgType = SIAP_4 %>% 
+  select(Municipio, Estado, EstadoMunicipio, Year, AGType, Harvested, Product) %>%
+  mutate(AGType = case_when(
+    AGType == "Riego" ~ "Irrig",
+    AGType == "Temporal" ~ "Temp")) %>%
+  group_by(Municipio, Estado, EstadoMunicipio, AGType) %>% 
+  summarize(Year = "Average",
+    Yield = sum(Product, na.rm=T) / sum(Harvested, na.rm=T)) %>%
+  pivot_wider(
+    names_from = c(Year, AGType),
+    names_glue = "Y_{Year}_{AGType}",
+    values_from = Yield)
+
+SIAP_AvgTotal = SIAP_4 %>% 
+  select(Municipio, Estado, EstadoMunicipio, Year, AGType, Harvested, Product) %>%
+  mutate(AGType = case_when(
+    AGType == "Riego" ~ "Total",
+    AGType == "Temporal" ~ "Total")) %>%
+  group_by(Municipio, Estado, EstadoMunicipio, AGType) %>% 
+  summarize(Year = "Average",
+    Yield = sum(Product, na.rm=T) / sum(Harvested, na.rm=T))%>%
+  pivot_wider(
+    names_from = c(Year, AGType),
+    names_glue = "Y_{Year}_{AGType}",
+    values_from = Yield)
+
+SIAP_yields = SIAP_annual %>% left_join(SIAP_AvgType, by = c("Municipio", "Estado", "EstadoMunicipio")) %>%
+  left_join(SIAP_AvgTotal, by = c("Municipio", "Estado", "EstadoMunicipio")) %>%
+  mutate_all(~ str_replace_all(., c(" De " = " de ", 
+                                    " Del " = " del ", 
+                                    " La " = " la ", 
+                                    " Las " = " las ", 
+                                    " Los " = " los ",
+                                    " El " = " el ",
+                                    "Ziltlaltepec" = "Zitlaltepec",
+                                    "Atltzayanca" = "Altzayanca")))
+
+rm(SIAP_annual, SIAP_AvgType, SIAP_AvgTotal, x)
+
+scale2 <- function(x, na.rm = FALSE) (x - mean(x, na.rm = T)) / sd(x, na.rm = T)
+
+MunicipioYields <- Municipios2000s %>% mutate(
+         Municipio = str_replace_all(Municipio, c(" De " = " de ",
+                                                  " Del " = " del ",
+                                                  " La " = " la ",
+                                                  " Las " = " las ",
+                                                  " Los " = " los ",
+                                                  " El " = " el ",
+                                                  "Ziltlaltepec" = "Zitlaltepec",
+                                                  "Atltzayanca" = "Altzayanca")),
+         EstadoMunicipio = str_replace_all(EstadoMunicipio, c(" De " = " de ",
+                                                              " Del " = " del ",
+                                                              " La " = " la ",
+                                                              " Las " = " las ",
+                                                              " Los " = " los ",
+                                                              " El " = " el ",
+                                                              "Ziltlaltepec" = "Zitlaltepec",
+                                                              "Atltzayanca" = "Altzayanca"))) %>%
+  left_join(AGC1960, by = c("Municipio", "Estado", "EstadoMunicipio")) %>%
+  left_join(AGC1991, by = c("Municipio", "Estado", "EstadoMunicipio")) %>%
+  left_join(AGC2007, by = c("Municipio", "Estado", "EstadoMunicipio")) %>%
+  left_join(SIAP_yields, by = c("Municipio", "Estado", "EstadoMunicipio")) %>%
+  select(-AGType.x, -AGType.y, -Area_m2, -Area_ha) %>%
+  mutate(across(where(is.character) & !one_of(c("Estado_ID", "Municipio_ID", "EstadoMunicipio", "Municipio", "Estado")), as.numeric))
+
+MunicipioYields_Z <- MunicipioYields %>% 
+  mutate(across(where(is.numeric), scale2))
+
+```
+
+
+### Maps of Average Yield Over Time
+Maps of average maize yields by municipality
+•	Same spatial patterning??
+
+```{r, label='Basemaps', message=FALSE,warning=FALSE}
+Hillshade <- read_stars(paste0(wd$data_r, "HillshadeCMex.tif"))
+Estados <- st_read(paste0(wd$data_r, "StatesPoly.gpkg"))
+Estados2 = Estados %>% mutate(my_nudge_x=ifelse(NOM_ENT=='Puebla',-50000,0),
+                             my_nudge_y=ifelse(NOM_ENT=='Puebla',-65000,0))
+
+Base <- ggplot() + 
+  geom_stars(data = Hillshade)+
+  scale_fill_gradient(low = "black", high = "white", guide="none")+
+  coord_sf()+
+  theme_void()
+#colorRampPalette(rev(brewer.pal(11, "Spectral")))
+myPalette <- colorRampPalette(c("red4", "red4", "red4", "red4", "red", "orange", "yellow", "greenyellow", "green", "green4", "green4","green4", "green4"))
+#myPalette <- c("red4", "red4", "red", "orange", "yellow", "greenyellow", "green", "green4", "green4")
+sc <- scale_fill_gradientn(name = "Maize\nYield\n(kg/ha)", colors = myPalette(7), limits=c(-5, 5),breaks=c(-6, -4, -2, -1,  0, 1, 2, 4, 6))
+
+```
+
+
+#### 1960 AG Census Maps
+
+
+```{r, label='1960 AG Census Maps', message=FALSE,warning=FALSE}
+
+Map1960_T <- Base + ggnewscale::new_scale_fill()+
+  geom_sf(data = MunicipioYields_Z, aes(geometry = geom, fill = Y_1960_Total), color = "black", size=1, alpha = 0.55) +
+  scale_fill_gradientn(name = "Maize\nYield\n(kg/ha)", colors = myPalette(11), limits=c(-6, 6),breaks=c(-6, -4, -2, -1,  0, 1, 2, 4, 6)) +
+  geom_sf(data = Estados, aes(geometry = geom), fill = "transparent", color = "white", linewidth=1.5, inherit.aes = F) +
+  geom_sf_text(data = Estados, aes(label = NOM_ENT), size = 9, color = "white", face="bold",
+               nudge_x=Estados2$my_nudge_x,nudge_y=Estados2$my_nudge_y)+
+  labs(title= "1960 Ag. Census - Z-Score Average Maize Yield")+#, subtitle = "Period 9, CL (c.AD 100-550)"
+  coord_sf()+ north(data = Estados, symbol = 12, scale = 0.15, location = "topleft")+
+  geom_rect(aes(xmin = 357134, xmax = 464000, ymin = 2042755, ymax = 2053000), color = "white", fill = "white")  +
+  scalebar(data = Estados, dist = 50, dist_unit = "km", transform = F, model = "WGS84", st.color = "black", height = 0.03, st.dist = 0.03, st.size = 5, st.bottom = T, location = "bottomleft")+#, anchor = c(360291,2051443)
+  theme(legend.justification=c(0,1), legend.position=c(0.85,0.95), 
+        legend.title=element_text(color="black", face="bold", size = 14),
+        legend.text = element_text(colour="black", size = 8, face="bold"),
+        legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"),
+        legend.box.background = element_rect(colour = "black"),
+        legend.margin=ggplot2::margin(t= 2, r= 2, b= 5, l= 2),
+        plot.title = element_text(hjust = 0.5, face="bold", size=16),
+        plot.background = element_rect(fill = "white", colour = NA))#plot.subtitle = element_text(hjust = 0.5, face="bold", size=14),
+
+Map1960_E <- Base + ggnewscale::new_scale_fill()+
+  geom_sf(data = MunicipioYields_Z, aes(geometry = geom, fill = Y_1960_E), color = "black", size=1, alpha = 0.55) +
+scale_fill_gradientn(name = "Maize\nYield\n(kg/ha)", colors = myPalette(11), limits=c(-6, 6),breaks=c(-6, -4, -2, -1,  0, 1, 2, 4, 6)) +
+  geom_sf(data = Estados, aes(geometry = geom), fill = "transparent", color = "white", linewidth=1.5, inherit.aes = F) +
+  geom_sf_text(data = Estados, aes(label = NOM_ENT), size = 9, color = "white", face="bold",
+               nudge_x=Estados2$my_nudge_x,nudge_y=Estados2$my_nudge_y)+
+  labs(title= "1960 Ag. Census - Z-Score Average Ejido Maize Yield")+#, subtitle = "Period 9, CL (c.AD 100-550)"
+  coord_sf()+ north(data = Estados, symbol = 12, scale = 0.15, location = "topleft")+
+  geom_rect(aes(xmin = 357134, xmax = 464000, ymin = 2042755, ymax = 2053000), color = "white", fill = "white")  +
+  scalebar(data = Estados, dist = 50, dist_unit = "km", transform = F, model = "WGS84", st.color = "black", height = 0.03, st.dist = 0.03, st.size = 5, st.bottom = T, location = "bottomleft")+#, anchor = c(360291,2051443)
+  theme(legend.justification=c(0,1), legend.position=c(0.85,0.95), 
+        legend.title=element_text(color="black", face="bold", size = 14),
+        legend.text = element_text(colour="black", size = 8, face="bold"),
+        legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"),
+        legend.box.background = element_rect(colour = "black"),
+        legend.margin=ggplot2::margin(t= 2, r= 2, b= 5, l= 2),
+        plot.title = element_text(hjust = 0.5, face="bold", size=16),
+        plot.background = element_rect(fill = "white", colour = NA))#plot.subtitle = element_text(hjust = 0.5, face="bold", size=14),
+
+Map1960_S <- Base + ggnewscale::new_scale_fill()+
+  geom_sf(data = MunicipioYields_Z, aes(geometry = geom, fill = Y_1960_S), color = "black", size=1, alpha = 0.55) +
+scale_fill_gradientn(name = "Maize\nYield\n(kg/ha)", colors = myPalette(11), limits=c(-6, 6),breaks=c(-6, -4, -2, -1,  0, 1, 2, 4, 6)) +
+  geom_sf(data = Estados, aes(geometry = geom), fill = "transparent", color = "white", linewidth=1.5, inherit.aes = F) +
+  geom_sf_text(data = Estados, aes(label = NOM_ENT), size = 9, color = "white", face="bold",
+               nudge_x=Estados2$my_nudge_x,nudge_y=Estados2$my_nudge_y)+
+  labs(title= "1960 Ag. Census - Z-Score Small Farm Average Maize Yield")+#, subtitle = "Period 9, CL (c.AD 100-550)"
+  coord_sf()+ north(data = Estados, symbol = 12, scale = 0.15, location = "topleft")+
+  geom_rect(aes(xmin = 357134, xmax = 464000, ymin = 2042755, ymax = 2053000), color = "white", fill = "white")  +
+  scalebar(data = Estados, dist = 50, dist_unit = "km", transform = F, model = "WGS84", st.color = "black", height = 0.03, st.dist = 0.03, st.size = 5, st.bottom = T, location = "bottomleft")+#, anchor = c(360291,2051443)
+  theme(legend.justification=c(0,1), legend.position=c(0.85,0.95), 
+        legend.title=element_text(color="black", face="bold", size = 14),
+        legend.text = element_text(colour="black", size = 8, face="bold"),
+        legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"),
+        legend.box.background = element_rect(colour = "black"),
+        legend.margin=ggplot2::margin(t= 2, r= 2, b= 5, l= 2),
+        plot.title = element_text(hjust = 0.5, face="bold", size=16),
+        plot.background = element_rect(fill = "white", colour = NA))#plot.subtitle = element_text(hjust = 0.5, face="bold", size=14),
+
+Map1960_L <- Base + ggnewscale::new_scale_fill()+
+  geom_sf(data = MunicipioYields_Z, aes(geometry = geom, fill = Y_1960_L), color = "black", size=1, alpha = 0.55) +
+  scale_fill_gradientn(name = "Maize\nYield\n(kg/ha)", colors = myPalette(11), limits=c(-6, 6),breaks=c(-6, -4, -2, -1,  0, 1, 2, 4, 6)) +
+  geom_sf(data = Estados, aes(geometry = geom), fill = "transparent", color = "white", linewidth=1.5, inherit.aes = F) +
+  geom_sf_text(data = Estados, aes(label = NOM_ENT), size = 9, color = "white", face="bold",
+               nudge_x=Estados2$my_nudge_x,nudge_y=Estados2$my_nudge_y)+
+  labs(title= "1960 Ag. Census - Z-Score Large Farm Average Maize Yield")+#, subtitle = "Period 9, CL (c.AD 100-550)"
+  coord_sf()+ north(data = Estados, symbol = 12, scale = 0.15, location = "topleft")+
+  geom_rect(aes(xmin = 357134, xmax = 464000, ymin = 2042755, ymax = 2053000), color = "white", fill = "white")  +
+  scalebar(data = Estados, dist = 50, dist_unit = "km", transform = F, model = "WGS84", st.color = "black", height = 0.03, st.dist = 0.03, st.size = 5, st.bottom = T, location = "bottomleft")+#, anchor = c(360291,2051443)
+  theme(legend.justification=c(0,1), legend.position=c(0.85,0.95), 
+        legend.title=element_text(color="black", face="bold", size = 14),
+        legend.text = element_text(colour="black", size = 8, face="bold"),
+        legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"),
+        legend.box.background = element_rect(colour = "black"),
+        legend.margin=ggplot2::margin(t= 2, r= 2, b= 5, l= 2),
+        plot.title = element_text(hjust = 0.5, face="bold", size=16),
+        plot.background = element_rect(fill = "white", colour = NA))#plot.subtitle = element_text(hjust = 0.5, face="bold", size=14),
+
+ggsave("Map1960_T.png", plot = Map1960_T, device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257,   units = "in",  dpi = 1500)
+ggsave("Map1960_E.png", plot = Map1960_E, device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257,   units = "in",  dpi = 1500)
+ggsave("Map1960_S.png", plot = Map1960_S, device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257,   units = "in",  dpi = 1500)
+ggsave("Map1960_L.png", plot = Map1960_L, device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257,   units = "in",  dpi = 1500)
+knitr::include_graphics(paste0(wd$figs,"Map1960_T.png"), FALSE)
+knitr::include_graphics(paste0(wd$figs,"Map1960_E.png"), FALSE)
+knitr::include_graphics(paste0(wd$figs,"Map1960_S.png"), FALSE)
+knitr::include_graphics(paste0(wd$figs,"Map1960_L.png"), FALSE)
+#rm(Map1960_T,Map1960_E,Map1960_S,Map1960_L)
+
+```
+
+
+#### Maps of Average Municipal Yields Over Time
+
+
+```{r, label='Maps of Average Yields Over Time', message=FALSE,warning=FALSE}
+
+Map1991_T <- Base + ggnewscale::new_scale_fill()+
+  geom_sf(data = MunicipioYields_Z, aes(geometry = geom, fill = Y_1991_Total), color = "black", size=1, alpha = 0.55) +
+  scale_fill_gradientn(name = "Maize\nYield\n(kg/ha)", colors = myPalette(11), limits=c(-6, 6),breaks=c(-6, -4, -2, -1,  0, 1, 2, 4, 6)) +
+  geom_sf(data = Estados, aes(geometry = geom), fill = "transparent", color = "white", linewidth=1.5, inherit.aes = F) +
+  geom_sf_text(data = Estados, aes(label = NOM_ENT), size = 9, color = "white", face="bold",
+               nudge_x=Estados2$my_nudge_x,nudge_y=Estados2$my_nudge_y)+
+  labs(title= "1991 Ag. Census - Z-Score Average Maize Yield")+#, subtitle = "Period 9, CL (c.AD 100-550)"
+  coord_sf()+ north(data = Estados, symbol = 12, scale = 0.15, location = "topleft")+
+  geom_rect(aes(xmin = 357134, xmax = 464000, ymin = 2042755, ymax = 2053000), color = "white", fill = "white")  +
+  scalebar(data = Estados, dist = 50, dist_unit = "km", transform = F, model = "WGS84", st.color = "black", height = 0.03, st.dist = 0.03, st.size = 5, st.bottom = T, location = "bottomleft")+#, anchor = c(360291,2051443)
+  theme(legend.justification=c(0,1), legend.position=c(0.85,0.95), 
+        legend.title=element_text(color="black", face="bold", size = 14),
+        legend.text = element_text(colour="black", size = 8, face="bold"),
+        legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"),
+        legend.box.background = element_rect(colour = "black"),
+        legend.margin=ggplot2::margin(t= 2, r= 2, b= 5, l= 2),
+        plot.title = element_text(hjust = 0.5, face="bold", size=16),
+        plot.background = element_rect(fill = "white", colour = NA))#plot.subtitle = element_text(hjust = 0.5, face="bold", size=14),
+
+Map2007_T <- Base + ggnewscale::new_scale_fill()+
+  geom_sf(data = MunicipioYields_Z, aes(geometry = geom, fill = Y_2007_Total.x), color = "black", size=1, alpha = 0.55) +
+  scale_fill_gradientn(name = "Maize\nYield\n(kg/ha)", colors = myPalette(11), limits=c(-6, 6),breaks=c(-6, -4, -2, -1,  0, 1, 2, 4, 6)) +
+  geom_sf(data = Estados, aes(geometry = geom), fill = "transparent", color = "white", linewidth=1.5, inherit.aes = F) +
+  geom_sf_text(data = Estados, aes(label = NOM_ENT), size = 9, color = "white", face="bold",
+               nudge_x=Estados2$my_nudge_x,nudge_y=Estados2$my_nudge_y)+
+  labs(title= "2007 Ag. Census - Z-Score Average Maize Yield")+#, subtitle = "Period 9, CL (c.AD 100-550)"
+  coord_sf()+ north(data = Estados, symbol = 12, scale = 0.15, location = "topleft")+
+  geom_rect(aes(xmin = 357134, xmax = 464000, ymin = 2042755, ymax = 2053000), color = "white", fill = "white")  +
+  scalebar(data = Estados, dist = 50, dist_unit = "km", transform = F, model = "WGS84", st.color = "black", height = 0.03, st.dist = 0.03, st.size = 5, st.bottom = T, location = "bottomleft")+#, anchor = c(360291,2051443)
+  theme(legend.justification=c(0,1), legend.position=c(0.85,0.95), 
+        legend.title=element_text(color="black", face="bold", size = 14),
+        legend.text = element_text(colour="black", size = 8, face="bold"),
+        legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"),
+        legend.box.background = element_rect(colour = "black"),
+        legend.margin=ggplot2::margin(t= 2, r= 2, b= 5, l= 2),
+        plot.title = element_text(hjust = 0.5, face="bold", size=16),
+        plot.background = element_rect(fill = "white", colour = NA))#plot.subtitle = element_text(hjust = 0.5, face="bold", size=14),
+
+MapSIAP_Avg_Total <- Base + ggnewscale::new_scale_fill()+
+  geom_sf(data = MunicipioYields_Z, aes(geometry = geom, fill = Y_Average_Total), color = "black", size=1, alpha = 0.55) +
+  scale_fill_gradientn(name = "Maize\nYield\n(kg/ha)", colors = myPalette(11), limits=c(-6, 6),breaks=c(-6, -4, -2, -1,  0, 1, 2, 4, 6)) +
+  geom_sf(data = Estados, aes(geometry = geom), fill = "transparent", color = "white", linewidth=1.5, inherit.aes = F) +
+  geom_sf_text(data = Estados, aes(label = NOM_ENT), size = 9, color = "white", face="bold",
+               nudge_x=Estados2$my_nudge_x,nudge_y=Estados2$my_nudge_y)+
+  labs(title= "SIAP 2003-2021 - Z-Score Overall Average Maize Yield")+#, subtitle = "Period 9, CL (c.AD 100-550)"
+  coord_sf()+ north(data = Estados, symbol = 12, scale = 0.15, location = "topleft")+
+  geom_rect(aes(xmin = 357134, xmax = 464000, ymin = 2042755, ymax = 2053000), color = "white", fill = "white")  +
+  scalebar(data = Estados, dist = 50, dist_unit = "km", transform = F, model = "WGS84", st.color = "black", height = 0.03, st.dist = 0.03, st.size = 5, st.bottom = T, location = "bottomleft")+#, anchor = c(360291,2051443)
+  theme(legend.justification=c(0,1), legend.position=c(0.85,0.95), 
+        legend.title=element_text(color="black", face="bold", size = 14),
+        legend.text = element_text(colour="black", size = 8, face="bold"),
+        legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"),
+        legend.box.background = element_rect(colour = "black"),
+        legend.margin=ggplot2::margin(t= 2, r= 2, b= 5, l= 2),
+        plot.title = element_text(hjust = 0.5, face="bold", size=16),
+        plot.background = element_rect(fill = "white", colour = NA))#plot.subtitle = element_text(hjust = 0.5, face="bold", size=14),
+
+
+
+ggsave("Map1991_T.png", plot = Map1991_T, device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257,   units = "in",  dpi = 1500)
+ggsave("Map2007_T.png", plot = Map2007_T, device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257,   units = "in",  dpi = 1500)
+ggsave("MapSIAP_Avg_Total.png", plot = MapSIAP_Avg_Total, device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257,   units = "in",  dpi = 1500)
+knitr::include_graphics(paste0(wd$figs,"Map1960_T.png"), FALSE)
+knitr::include_graphics(paste0(wd$figs,"Map1991_T.png"), FALSE)
+knitr::include_graphics(paste0(wd$figs,"Map2007_T.png"), FALSE)
+knitr::include_graphics(paste0(wd$figs,"MapSIAP_Avg_Total.png"), FALSE)
+#rm(Map1960_T,Map1960_E,Map1960_S,Map1960_L)
+
+```
+
+
+#### Maps of Average SIAP Yields by AG Type
+
+
+```{r, label='Maps of Average SIAP Yields by AG Type', message=FALSE,warning=FALSE}
+
+MapSIAP_Avg_Temp <- Base + ggnewscale::new_scale_fill()+
+  geom_sf(data = MunicipioYields_Z, aes(geometry = geom, fill = Y_Average_Temp), color = "black", size=1, alpha = 0.55) +
+  scale_fill_gradientn(name = "Maize\nYield\n(kg/ha)", colors = myPalette(11), limits=c(-6, 6),breaks=c(-6, -4, -2, -1,  0, 1, 2, 4, 6)) +
+  geom_sf(data = Estados, aes(geometry = geom), fill = "transparent", color = "white", linewidth=1.5, inherit.aes = F) +
+  geom_sf_text(data = Estados, aes(label = NOM_ENT), size = 9, color = "white", face="bold",
+               nudge_x=Estados2$my_nudge_x,nudge_y=Estados2$my_nudge_y)+
+  labs(title= "SIAP 2003-2021 - Z-Score Average Temporal Maize Yield")+#, subtitle = "Period 9, CL (c.AD 100-550)"
+  coord_sf()+ north(data = Estados, symbol = 12, scale = 0.15, location = "topleft")+
+  geom_rect(aes(xmin = 357134, xmax = 464000, ymin = 2042755, ymax = 2053000), color = "white", fill = "white")  +
+  scalebar(data = Estados, dist = 50, dist_unit = "km", transform = F, model = "WGS84", st.color = "black", height = 0.03, st.dist = 0.03, st.size = 5, st.bottom = T, location = "bottomleft")+#, anchor = c(360291,2051443)
+  theme(legend.justification=c(0,1), legend.position=c(0.85,0.95), 
+        legend.title=element_text(color="black", face="bold", size = 14),
+        legend.text = element_text(colour="black", size = 8, face="bold"),
+        legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"),
+        legend.box.background = element_rect(colour = "black"),
+        legend.margin=ggplot2::margin(t= 2, r= 2, b= 5, l= 2),
+        plot.title = element_text(hjust = 0.5, face="bold", size=16),
+        plot.background = element_rect(fill = "white", colour = NA))#plot.subtitle = element_text(hjust = 0.5, face="bold", size=14),
+
+MapSIAP_Avg_Irrig <- Base + ggnewscale::new_scale_fill()+
+  geom_sf(data = MunicipioYields_Z, aes(geometry = geom, fill = Y_Average_Irrig), color = "black", size=1, alpha = 0.55) +
+  scale_fill_gradientn(name = "Maize\nYield\n(kg/ha)", colors = myPalette(11), limits=c(-6, 6),breaks=c(-6, -4, -2, -1,  0, 1, 2, 4, 6)) +
+  geom_sf(data = Estados, aes(geometry = geom), fill = "transparent", color = "white", linewidth=1.5, inherit.aes = F) +
+  geom_sf_text(data = Estados, aes(label = NOM_ENT), size = 9, color = "white", face="bold",
+               nudge_x=Estados2$my_nudge_x,nudge_y=Estados2$my_nudge_y)+
+  labs(title= "SIAP 2003-2021 - Z-Score Average Irrigation Maize Yield")+#, subtitle = "Period 9, CL (c.AD 100-550)"
+  coord_sf()+ north(data = Estados, symbol = 12, scale = 0.15, location = "topleft")+
+  geom_rect(aes(xmin = 357134, xmax = 464000, ymin = 2042755, ymax = 2053000), color = "white", fill = "white")  +
+  scalebar(data = Estados, dist = 50, dist_unit = "km", transform = F, model = "WGS84", st.color = "black", height = 0.03, st.dist = 0.03, st.size = 5, st.bottom = T, location = "bottomleft")+#, anchor = c(360291,2051443)
+  theme(legend.justification=c(0,1), legend.position=c(0.85,0.95), 
+        legend.title=element_text(color="black", face="bold", size = 14),
+        legend.text = element_text(colour="black", size = 8, face="bold"),
+        legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"),
+        legend.box.background = element_rect(colour = "black"),
+        legend.margin=ggplot2::margin(t= 2, r= 2, b= 5, l= 2),
+        plot.title = element_text(hjust = 0.5, face="bold", size=16),
+        plot.background = element_rect(fill = "white", colour = NA))#plot.subtitle = element_text(hjust = 0.5, face="bold", size=14),
+
+
+
+ggsave("MapSIAP_Avg_Temp.png", plot = MapSIAP_Avg_Temp, device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257,   units = "in",  dpi = 1500)
+ggsave("MapSIAP_Avg_Irrig.png", plot = MapSIAP_Avg_Irrig, device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257,   units = "in",  dpi = 1500)
+  knitr::include_graphics(paste0(wd$figs,"Map1960_T.png"), FALSE)
+  knitr::include_graphics(paste0(wd$figs,"Map1991_T.png"), FALSE)
+  knitr::include_graphics(paste0(wd$figs,"Map2007_T.png"), FALSE)
+  knitr::include_graphics(paste0(wd$figs,"MapSIAP_Avg_Temp.png"), FALSE)
+  knitr::include_graphics(paste0(wd$figs,"MapSIAP_Avg_Irrig.png"), FALSE)
+  knitr::include_graphics(paste0(wd$figs,"MapSIAP_Avg_Total.png"), FALSE)
+#rm(Map1960_T,Map1960_E,Map1960_S,Map1960_L)
+
+```
+
+Difference between irrigation and temporal yield SPATIAL distributions?
+•	Maps
+o	Avg yields for irrig and temporal
+o	IT ratio
+
+#### Maps of Average SIAP Yields by AG Type and Year
+
+```{r, label='Maps of Average SIAP Yields by AG Type and Year', message=FALSE,warning=FALSE}
+
+```
+
+
+
+## Change Over Time Regression
+
+```{r, label='Change Over Time Regression by Municipality', message=FALSE,warning=FALSE}
+
+plot(MunicipioYields_Z$Y_1960_Total, MunicipioYields_Z$Y_1991_Total)
+plot(MunicipioYields_Z$Y_1960_Total, MunicipioYields_Z$Y_2007_Total.x)
+plot(MunicipioYields_Z$Y_1960_Total, MunicipioYields_Z$Y_Average_Total)
+plot(MunicipioYields_Z$Y_1991_Total, MunicipioYields_Z$Y_2007_Total.x)
+plot(MunicipioYields_Z$Y_1991_Total, MunicipioYields_Z$Y_Average_Total)
+plot(MunicipioYields_Z$Y_2007_Total.x, MunicipioYields_Z$Y_Average_Total)
+
+plot(MunicipioYields_Z$Y_1960_S, MunicipioYields_Z$Y_1991_Total)
+plot(MunicipioYields_Z$Y_1960_S, MunicipioYields_Z$Y_2007_Total.x)
+plot(MunicipioYields_Z$Y_1960_S, MunicipioYields_Z$Y_Average_Total)
+
+plot(MunicipioYields_Z$Y_1960_L, MunicipioYields_Z$Y_1991_Total)
+plot(MunicipioYields_Z$Y_1960_L, MunicipioYields_Z$Y_2007_Total.x)
+plot(MunicipioYields_Z$Y_1960_L, MunicipioYields_Z$Y_Average_Total)
+
+plot(MunicipioYields_Z$Y_1960_E, MunicipioYields_Z$Y_1991_Total)
+plot(MunicipioYields_Z$Y_1960_E, MunicipioYields_Z$Y_2007_Total.x)
+plot(MunicipioYields_Z$Y_1960_E, MunicipioYields_Z$Y_Average_Total)
+
+plot(MunicipioYields_Z$Y_1960_Total, MunicipioYields_Z$Y_Average_Irrig)
+plot(MunicipioYields_Z$Y_1991_Total, MunicipioYields_Z$Y_Average_Irrig)
+plot(MunicipioYields_Z$Y_2007_Total.x, MunicipioYields_Z$Y_Average_Irrig)
+
+plot(MunicipioYields_Z$Y_1960_S, MunicipioYields_Z$Y_Average_Temp)
+plot(MunicipioYields_Z$Y_1991_Total, MunicipioYields_Z$Y_Average_Temp)
+plot(MunicipioYields_Z$Y_2007_Total.x, MunicipioYields_Z$Y_Average_Temp)
+```
+
+We can further test this by doing (geographically weighted?) regression of yields over time by municipio
+•	Regression table, possibly graphs
+
+## Historical vs. Modern Regression by Municipality
+We can also do a limited cross validation using historical data regressed against modern data
+•	Excel spreadsheet  graphs and regression table
+o	C16 – SIAP
+o	C18 – 1960
+o	All colonial – SIAP 
+
+```{r, label='Historical vs. Modern Regression by Municipality', message=FALSE,warning=FALSE}
+
+```
+
+
+
+
+
+
+
+# Drafts
+
+
+
+```{r}
+ColonialTS = Colonial %>% filter(TimeSeries == T)  %>% group_by(Name) %>% 
+  mutate(Yield_rs = linear_rescale(Yield),
+         Yield_z = (Yield - mean(Yield))/sd(Yield),
+         ks = ks.test(Yield, "pnorm",fitdistr(Yield,"normal")$estimate[1],fitdistr(Yield,"normal")$estimate[2])$p.value,
+         shapiro = shapiro.test(Yield)$p.value ) %>% ungroup()
+
+ChiconautlaC16TS = ColonialTS %>% filter(Name == "Chiconautla") 
+CoatepecC16TS = ColonialTS %>% filter(Name == "Coatepec") 
+ZapotlanC16TS = ColonialTS %>% filter(Name == "Zapotlan") 
+TizayucaC16TS = ColonialTS %>% filter(Name == "Tizayuca") 
+TepepolcoC16TS = ColonialTS %>% filter(Name == "Tepepolco") 
+SanMartinNotarioC16TS = ColonialTS %>% filter(Name == "Haz. San Martin Notario") 
+SanJoseAcolmanC16TS = ColonialTS %>% filter(Name == "Haz. San Jose Acolman") 
+SanDiegoPinalC16TS = ColonialTS %>% filter(Name == "Haz. San Diego Pinal") 
+hist(ChiconautlaC16TS$Yield, breaks =8)
+hist(CoatepecC16TS$Yield, breaks =8)
+hist(ZapotlanC16TS$Yield, breaks =8)
+hist(TizayucaC16TS$Yield, breaks =8)
+hist(TepepolcoC16TS$Yield, breaks =8)
+hist(SanMartinNotarioC16TS$Yield, breaks =8)
+hist(SanJoseAcolmanC16TS$Yield, breaks =8)
+hist(SanDiegoPinalC16TS$Yield, breaks =8)
+hist(ColonialTS$Yield_rs)
+hist(ColonialTS$Yield_z)
+hist(ColonialTS$Yield)
+
+x=ks.test(ChiconautlaC16TS$Yield, "pnorm",fitdistr(ChiconautlaC16TS$Yield,"normal")$estimate[1],fitdistr(ChiconautlaC16TS$Yield,"normal")$estimate[2])
+
+ecdf.ks.CI(ChiconautlaC16TS$Yield, family="sans", main= "Chiconautla C16 TS", cex.main=2, font.main=2, font.lab=2, xlab="Yield", ylab="ECDF(Yield)")
+fit<-fitdistr(ChiconautlaC16TS$Yield,"normal")$estimate
+Norm1 <- rnorm(10000, fit[1],fit[2])
+lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
+
+ecdf.ks.CI(CoatepecC16TS$Yield, family="sans", main= "Coatepec C16 TS", cex.main=2, font.main=2, font.lab=2, xlab="Yield", ylab="ECDF(Yield)")
+fit<-fitdistr(CoatepecC16TS$Yield,"normal")$estimate
+Norm1 <- rnorm(10000, fit[1],fit[2])
+lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
+
+ecdf.ks.CI(SanDiegoPinalC16TS$Yield, family="sans", main= "SanDiegoPinal C18 TS", cex.main=2, font.main=2, font.lab=2, xlab="Yield", ylab="ECDF(Yield)")
+fit<-fitdistr(SanDiegoPinalC16TS$Yield,"normal")$estimate
+Norm1 <- rnorm(10000, fit[1],fit[2])
+lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
+```
+
+
+
+```{r}
+a = SIAP_4 %>% filter(AGType == "Temporal") %>% filter(!is.na(zYield))
+hist(a$zYield)
+ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
+ecdf.ks.CI(a$zYield, family="sans", main= "Temporal", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
+fit<-fitdistr(a$zYield,"normal")$estimate
+Norm1 <- rnorm(100000, fit[1],fit[2])
+lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
+#shapiro.test(a$zYield)
+
+a = SIAP_4 %>% filter(AGType == "Riego") %>% filter(!is.na(zYield))
+hist(a$zYield)
+ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
+ecdf.ks.CI(a$zYield, family="sans", main= "Riego", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
+fit<-fitdistr(a$zYield,"normal")$estimate
+Norm1 <- rnorm(100000, fit[1],fit[2])
+lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
+shapiro.test(a$zYield)
+
+a = SIAP_4 %>% filter(!is.na(zYield))
+hist(a$zYield)
+ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
+ecdf.ks.CI(a$zYield, family="sans", main= "Both", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
+fit<-fitdistr(a$zYield,"normal")$estimate
+Norm1 <- rnorm(100000, fit[1],fit[2])
+lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
+#shapiro.test(a$zYield)
+
+a = SIAP_4 %>% filter(EstadoMunicipio == "Tlalpan, Distrito Federal" & AGType == "Temporal")
+hist(a$zYield)
+ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
+ecdf.ks.CI(a$zYield, family="sans", main= "Tlalpan Temporal", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
+fit<-fitdistr(a$zYield,"normal")$estimate
+Norm1 <- rnorm(100000, fit[1],fit[2])
+lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
+shapiro.test(a$zYield)
+
+
+a = SIAP_4 %>% filter(EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Temporal")
+hist(a$zYield)
+ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
+ecdf.ks.CI(a$zYield, family="sans", main= "Xochimilco Temporal", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
+fit<-fitdistr(a$zYield,"normal")$estimate
+Norm1 <- rnorm(100000, fit[1],fit[2])
+lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
+shapiro.test(a$zYield)
+
+
+a = SIAP_4 %>% filter(EstadoMunicipio == "Epazoyucan, Hidalgo" & AGType == "Temporal")
+hist(a$zYield)
+ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
+ecdf.ks.CI(a$zYield, family="sans", main= "Epazoyucan Temporal", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
+fit<-fitdistr(a$zYield,"normal")$estimate
+Norm1 <- rnorm(100000, fit[1],fit[2])
+lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
+shapiro.test(a$zYield)
+
+
+a = SIAP_4 %>% filter(EstadoMunicipio == "Tecamac, Mexico" & AGType == "Temporal")
+hist(a$zYield)
+ks.test(a$zYield, "pnorm",fitdistr(a$zYield,"normal")$estimate[1],fitdistr(a$zYield,"normal")$estimate[2])
+ecdf.ks.CI(a$zYield, family="sans", main= "Tecamac Temporal", cex.main=2, font.main=2, font.lab=2, xlab="zYield", ylab="ECDF(zYield)")
+fit<-fitdistr(a$zYield,"normal")$estimate
+Norm1 <- rnorm(100000, fit[1],fit[2])
+lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
+shapiro.test(a$zYield)
+
+```
+
+
+```{r}
+hist(SIAP_5$AvgYield)
+gamma_test(SIAP_5$AvgYield)
+a= SIAP_5 %>% filter(AGType == "Temporal")
+gamma_test(a$AvgYield)
+hist(a$AvgYield)
+a= SIAP_5 %>% filter(AGType == "Riego")
+gamma_test(a$AvgYield)
+hist(a$AvgYield)
+
+hist(SIAP_5$cvYield)
+gamma_test(SIAP_5$cvYield)
+a= SIAP_5 %>% filter(AGType == "Temporal")
+gamma_test(a$cvYield)
+hist(a$cvYield)
+a= SIAP_5 %>% filter(AGType == "Riego")
+gamma_test(a$cvYield)
+hist(a$cvYield)
+
+hist(SIAP_5$sdYield)
+gamma_test(SIAP_5$sdYield)
+a= SIAP_5 %>% filter(AGType == "Temporal")
+gamma_test(a$sdYield)
+hist(a$sdYield)
+a= SIAP_5 %>% filter(AGType == "Riego")
+gamma_test(a$sdYield)
+hist(a$sdYield)
+```
+
+```{r, 'Rescale SIAP 2003-2021 Yield Data', message=FALSE, warning=FALSE}
+
+hist(unique(SIAP_3$TotYield), breaks = seq(0, 12500, by = 250), xlim = c(0,12500))
+hist(log(unique(SIAP_3$TotYield)), breaks = 50)
+hist(SIAP_3$Yield, breaks = seq(0, 13000, by = 250), xlim = c(0,13000))
+hist(log(SIAP_3$Yield), breaks = 50)
+
+
+
+
+
+```
+Tepepolco
+Haz. SanMartinNotario
+Haz. SanJoseAcolman
+Haz. SanDiegoPinal
+
+
+
+p <- data %>%
+  mutate(text = fct_reorder(text, value)) %>%
+  ggplot( aes(x=value, color=text, fill=text)) +
+    geom_histogram(alpha=0.6, binwidth = 5) +
+    scale_fill_viridis(discrete=TRUE) +
+    scale_color_viridis(discrete=TRUE) +
+    theme_ipsum() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      strip.text.x = element_text(size = 8)
+    ) +
+    xlab("") +
+    ylab("Assigned Probability (%)") +
+    facet_wrap(~text)
+
  
  
  
