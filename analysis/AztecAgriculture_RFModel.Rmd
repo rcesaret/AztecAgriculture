@@ -293,8 +293,8 @@ Data2000s_poly <- Data2000s_poly %>% mutate(
   AvgYield_Temp = as.numeric(AvgYield_Temp),
   sdYield_Temp = as.numeric(sdYield_Temp),
   cvYield_Temp = as.numeric(cvYield_Temp),
-  IT_ratio_AvgYield = as.numeric(IT_ratio_AvgYield),
-  IT_ratio_cvYield = as.numeric(IT_ratio_cvYield),
+  ITr_AvgYield = as.numeric(ITr_AvgYield),
+  ITr_cvYield = as.numeric(ITr_cvYield),
   
   AvgYieldLoss_Total = as.numeric(AvgYieldLoss_Total),
   sdYieldLoss_Total = as.numeric(sdYieldLoss_Total),
@@ -305,8 +305,8 @@ Data2000s_poly <- Data2000s_poly %>% mutate(
   AvgYieldLoss_Temp = as.numeric(AvgYieldLoss_Temp),
   sdYieldLoss_Temp = as.numeric(sdYieldLoss_Temp),
   cvYieldLoss_Temp = as.numeric(cvYieldLoss_Temp),
-  IT_ratio_AvgYieldLoss = as.numeric(IT_ratio_AvgYieldLoss),
-  IT_ratio_cvYieldLoss = as.numeric(IT_ratio_cvYieldLoss),
+  ITr_AvgYieldLoss = as.numeric(ITr_AvgYieldLoss),
+  ITr_cvYieldLoss = as.numeric(ITr_cvYieldLoss),
   
   Pct_Tract_Mechaniz_pu = as.numeric(Pct_Tract_Mechaniz_pu),
   Pct_Tract_Animal_pu = as.numeric(Pct_Tract_Animal_pu),
@@ -327,11 +327,11 @@ x = x %>% filter(!(EstadoMunicipio %in% c("Ixtapaluca, Mexico", "Valle de Chalco
 #x = as.data.frame(x)
 Tot = x %>% select(-AvgYield_Total, -sdYield_Total, -cvYield_Total, 
                    -AvgYield_Irrig, -sdYield_Irrig, -cvYield_Irrig, -AvgYield_Temp, 
-                   -sdYield_Temp, -cvYield_Temp, -IT_ratio_AvgYield, -IT_ratio_cvYield, 
+                   -sdYield_Temp, -cvYield_Temp, -ITr_AvgYield, -ITr_cvYield, 
                    -AvgYieldLoss_Total, -sdYieldLoss_Total, -cvYieldLoss_Total, 
                    -AvgYieldLoss_Irrig, -sdYieldLoss_Irrig, -cvYieldLoss_Irrig, 
                    -AvgYieldLoss_Temp, -sdYieldLoss_Temp, -cvYieldLoss_Temp, 
-                   -IT_ratio_AvgYieldLoss,  -IT_ratio_cvYieldLoss, -minYieldLoss) %>% 
+                   -ITr_AvgYieldLoss,  -ITr_cvYieldLoss, -minYieldLoss) %>% 
   filter(complete.cases(.))
 
 
@@ -369,7 +369,7 @@ Axapusco, Mexico
 
 
 
--AvgYieldLoss_Irrig, -sdYieldLoss_Irrig, -cvYieldLoss_Irrig, -AvgYieldLoss_Temp, -sdYieldLoss_Temp, -cvYieldLoss_Temp, -IT_ratio_AvgYieldLoss,  -IT_ratio_cvYieldLoss
+-AvgYieldLoss_Irrig, -sdYieldLoss_Irrig, -cvYieldLoss_Irrig, -AvgYieldLoss_Temp, -sdYieldLoss_Temp, -cvYieldLoss_Temp, -ITr_AvgYieldLoss,  -ITr_cvYieldLoss
 
 
 AvgYield_Irrig	
@@ -378,8 +378,8 @@ AvgYield_Irrig
          AvgYield_Temp	
          sdYield_Temp	
          cvYield_Temp	
-         IT_ratio_AvgYield	
-         IT_ratio_cvYield
+         ITr_AvgYield	
+         ITr_cvYield
 
          AvgYieldLoss_Irrig	
          sdYieldLoss_Irrig	
@@ -387,8 +387,8 @@ AvgYield_Irrig
          AvgYieldLoss_Temp	
          sdYieldLoss_Temp	
          cvYieldLoss_Temp	
-         IT_ratio_AvgYieldLoss	
-         IT_ratio_cvYieldLoss
+         ITr_AvgYieldLoss	
+         ITr_cvYieldLoss
 
 
 
