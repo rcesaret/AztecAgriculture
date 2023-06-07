@@ -490,8 +490,11 @@ SIAP_2 = SIAP %>%
     # to account for yield loss over the course of the growing season
     Yield = Product / Planted,
     # calculate the overall/average yield loss in tons per hectare
-    YieldLoss = Yield_orig - Yield) %>% rowwise() %>% mutate(
-      YieldLoss = ifelse(YieldLoss < 0, 0, YieldLoss)) %>% ungroup()
+    YieldLoss = (Product / Harvested) - Yield,
+    # calculate the percentage yield loss
+    PctYieldLoss = (1 - (Yield / (Product / Harvested)))*100) %>% rowwise() %>% mutate(
+      YieldLoss = ifelse(YieldLoss < 0, 0, YieldLoss),
+      PctYieldLoss = ifelse(PctYieldLoss < 0, 0, PctYieldLoss)) %>% ungroup()
 
 #SIAP_ID = SIAP_2 %>% select(-Year, -(Cycle_ID:Value)) %>% distinct(EstadoMunicipio, .keep_all = T, .remove_duplicates = TRUE)
 
@@ -528,7 +531,8 @@ SIAP_3 = SIAP_2 %>% left_join(SIAP_ID, by = c('Estado_ID', 'Estado', 'ddr_ID', '
   group_by(EstadoMunicipio, Year) %>%
   mutate(TotYield = (sum(Product, na.rm=T) / sum(Planted, na.rm=T)) + runif(1, min = 0.0001, max = 0.01),
          TotYield_orig = sum(Product, na.rm=T) / sum(Harvested, na.rm=T),
-         TotYieldLoss = TotYield_orig - TotYield) %>% ungroup()
+         TotYieldLoss = TotYield_orig - TotYield,
+         TotPctYieldLoss = (1-(TotYield/TotYield_orig))*100) %>% ungroup()
   
 #write.csv(SIAP_3, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
 
@@ -595,7 +599,10 @@ SIAP_4 = SIAP_3 %>%
          cvYield = sdYield/AvgYield*100,
          AvgYieldLoss = mean(YieldLoss, na.rm=T), 
          sdYieldLoss = sd(YieldLoss, na.rm=T), 
-         cvYieldLoss = sdYieldLoss/AvgYield*100) %>% 
+         cvYieldLoss = sdYieldLoss/AvgYieldLoss*100,
+         AvgPctYieldLoss = mean(PctYieldLoss, na.rm=T), 
+         sdPctYieldLoss = sd(PctYieldLoss, na.rm=T), 
+         cvPctYieldLoss = sdPctYieldLoss/AvgPctYieldLoss*100) %>% 
   # calculate variable for the number of time series cases by state-municipality and agriculture type
   add_tally() %>% 
   # ungroup the data
@@ -624,7 +631,16 @@ SIAP_4 = SIAP_3 %>%
          cvYieldLoss_Irrig = sdYieldLoss_Irrig/AvgYieldLoss_Irrig*100,
          AvgYieldLoss_Temp = mean(YieldLoss[AGType == "Temporal"], na.rm=T),
          sdYieldLoss_Temp = sd(YieldLoss[AGType == "Temporal"], na.rm=T),
-         cvYieldLoss_Temp = sdYieldLoss_Temp/AvgYieldLoss_Temp*100) %>% 
+         cvYieldLoss_Temp = sdYieldLoss_Temp/AvgYieldLoss_Temp*100,
+         AvgPctYieldLoss_Total = mean(unique(TotPctYieldLoss), na.rm=T), 
+         sdPctYieldLoss_Total = sd(unique(TotPctYieldLoss), na.rm=T), 
+         cvPctYieldLoss_Total = sdPctYieldLoss_Total/AvgPctYieldLoss_Total*100,
+         AvgPctYieldLoss_Irrig = mean(PctYieldLoss[AGType == "Riego"] , na.rm=T),
+         sdPctYieldLoss_Irrig = sd(PctYieldLoss[AGType == "Riego"] , na.rm=T),
+         cvPctYieldLoss_Irrig = sdPctYieldLoss_Irrig/AvgPctYieldLoss_Irrig*100,
+         AvgPctYieldLoss_Temp = mean(PctYieldLoss[AGType == "Temporal"], na.rm=T),
+         sdPctYieldLoss_Temp = sd(PctYieldLoss[AGType == "Temporal"], na.rm=T),
+         cvPctYieldLoss_Temp = sdPctYieldLoss_Temp/AvgPctYieldLoss_Temp*100) %>% 
   # calculate variable for the overall number of time series cases by state-municipality
   add_tally(name = "n_Total") %>% 
   # ungroup the data
@@ -672,6 +688,13 @@ SIAP_5 = SIAP_4 %>%
             medYieldLoss = median(YieldLoss, na.rm=T), # median maize Yield Loss
             cvYieldLoss = sd(YieldLoss, na.rm=T)/mean(YieldLoss, na.rm=T)*100,# coefficient of variation of maize Yield Loss
             
+            AvgPctYieldLoss = mean(PctYieldLoss, na.rm=T), # mean/average maize % Yield Loss
+            sdPctYieldLoss = sd(PctYieldLoss, na.rm=T), # standard deviation of maize % Yield Loss
+            minPctYieldLoss = min(PctYieldLoss, na.rm=T), # minimum maize % Yield Loss
+            maxPctYieldLoss = max(PctYieldLoss, na.rm=T), # maximum maize % Yield Loss
+            medPctYieldLoss = median(PctYieldLoss, na.rm=T), # median maize % Yield Loss
+            cvPctYieldLoss = sd(PctYieldLoss, na.rm=T)/mean(PctYieldLoss, na.rm=T)*100,# coefficient of variation of maize % Yield Loss
+            
             AvgPlanted = mean(Planted, na.rm=T), # average hectares planted in maize
             AvgHarvested = mean(Harvested, na.rm=T), # average hectares harvested in maize
             sdHarvested = sd(Harvested, na.rm=T), # standard deviation of hectares planted in maize
@@ -708,6 +731,15 @@ SIAP_5 = SIAP_4 %>%
             AvgYieldLoss_Temp = mean(AvgYieldLoss_Temp, na.rm=T), # mean maize yield loss for temporal agriculture
             sdYieldLoss_Temp = mean(sdYieldLoss_Temp, na.rm=T), # standard deviation of maize yield loss for temporal agriculture
             cvYieldLoss_Temp = mean(cvYieldLoss_Temp, na.rm=T), # coefficient of variation of maize yield loss for temporal agriculture
+            AvgPctYieldLoss_Total = mean(AvgPctYieldLoss_Total, na.rm=T), # mean % maize yield loss for all agriculture types
+            sdPctYieldLoss_Total = mean(sdPctYieldLoss_Total, na.rm=T), # standard deviation of % maize yield loss for all agriculture types
+            cvPctYieldLoss_Total = mean(cvPctYieldLoss_Total, na.rm=T), # coefficient of variation of % maize yield loss for all agriculture types
+            AvgPctYieldLoss_Irrig = mean(AvgPctYieldLoss_Irrig, na.rm=T), # mean % maize yield loss for irrigated agriculture
+            sdPctYieldLoss_Irrig = mean(sdPctYieldLoss_Irrig, na.rm=T), # standard deviation of % maize yield loss for irrigated agriculture
+            cvPctYieldLoss_Irrig = mean(cvPctYieldLoss_Irrig, na.rm=T), # coefficient of variation of % maize yield loss for irrigated agriculture
+            AvgPctYieldLoss_Temp = mean(AvgPctYieldLoss_Temp, na.rm=T), # mean % maize yield loss for temporal agriculture
+            sdPctYieldLoss_Temp = mean(sdPctYieldLoss_Temp, na.rm=T), # standard deviation of % maize yield loss for temporal agriculture
+            cvPctYieldLoss_Temp = mean(cvPctYieldLoss_Temp, na.rm=T), # coefficient of variation of % maize yield loss for temporal agriculture
             ITr_AvgYieldLoss = mean(ITr_AvgYieldLoss, na.rm=T), # irrigation-to-total ratio for mean maize yield loss
             ITr_cvYieldLoss = mean(ITr_cvYieldLoss, na.rm=T),# irrigation-to-total ratio for coefficient of variation of maize yield loss
             TTr_AvgYieldLoss = mean(TTr_AvgYieldLoss, na.rm=T), # temporal-to-total ratio for mean maize yield loss
@@ -745,6 +777,13 @@ x = SIAP_4 %>%
             maxYieldLoss = max(YieldLoss, na.rm=T), # maximum maize Yield Loss
             medYieldLoss = median(YieldLoss, na.rm=T), # median maize Yield Loss
             cvYieldLoss = sd(YieldLoss, na.rm=T)/mean(YieldLoss, na.rm=T)*100,# coefficient of variation of maize Yield Loss
+            
+            AvgPctYieldLoss = mean(PctYieldLoss, na.rm=T), # mean/average maize Yield Loss
+            sdPctYieldLoss = sd(PctYieldLoss, na.rm=T), # standard deviation of maize Yield Loss
+            minPctYieldLoss = min(PctYieldLoss, na.rm=T), # minimum maize Yield Loss
+            maxPctYieldLoss = max(PctYieldLoss, na.rm=T), # maximum maize Yield Loss
+            medPctYieldLoss = median(PctYieldLoss, na.rm=T), # median maize Yield Loss
+            cvPctYieldLoss = sd(PctYieldLoss, na.rm=T)/mean(PctYieldLoss, na.rm=T)*100,# coefficient of variation of maize Yield Loss
             
             AvgPlanted = mean(Planted, na.rm=T), # average hectares planted in maize
             sdPlanted = sd(Planted, na.rm=T), # standard deviation of hectares planted in maize
@@ -785,6 +824,13 @@ SIAP_6 = SIAP_4 %>%
             maxYieldLoss = max(YieldLoss, na.rm=T), # maximum maize Yield Loss
             medYieldLoss = median(YieldLoss, na.rm=T), # median maize Yield Loss
             cvYieldLoss = sd(YieldLoss, na.rm=T)/mean(YieldLoss, na.rm=T)*100,# coefficient of variation of maize Yield Loss
+            
+            AvgPctYieldLoss = mean(PctYieldLoss, na.rm=T), # mean/average maize Yield Loss
+            sdPctYieldLoss = sd(PctYieldLoss, na.rm=T), # standard deviation of maize Yield Loss
+            minPctYieldLoss = min(PctYieldLoss, na.rm=T), # minimum maize Yield Loss
+            maxPctYieldLoss = max(PctYieldLoss, na.rm=T), # maximum maize Yield Loss
+            medPctYieldLoss = median(PctYieldLoss, na.rm=T), # median maize Yield Loss
+            cvPctYieldLoss = sd(PctYieldLoss, na.rm=T)/mean(PctYieldLoss, na.rm=T)*100,# coefficient of variation of maize Yield Loss
             
             AvgPlanted = mean(Planted, na.rm=T), # average hectares planted in maize
             sdPlanted = sd(Planted, na.rm=T), # standard deviation of hectares planted in maize
@@ -828,6 +874,13 @@ SIAP_6 = SIAP_4 %>%
     ITr_medYieldLoss = ifelse((medYieldLoss_Irrig/medYieldLoss_Total) == 1, NA, medYieldLoss_Irrig/medYieldLoss_Total),
     ITr_cvYieldLoss = ifelse((cvYieldLoss_Irrig/cvYieldLoss_Total) == 1, NA, cvYieldLoss_Irrig/cvYieldLoss_Total),
     ITr_AvgPlanted = ifelse((AvgPlanted_Irrig/AvgPlanted_Total) == 1, NA, AvgPlanted_Irrig/AvgPlanted_Total),
+    ITr_AvgPctYieldLoss = ifelse((AvgPctYieldLoss_Irrig/AvgPctYieldLoss_Total) == 1, NA, AvgPctYieldLoss_Irrig/AvgPctYieldLoss_Total),
+    ITr_sdPctYieldLoss = ifelse((sdPctYieldLoss_Irrig/sdPctYieldLoss_Total) == 1, NA, sdPctYieldLoss_Irrig/sdPctYieldLoss_Total),
+    ITr_minPctYieldLoss = ifelse((minPctYieldLoss_Irrig/minPctYieldLoss_Total) == 1, NA, minPctYieldLoss_Irrig/minPctYieldLoss_Total),
+    ITr_maxPctYieldLoss = ifelse((maxPctYieldLoss_Irrig/maxPctYieldLoss_Total) == 1, NA, maxPctYieldLoss_Irrig/maxPctYieldLoss_Total),
+    ITr_medPctYieldLoss = ifelse((medPctYieldLoss_Irrig/medPctYieldLoss_Total) == 1, NA, medPctYieldLoss_Irrig/medPctYieldLoss_Total),
+    ITr_cvPctYieldLoss = ifelse((cvPctYieldLoss_Irrig/cvPctYieldLoss_Total) == 1, NA, cvPctYieldLoss_Irrig/cvPctYieldLoss_Total),
+    ITr_AvgPlanted = ifelse((AvgPlanted_Irrig/AvgPlanted_Total) == 1, NA, AvgPlanted_Irrig/AvgPlanted_Total),
     ITr_sdPlanted = ifelse((sdPlanted_Irrig/sdPlanted_Total) == 1, NA, sdPlanted_Irrig/sdPlanted_Total),
     ITr_cvPlanted = ifelse((cvPlanted_Irrig/cvPlanted_Total) == 1, NA, cvPlanted_Irrig/cvPlanted_Total),
     ITr_AvgHarvested = ifelse((AvgHarvested_Irrig/AvgHarvested_Total) == 1, NA, AvgHarvested_Irrig/AvgHarvested_Total),
@@ -852,6 +905,12 @@ SIAP_6 = SIAP_4 %>%
     TTr_maxYieldLoss = ifelse((maxYieldLoss_Temp/maxYieldLoss_Total) == 1, NA, maxYieldLoss_Temp/maxYieldLoss_Total),
     TTr_medYieldLoss = ifelse((medYieldLoss_Temp/medYieldLoss_Total) == 1, NA, medYieldLoss_Temp/medYieldLoss_Total),
     TTr_cvYieldLoss = ifelse((cvYieldLoss_Temp/cvYieldLoss_Total) == 1, NA, cvYieldLoss_Temp/cvYieldLoss_Total),
+    TTr_AvgPctYieldLoss = ifelse((AvgPctYieldLoss_Temp/AvgPctYieldLoss_Total) == 1, NA, AvgPctYieldLoss_Temp/AvgPctYieldLoss_Total),
+    TTr_sdPctYieldLoss = ifelse((sdPctYieldLoss_Temp/sdPctYieldLoss_Total) == 1, NA, sdPctYieldLoss_Temp/sdPctYieldLoss_Total),
+    TTr_minPctYieldLoss = ifelse((minPctYieldLoss_Temp/minPctYieldLoss_Total) == 1, NA, minPctYieldLoss_Temp/minPctYieldLoss_Total),
+    TTr_maxPctYieldLoss = ifelse((maxPctYieldLoss_Temp/maxPctYieldLoss_Total) == 1, NA, maxPctYieldLoss_Temp/maxPctYieldLoss_Total),
+    TTr_medPctYieldLoss = ifelse((medPctYieldLoss_Temp/medPctYieldLoss_Total) == 1, NA, medPctYieldLoss_Temp/medPctYieldLoss_Total),
+    TTr_cvPctYieldLoss = ifelse((cvPctYieldLoss_Temp/cvPctYieldLoss_Total) == 1, NA, cvPctYieldLoss_Temp/cvPctYieldLoss_Total),
     TTr_AvgPlanted = ifelse((AvgPlanted_Temp/AvgPlanted_Total) == 1, NA, AvgPlanted_Temp/AvgPlanted_Total),
     TTr_sdPlanted = ifelse((sdPlanted_Temp/sdPlanted_Total) == 1, NA, sdPlanted_Temp/sdPlanted_Total),
     TTr_cvPlanted = ifelse((cvPlanted_Temp/cvPlanted_Total) == 1, NA, cvPlanted_Temp/cvPlanted_Total),
@@ -1048,7 +1107,7 @@ AGCensus2007 <- AGCensus2007 %>%
 ## Ridgeline Density Plot
 
 
-### Prepare Data 
+### Prepare Comparative Yields Data 
 
 ```{r, label='Ridgeline Density Plot Data', message=FALSE,warning=FALSE}
 
@@ -1160,7 +1219,7 @@ rm(EarlyColonial_dens,LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens,
 ```
 
 
-### Ridgeline Plot
+### Comparative Yields Ridgeline Plot
 
 
 ```{r, label='Ridgeline Density Plot', message=FALSE,warning=FALSE}
@@ -1203,14 +1262,8 @@ knitr::include_graphics(paste0(wd$figs,"RidgelineComparativeYields.png"), FALSE)
 ```
 
 
-## ***Histograms 
 
-```{r, label='Histograms', message=FALSE,warning=FALSE}
-
-```
-
-
-## ***Gamma Tests
+### Comparative Yields Gamma Tests****
 gamma_test(AGCensus1960_T$Maize1960_kgha)
 gamma_test(LateColonial$Yield)
 gamma_test(EarlyColonial$Yield)
@@ -1228,7 +1281,11 @@ gamma_fit(x)
 ```
 
 
-## ***MANOVA Violin Plots
+## Analysis of Variance
+
+https://statsandr.com/blog/anova-in-r/
+https://statsandr.com/blog/kruskal-wallis-test-nonparametric-version-anova/
+
 CY <- read.csv(paste0(wd$data_r,"ComparativeYields.csv"))
 CY$Series <- factor(CY$Series, levels = c("AG Census 1960", "Sanders Aztec BOM Model", "AG Census 1991", "Sanders mid-20th Century BOM", "SIAP 2003-2021 Average"))
 x = ggbetweenstats(
@@ -1284,8 +1341,13 @@ x2
 ```
 
 
+## SIAP Histograms 
 
-```{r, label='Ridgeline Density Plot', message=FALSE,warning=FALSE}
+### Yield
+
+#### Average Yield Histograms
+
+```{r, label='SIAP Yield Histograms', message=FALSE,warning=FALSE}
 
 h1 = ggplot(SIAP_4,aes(x = Yield)) +
   geom_histogram(aes(group = AGType, fill = AGType),alpha = 0.5, position = "identity", binwidth = 300, color = "black") +
@@ -1312,9 +1374,9 @@ df = rbind(df,df2)
 
 h2 = ggplot(df,aes(x = Yield)) +
   geom_histogram(aes(group = Series, fill = Series),alpha = 0.5, position = "identity", binwidth = 300, color = "black") +
-  scale_fill_manual(name = "Agriculture Type", values = c("grey75", "greenyellow"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Average", "Both"))+
+  scale_fill_manual(name = "Agriculture Type", values = c("grey75", "greenyellow"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
   geom_density(aes(group = Series, color = Series, y=360 * ..count..), adjust = 2, size=1, alpha=0.5)+
-  scale_color_manual(name = "Agriculture Type",values = c("black", "green"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Average", "Both"))+
+  scale_color_manual(name = "Agriculture Type",values = c("black", "green"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
   labs(x ="Maize Yield (kg / ha)", y = "Count")+
     theme_bw()+
     scale_x_continuous(limits= c(0,12000), breaks=seq(0,12000,2000)) +
@@ -1332,13 +1394,369 @@ ggp2 = plot_grid(h1, h2, labels = c('A', 'B'), label_size = 24)
 
 
 #save figure
-ggsave("Hists_SIAP_AGType.png", plot = ggp2, device = "png", path = wd$figs, scale = 1, width = 8, height = 4.5,   units = "in",  dpi = 1500)
+ggsave("Hists_SIAP_AGType_AvgYield.png", plot = ggp2, device = "png", path = wd$figs, scale = 1, width = 8, height = 4.5,   units = "in",  dpi = 1500)
 
-rm(ggp2, h1, h2, df, df2)
+YieldIrrig = SIAP_4 %>% filter(AGType == "Riego") %>% pull(Yield) %>% na.omit
+YieldTemp = SIAP_4 %>% filter(AGType == "Temporal") %>% pull(Yield) %>% na.omit
+YieldTotal = df %>% filter(Series == "Municipal Average") %>% pull(Yield) %>% na.omit
+YieldAll = df %>% filter(Series == "Both Irrigation and Temporal") %>% pull(Yield) %>% na.omit
+
+gamma_test(YieldIrrig[YieldIrrig > 0])
+gamma_test(YieldTemp[YieldTemp > 0])
+gamma_test(YieldTotal[YieldTotal > 0])
+gamma_test(YieldAll[YieldAll > 0])
+
+rm(ggp2, h1, h2, df, df2, YieldIrrig, YieldTemp, YieldTotal, YieldAll)
 
 # import figure for display
-knitr::include_graphics(paste0(wd$figs,"Hists_SIAP_AGType.png"), FALSE)
+knitr::include_graphics(paste0(wd$figs,"Hists_SIAP_AGType_AvgYield.png"), FALSE)
 ```
+
+
+#### St.Dev. Yield Histograms
+
+```{r, label='SIAP SD Yield Histograms', message=FALSE,warning=FALSE}
+
+h1 = ggplot(SIAP_5,aes(x = sdYield)) +
+  geom_histogram(aes(group = AGType, fill = AGType),alpha = 0.5, position = "identity", binwidth = 100, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("cyan1", "indianred1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  geom_density(aes(group = AGType, color = AGType, y=135 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  scale_color_manual(name = "Agriculture Type",values = c("cyan2", "firebrick1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  labs(x ="St.Dev. Maize Yield (kg / ha)", y = "Count")+
+    theme_bw()+
+    scale_x_continuous(limits= c(0,5000), breaks=seq(0,5000,500)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.5,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+df = SIAP_6 %>% select(EstadoMunicipio, sdYield_Total) %>% rename(sdYield = sdYield_Total) %>% mutate(Series = "Municipal Average")
+df2 = SIAP_5 %>% select(EstadoMunicipio, sdYield) %>% mutate(Series = "Both Irrigation and Temporal")
+df = rbind(df,df2)
+
+h2 = ggplot(df,aes(x = sdYield)) +
+  geom_histogram(aes(group = Series, fill = Series),alpha = 0.5, position = "identity", binwidth = 100, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("grey75", "greenyellow"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
+  geom_density(aes(group = Series, color = Series, y=135 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  scale_color_manual(name = "Agriculture Type",values = c("black", "green"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
+  labs(x ="St.Dev. Maize Yield (kg / ha)", y = "Count")+
+    theme_bw()+
+    scale_x_continuous(limits= c(0,5000), breaks=seq(0,5000,500)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.5,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+ggp2 = plot_grid(h1, h2, labels = c('A', 'B'), label_size = 24)
+
+
+#save figure
+ggsave("Hists_SIAP_AGType_sdYield.png", plot = ggp2, device = "png", path = wd$figs, scale = 1, width = 8, height = 4.5,   units = "in",  dpi = 1500)
+
+sdIrrig = SIAP_5 %>% filter(AGType == "Riego") %>% pull(sdYield)
+sdTemp = SIAP_5 %>% filter(AGType == "Temporal") %>% pull(sdYield)
+sdTotal = df %>% filter(Series == "Municipal Average") %>% pull(sdYield)
+sdAll = df %>% filter(Series == "Both Irrigation and Temporal") %>% pull(sdYield)
+
+gamma_test(sdIrrig)
+gamma_test(sdTemp)
+gamma_test(sdTotal)
+gamma_test(sdAll)
+
+rm(ggp2, h1, h2, df, df2, sdIrrig, sdTemp, sdTotal, sdAll)
+
+# import figure for display
+knitr::include_graphics(paste0(wd$figs,"Hists_SIAP_AGType_sdYield.png"), FALSE)
+```
+
+
+
+#### C.V. Yield Histograms
+
+```{r, label='SIAP CV Yield Histograms', message=FALSE,warning=FALSE}
+
+h1 = ggplot(SIAP_5,aes(x = cvYield)) +
+  geom_histogram(aes(group = AGType, fill = AGType),alpha = 0.5, position = "identity", binwidth = 5, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("cyan1", "indianred1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  geom_density(aes(group = AGType, color = AGType, y=6.75 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  scale_color_manual(name = "Agriculture Type",values = c("cyan2", "firebrick1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  labs(x ="C.V. Maize Yield", y = "Count")+
+    theme_bw()+
+    scale_x_continuous(limits= c(0,160), breaks=seq(0,160,10)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.5,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+df = SIAP_6 %>% select(EstadoMunicipio, cvYield_Total) %>% rename(cvYield = cvYield_Total) %>% mutate(Series = "Municipal Average")
+df2 = SIAP_5 %>% select(EstadoMunicipio, cvYield) %>% mutate(Series = "Both Irrigation and Temporal")
+df = rbind(df,df2)
+
+h2 = ggplot(df,aes(x = cvYield)) +
+  geom_histogram(aes(group = Series, fill = Series),alpha = 0.5, position = "identity", binwidth = 5, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("grey75", "greenyellow"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
+  geom_density(aes(group = Series, color = Series, y=6.75 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  scale_color_manual(name = "Agriculture Type",values = c("black", "green"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
+  labs(x ="C.V. Maize Yield", y = "Count")+
+    theme_bw()+
+    scale_x_continuous(limits= c(0,160), breaks=seq(0,160,10)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.5,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+ggp2 = plot_grid(h1, h2, labels = c('A', 'B'), label_size = 24)
+
+
+#save figure
+ggsave("Hists_SIAP_AGType_cvYield.png", plot = ggp2, device = "png", path = wd$figs, scale = 1, width = 8, height = 4.5,   units = "in",  dpi = 1500)
+
+cvIrrig = SIAP_5 %>% filter(AGType == "Riego") %>% pull(cvYield)
+cvTemp = SIAP_5 %>% filter(AGType == "Temporal") %>% pull(cvYield)
+cvTotal = df %>% filter(Series == "Municipal Average") %>% pull(cvYield)
+cvAll = df %>% filter(Series == "Both Irrigation and Temporal") %>% pull(cvYield)
+
+gamma_test(cvIrrig)
+gamma_test(cvTemp)
+gamma_test(cvTotal)
+gamma_test(cvAll)
+
+rm(ggp2, h1, h2, df, df2, cvIrrig, cvTemp, cvTotal, cvAll)
+
+# import figure for display
+knitr::include_graphics(paste0(wd$figs,"Hists_SIAP_AGType_cvYield.png"), FALSE)
+```
+
+
+
+
+
+### Yield Loss
+
+#### Average Yield Loss Histograms
+
+
+```{r, label='SIAP Yield Loss Histograms', message=FALSE,warning=FALSE}
+
+h1 = ggplot(SIAP_4,aes(x = YieldLoss)) +
+  geom_histogram(aes(group = AGType, fill = AGType),alpha = 0.5, position = "identity", binwidth = 250, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("cyan1", "indianred1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  #geom_density(aes(group = AGType, color = AGType, y= ..count..), adjust = 2, size=1, alpha=0.5)+
+  #scale_color_manual(name = "Agriculture Type",values = c("cyan2", "firebrick1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  labs(x ="Maize Yield Loss (kg / ha)", y = "Count")+
+    theme_bw()+
+    #scale_y_continuous(trans='log10')+
+    scale_x_continuous(limits= c(-125,5000), breaks=seq(0,5000,500)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.5,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+df = SIAP_4 %>% group_by(EstadoMunicipio, Year) %>% summarize(YieldLoss = mean(YieldLoss, na.rm=T))
+df$Series <- "Municipal Average"
+df2 = SIAP_4 %>% select(EstadoMunicipio, Year, YieldLoss) %>% mutate(Series = "Both Irrigation and Temporal")
+df = rbind(df,df2)
+
+h2 = ggplot(df,aes(x = YieldLoss)) +
+  geom_histogram(aes(group = Series, fill = Series),alpha = 0.5, position = "identity", binwidth = 250, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("grey75", "greenyellow"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
+  #geom_density(aes(group = Series, color = Series, y=360 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  #scale_color_manual(name = "Agriculture Type",values = c("black", "green"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
+  labs(x ="Maize Yield Loss (kg / ha)", y = "Count")+
+    theme_bw()+
+    scale_x_continuous(limits= c(-125,5000), breaks=seq(0,5000,500)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.5,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+ggp2 = plot_grid(h1, h2, labels = c('A', 'B'), label_size = 24)
+
+
+#save figure
+ggsave("Hists_SIAP_AGType_YieldLoss.png", plot = ggp2, device = "png", path = wd$figs, scale = 1, width = 8, height = 4.5,   units = "in",  dpi = 1500)
+
+YieldLossIrrig = SIAP_4 %>% filter(AGType == "Riego") %>% pull(YieldLoss) %>% na.omit
+YieldLossTemp = SIAP_4 %>% filter(AGType == "Temporal") %>% pull(YieldLoss) %>% na.omit
+YieldLossTotal = df %>% filter(Series == "Municipal Average") %>% pull(YieldLoss) %>% na.omit
+YieldLossAll = df %>% filter(Series == "Both Irrigation and Temporal") %>% pull(YieldLoss) %>% na.omit
+
+gamma_test(YieldLossIrrig[YieldLossIrrig > 0])
+gamma_test(YieldLossTemp[YieldLossTemp > 0])
+gamma_test(YieldLossTotal[YieldLossTotal > 0])
+gamma_test(YieldLossAll[YieldLossAll > 0])
+
+rm(ggp2, h1, h2, df, df2, YieldLossIrrig, YieldLossTemp, YieldLossTotal, YieldLossAll)
+
+# import figure for display
+knitr::include_graphics(paste0(wd$figs,"Hists_SIAP_AGType_YieldLoss.png"), FALSE)
+```
+
+
+#### St.Dev. Yield Loss Histograms
+
+```{r, label='SIAP SD Yield Histograms', message=FALSE,warning=FALSE}
+
+h1 = ggplot(SIAP_5,aes(x = sdYieldLoss)) +
+  geom_histogram(aes(group = AGType, fill = AGType),alpha = 0.5, position = "identity", binwidth = 50, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("cyan1", "indianred1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  geom_density(aes(group = AGType, color = AGType, y=60 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  scale_color_manual(name = "Agriculture Type",values = c("cyan2", "firebrick1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  labs(x ="St.Dev. Maize Yield Loss (kg / ha)", y = "Count")+
+    theme_bw()+
+    #scale_x_continuous(limits= c(0,5000), breaks=seq(0,5000,500)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.5,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+df = SIAP_6 %>% select(EstadoMunicipio, sdYieldLoss_Total) %>% rename(sdYieldLoss = sdYieldLoss_Total) %>% mutate(Series = "Municipal Average")
+df2 = SIAP_5 %>% select(EstadoMunicipio, sdYieldLoss) %>% mutate(Series = "Both Irrigation and Temporal")
+df = rbind(df,df2)
+
+h2 = ggplot(df,aes(x = sdYieldLoss)) +
+  geom_histogram(aes(group = Series, fill = Series),alpha = 0.5, position = "identity", binwidth = 50, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("grey75", "greenyellow"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
+  geom_density(aes(group = Series, color = Series, y=60 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  scale_color_manual(name = "Agriculture Type",values = c("black", "green"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
+  labs(x ="St.Dev. Maize Yield Loss (kg / ha)", y = "Count")+
+    theme_bw()+
+    #scale_x_continuous(limits= c(0,5000), breaks=seq(0,5000,500)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.5,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+ggp2 = plot_grid(h1, h2, labels = c('A', 'B'), label_size = 24)
+
+
+#save figure
+ggsave("Hists_SIAP_AGType_sdYieldLoss.png", plot = ggp2, device = "png", path = wd$figs, scale = 1, width = 8, height = 4.5,   units = "in",  dpi = 1500)
+
+sdIrrig = SIAP_5 %>% filter(AGType == "Riego") %>% pull(sdYieldLoss) %>% na.omit
+sdTemp = SIAP_5 %>% filter(AGType == "Temporal") %>% pull(sdYieldLoss) %>% na.omit
+sdTotal = df %>% filter(Series == "Municipal Average") %>% pull(sdYieldLoss) %>% na.omit
+sdAll = df %>% filter(Series == "Both Irrigation and Temporal") %>% pull(sdYieldLoss) %>% na.omit
+
+gamma_test(sdIrrig[sdIrrig > 0])
+gamma_test(sdTemp[sdTemp > 0])
+gamma_test(sdTotal[sdTotal > 0])
+gamma_test(sdAll[sdAll > 0])
+
+rm(ggp2, h1, h2, df, df2, sdIrrig, sdTemp, sdTotal, sdAll)
+
+# import figure for display
+knitr::include_graphics(paste0(wd$figs,"Hists_SIAP_AGType_sdYieldLoss.png"), FALSE)
+```
+
+
+#### C.V. Yield Loss Histograms
+
+```{r, label='SIAP CV Yield Histograms', message=FALSE,warning=FALSE}
+
+h1 = ggplot(SIAP_5,aes(x = cvYieldLoss)) +
+  geom_histogram(aes(group = AGType, fill = AGType),alpha = 0.5, position = "identity", binwidth = 25, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("cyan1", "indianred1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  geom_density(aes(group = AGType, color = AGType, y=29 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  scale_color_manual(name = "Agriculture Type",values = c("cyan2", "firebrick1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  labs(x ="C.V. Maize Yield Loss", y = "Count")+
+    theme_bw()+
+    #scale_x_continuous(limits= c(0,160), breaks=seq(0,160,10)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.5,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+df = SIAP_6 %>% select(EstadoMunicipio, cvYieldLoss_Total) %>% rename(cvYieldLoss = cvYieldLoss_Total) %>% mutate(Series = "Municipal Average")
+df2 = SIAP_5 %>% select(EstadoMunicipio, cvYieldLoss) %>% mutate(Series = "Both Irrigation and Temporal")
+df = rbind(df,df2)
+
+h2 = ggplot(df,aes(x = cvYieldLoss)) +
+  geom_histogram(aes(group = Series, fill = Series),alpha = 0.5, position = "identity", binwidth = 25, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("grey75", "greenyellow"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
+  geom_density(aes(group = Series, color = Series, y=29 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  scale_color_manual(name = "Agriculture Type",values = c("black", "green"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
+  labs(x ="C.V. Maize Yield Loss", y = "Count")+
+    theme_bw()+
+    #scale_x_continuous(limits= c(0,160), breaks=seq(0,160,10)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.75,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+ggp2 = plot_grid(h1, h2, labels = c('A', 'B'), label_size = 24)
+
+
+#save figure
+ggsave("Hists_SIAP_AGType_cvYieldLoss.png", plot = ggp2, device = "png", path = wd$figs, scale = 1, width = 8, height = 4.5,   units = "in",  dpi = 1500)
+
+cvIrrig = SIAP_5 %>% filter(AGType == "Riego") %>% pull(cvYieldLoss) %>% na.omit
+cvTemp = SIAP_5 %>% filter(AGType == "Temporal") %>% pull(cvYieldLoss) %>% na.omit
+cvTotal = df %>% filter(Series == "Municipal Average") %>% pull(cvYieldLoss) %>% na.omit
+cvAll = df %>% filter(Series == "Both Irrigation and Temporal") %>% pull(cvYieldLoss) %>% na.omit
+
+gamma_test(cvIrrig[cvIrrig > 0])
+gamma_test(cvTemp[cvTemp > 0])
+gamma_test(cvTotal[cvTotal > 0])
+gamma_test(cvAll[cvAll > 0])
+
+rm(ggp2, h1, h2, df, df2, cvIrrig, cvTemp, cvTotal, cvAll)
+
+# import figure for display
+knitr::include_graphics(paste0(wd$figs,"Hists_SIAP_AGType_cvYieldLoss.png"), FALSE)
+```
+
+
 
 
 ## Maize Yield Maps
@@ -1829,6 +2247,52 @@ knitr::include_graphics(paths, FALSE)
 
 ```
 
+#### SIAP Percent Yield Loss
+
+new folder for maps
+
+sf1_fill
+sf1_fill_legend_title
+mytitle
+mysubtitle
+
+```{r, label='SIAP Percent Yield Loss', message=FALSE, warning=FALSE}
+
+map_list = list()
+
+var = c("AvgPctYieldLoss_Total", "sdPctYieldLoss_Total", "minPctYieldLoss_Total", "maxPctYieldLoss_Total", "medPctYieldLoss_Total", "cvPctYieldLoss_Total", "AvgPctYieldLoss_Temp", "sdPctYieldLoss_Temp", "minPctYieldLoss_Temp", "maxPctYieldLoss_Temp", "medPctYieldLoss_Temp", "cvPctYieldLoss_Temp", "AvgPlanted_Temp", "sdPlanted_Temp", "cvPlanted_Temp", "AvgPctYieldLoss_Irrig", "sdPctYieldLoss_Irrig", "minPctYieldLoss_Irrig", "maxPctYieldLoss_Irrig", "medPctYieldLoss_Irrig", "cvPctYieldLoss_Irrig")
+tit = "Central Mexico Study Region - SIAP 2003-2021"
+#yrs = 2003:2021
+subtit = c("Z-Score Average Total Maize % Yield Loss", "Z-Score St.Dev. Total Maize % Yield Loss", "Z-Score Minimum Total Maize % Yield Loss", "Z-Score Maximum Total Maize % Yield Loss", "Z-Score Median Total Maize % Yield Loss", "Z-Score C.V. Total Maize % Yield Loss", "Z-Score Average Temporal Maize % Yield Loss", "Z-Score St.Dev. Temporal Maize % Yield Loss", "Z-Score Minimum Temporal Maize % Yield Loss", "Z-Score Maximum Temporal Maize % Yield Loss", "Z-Score Median Temporal Maize % Yield Loss", "Z-Score C.V. Temporal Maize % Yield Loss", "Z-Score Average Irrigation Maize % Yield Loss", "Z-Score St.Dev. Irrigation Maize % Yield Loss", "Z-Score Minimum Irrigation Maize % Yield Loss", "Z-Score Maximum Irrigation Maize % Yield Loss", "Z-Score Median Irrigation Maize % Yield Loss", "Z-Score C.V. Irrigation Maize % Yield Loss")
+
+
+name = paste0("SIAP_",var)
+
+
+for (i in 1:length(var)) {
+  v = paste0(var[i])
+  #t = paste0(tit[i])
+  s = paste0(subtit[i])
+  map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
+                             sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
+                             sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
+                             sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
+                             sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s)
+}
+
+names(map_list) <- name
+
+for (i in 1:length(name)) {
+  n = paste0(name,".png")[i]
+  ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
+}
+
+paths <- paste0(wd$figs,paste0(name,".png"))
+
+knitr::include_graphics(paths, FALSE)
+
+```
 
 
 #### SIAP Irrigation-Total Ratio
@@ -1844,10 +2308,10 @@ mysubtitle
 
 map_list = list()
 
-var = c("ITr_AvgYield", "ITr_sdYield", "ITr_minYield", "ITr_maxYield", "ITr_medYield", "ITr_cvYield", "ITr_AvgYieldLoss", "ITr_sdYieldLoss", "ITr_minYieldLoss", "ITr_maxYieldLoss", "ITr_medYieldLoss", "ITr_cvYieldLoss")
+var = c("ITr_AvgYield", "ITr_sdYield", "ITr_minYield", "ITr_maxYield", "ITr_medYield", "ITr_cvYield", "ITr_AvgYieldLoss", "ITr_sdYieldLoss", "ITr_minYieldLoss", "ITr_maxYieldLoss", "ITr_medYieldLoss", "ITr_cvYieldLoss", "ITr_AvgPctYieldLoss", "ITr_sdPctYieldLoss", "ITr_minPctYieldLoss", "ITr_maxPctYieldLoss", "ITr_medPctYieldLoss", "ITr_cvPctYieldLoss")
 tit = "Central Mexico Study Region - SIAP 2003-2021"
 #yrs = 2003:2021
-subtit = c("Z-Score Irrig-Total Ratio for Average Maize Yield", "Z-Score Irrig-Total Ratio for St.Dev. Maize Yield", "Z-Score Irrig-Total Ratio for Minimum Maize Yield", "Z-Score Irrig-Total Ratio for Maximum Maize Yield", "Z-Score Irrig-Total Ratio for Median Maize Yield", "Z-Score Irrig-Total Ratio for C.V. Maize Yield", "Z-Score Irrig-Total Ratio for Average Maize Yield Loss", "Z-Score Irrig-Total Ratio for St.Dev. Maize Yield Loss", "Z-Score Irrig-Total Ratio for Minimum Maize Yield Loss", "Z-Score Irrig-Total Ratio for Maximum Maize Yield Loss", "Z-Score Irrig-Total Ratio for Median Maize Yield Loss", "Z-Score Irrig-Total Ratio for C.V. Maize Yield Loss")
+subtit = c("Z-Score Irrig-Total Ratio for Average Maize Yield", "Z-Score Irrig-Total Ratio for St.Dev. Maize Yield", "Z-Score Irrig-Total Ratio for Minimum Maize Yield", "Z-Score Irrig-Total Ratio for Maximum Maize Yield", "Z-Score Irrig-Total Ratio for Median Maize Yield", "Z-Score Irrig-Total Ratio for C.V. Maize Yield", "Z-Score Irrig-Total Ratio for Average Maize Yield Loss", "Z-Score Irrig-Total Ratio for St.Dev. Maize Yield Loss", "Z-Score Irrig-Total Ratio for Minimum Maize Yield Loss", "Z-Score Irrig-Total Ratio for Maximum Maize Yield Loss", "Z-Score Irrig-Total Ratio for Median Maize Yield Loss", "Z-Score Irrig-Total Ratio for C.V. Maize Yield Loss", "Z-Score Irrig-Total Ratio for Average Maize % Yield Loss", "Z-Score Irrig-Total Ratio for St.Dev. Maize % Yield Loss", "Z-Score Irrig-Total Ratio for Minimum Maize % Yield Loss", "Z-Score Irrig-Total Ratio for Maximum Maize % Yield Loss", "Z-Score Irrig-Total Ratio for Median Maize % Yield Loss", "Z-Score Irrig-Total Ratio for C.V. Maize % Yield Loss")
 
 name = paste0("SIAP_",var)
 
@@ -1891,10 +2355,10 @@ mysubtitle
 
 map_list = list()
 
-var = c("TTr_AvgYield", "TTr_sdYield", "TTr_minYield", "TTr_maxYield", "TTr_medYield", "TTr_cvYield", "TTr_AvgYieldLoss", "TTr_sdYieldLoss", "TTr_minYieldLoss", "TTr_maxYieldLoss", "TTr_medYieldLoss", "TTr_cvYieldLoss")
+var = c("TTr_AvgYield", "TTr_sdYield", "TTr_minYield", "TTr_maxYield", "TTr_medYield", "TTr_cvYield", "TTr_AvgYieldLoss", "TTr_sdYieldLoss", "TTr_minYieldLoss", "TTr_maxYieldLoss", "TTr_medYieldLoss", "TTr_cvYieldLoss", "TTr_AvgPctYieldLoss", "TTr_sdPctYieldLoss", "TTr_minPctYieldLoss", "TTr_maxPctYieldLoss", "TTr_medPctYieldLoss", "TTr_cvPctYieldLoss")
 tit = "Central Mexico Study Region - SIAP 2003-2021"
 #yrs = 2003:2021
-subtit = c("Z-Score Temporal-Total Ratio for Average Maize Yield", "Z-Score Temporal-Total Ratio for St.Dev. Maize Yield", "Z-Score Temporal-Total Ratio for Minimum Maize Yield", "Z-Score Temporal-Total Ratio for Maximum Maize Yield", "Z-Score Temporal-Total Ratio for Median Maize Yield", "Z-Score Temporal-Total Ratio for C.V. Maize Yield", "Z-Score Temporal-Total Ratio for Average Maize Yield Loss", "Z-Score Temporal-Total Ratio for St.Dev. Maize Yield Loss", "Z-Score Temporal-Total Ratio for Minimum Maize Yield Loss", "Z-Score Temporal-Total Ratio for Maximum Maize Yield Loss", "Z-Score Temporal-Total Ratio for Median Maize Yield Loss", "Z-Score Temporal-Total Ratio for C.V. Maize Yield Loss")
+subtit = c("Z-Score Temporal-Total Ratio for Average Maize Yield", "Z-Score Temporal-Total Ratio for St.Dev. Maize Yield", "Z-Score Temporal-Total Ratio for Minimum Maize Yield", "Z-Score Temporal-Total Ratio for Maximum Maize Yield", "Z-Score Temporal-Total Ratio for Median Maize Yield", "Z-Score Temporal-Total Ratio for C.V. Maize Yield", "Z-Score Temporal-Total Ratio for Average Maize Yield Loss", "Z-Score Temporal-Total Ratio for St.Dev. Maize Yield Loss", "Z-Score Temporal-Total Ratio for Minimum Maize Yield Loss", "Z-Score Temporal-Total Ratio for Maximum Maize Yield Loss", "Z-Score Temporal-Total Ratio for Median Maize Yield Loss", "Z-Score Temporal-Total Ratio for C.V. Maize Yield Loss","Z-Score Temporal-Total Ratio for Average Maize % Yield Loss", "Z-Score Temporal-Total Ratio for St.Dev. Maize % Yield Loss", "Z-Score Temporal-Total Ratio for Minimum Maize % Yield Loss", "Z-Score Temporal-Total Ratio for Maximum Maize % Yield Loss", "Z-Score Temporal-Total Ratio for Median Maize % Yield Loss", "Z-Score Temporal-Total Ratio for C.V. Maize % Yield Loss")
 
 name = paste0("SIAP_",var)
 
@@ -1972,7 +2436,7 @@ knitr::include_graphics(paths, FALSE)
 ```
 
 
-## 2000s Agricultural Census Maps
+### 2000s Agricultural Census Maps
 
 
 ```{r, label='Prepare Agricultural Census Data', message=FALSE, warning=FALSE}
@@ -2093,9 +2557,33 @@ knitr::include_graphics(paths, FALSE)
 
 
 
-## Change Over Time Regression
+## Change Over Time Regression****
 
-```{r, label='Change Over Time Regression by Municipality', message=FALSE,warning=FALSE}
+```{r}
+if (!require("psych")) {install.packages("psych")}
+YZ = st_drop_geometry(MunicipioYields_Z)
+YZ = YZ %>% select(Y_1960_Total, Y_1960_E, Y_1960_L, Y_1960_S, Y_1991_Total, Y_AGC2007_Total, AvgYield_Total, AvgYield_Irrig, AvgYield_Temp, Y_2004_Total)
+
+
+pairs.panels(YZ, smooth = F, scale = F, density=TRUE,ellipses=F,
+     digits = 2,method="pearson", pch = 19, lm=T,cor=TRUE,jiggle=FALSE,factor=2, 
+     hist.col="#00AFBB",show.points=TRUE,rug=TRUE, breaks = "Sturges",cex.cor=3,wt=NULL,
+     smoother=FALSE,stars=T,ci=T,alpha=.05)
+
+pairs(x, 
+      smooth = TRUE, 
+      scale = FALSE, 
+      density=TRUE,
+      ellipses=TRUE,
+     digits = 2,
+     method="pearson", 
+     pch = 20, 
+     lm=FALSE,
+     cor=TRUE,jiggle=FALSE,factor=2, 
+     hist.col="cyan",show.points=TRUE,rug=TRUE, breaks = "Sturges",cex.cor=1,wt=NULL,
+     smoother=FALSE,stars=FALSE,ci=FALSE,alpha=.05, ...)
+```
+
 
 library(zoo)
 library(lmtest)
@@ -2108,50 +2596,113 @@ library(MASS)
 library(NSM3)
 
 
+MunicipioYields_Z %>% select(Y_1960_Total, Y_1960_E, Y_1960_L, Y_1960_S, Y_1991_Total, Y_AGC2007_Total, AvgYield_Total, AvgYield_Irrig, AvgYield_Temp)
+
+```{r, label='Change Over Time Regression by Municipality', message=FALSE,warning=FALSE}
+
 
 
 plot(MunicipioYields_Z$Y_1960_Total, MunicipioYields_Z$Y_1991_Total)
-plot(MunicipioYields_Z$Y_1960_Total, MunicipioYields_Z$Y_2007_Total.x)
-plot(MunicipioYields_Z$Y_1960_Total, MunicipioYields_Z$Y_Average_Total)
-plot(MunicipioYields_Z$Y_1991_Total, MunicipioYields_Z$Y_2007_Total.x)
-plot(MunicipioYields_Z$Y_1991_Total, MunicipioYields_Z$Y_Average_Total)
-plot(MunicipioYields_Z$Y_2007_Total.x, MunicipioYields_Z$Y_Average_Total)
+plot(MunicipioYields_Z$Y_1960_Total, MunicipioYields_Z$Y_AGC2007_Total)
+plot(MunicipioYields_Z$Y_1960_Total, MunicipioYields_Z$AvgYield_Total)
+plot(MunicipioYields_Z$Y_1991_Total, MunicipioYields_Z$Y_AGC2007_Total)
+plot(MunicipioYields_Z$Y_1991_Total, MunicipioYields_Z$AvgYield_Total)
+plot(MunicipioYields_Z$Y_AGC2007_Total, MunicipioYields_Z$AvgYield_Total)
 
 plot(MunicipioYields_Z$Y_1960_S, MunicipioYields_Z$Y_1991_Total)
 plot(MunicipioYields_Z$Y_1960_S, MunicipioYields_Z$Y_2007_Total.x)
-plot(MunicipioYields_Z$Y_1960_S, MunicipioYields_Z$Y_Average_Total)
+plot(MunicipioYields_Z$Y_1960_S, MunicipioYields_Z$AvgYield_Total)
 
 plot(MunicipioYields_Z$Y_1960_L, MunicipioYields_Z$Y_1991_Total)
-plot(MunicipioYields_Z$Y_1960_L, MunicipioYields_Z$Y_2007_Total.x)
-plot(MunicipioYields_Z$Y_1960_L, MunicipioYields_Z$Y_Average_Total)
+plot(MunicipioYields_Z$Y_1960_L, MunicipioYields_Z$Y_AGC2007_Total)
+plot(MunicipioYields_Z$Y_1960_L, MunicipioYields_Z$AvgYield_Total)
 
 plot(MunicipioYields_Z$Y_1960_E, MunicipioYields_Z$Y_1991_Total)
-plot(MunicipioYields_Z$Y_1960_E, MunicipioYields_Z$Y_2007_Total.x)
-plot(MunicipioYields_Z$Y_1960_E, MunicipioYields_Z$Y_Average_Total)
+plot(MunicipioYields_Z$Y_1960_E, MunicipioYields_Z$Y_AGC2007_Total)
+plot(MunicipioYields_Z$Y_1960_E, MunicipioYields_Z$AvgYield_Total)
 
-plot(MunicipioYields_Z$Y_1960_Total, MunicipioYields_Z$Y_Average_Irrig)
-plot(MunicipioYields_Z$Y_1991_Total, MunicipioYields_Z$Y_Average_Irrig)
-plot(MunicipioYields_Z$Y_2007_Total.x, MunicipioYields_Z$Y_Average_Irrig)
+plot(MunicipioYields_Z$Y_1960_Total, MunicipioYields_Z$AvgYield_Irrig)
+plot(MunicipioYields_Z$Y_1991_Total, MunicipioYields_Z$AvgYield_Irrig)
+plot(MunicipioYields_Z$Y_AGC2007_Total, MunicipioYields_Z$AvgYield_Irrig)
 
-plot(MunicipioYields_Z$Y_1960_S, MunicipioYields_Z$Y_Average_Temp)
-plot(MunicipioYields_Z$Y_1991_Total, MunicipioYields_Z$Y_Average_Temp)
-plot(MunicipioYields_Z$Y_2007_Total.x, MunicipioYields_Z$Y_Average_Temp)
+plot(MunicipioYields_Z$Y_1960_S, MunicipioYields_Z$AvgYield_Temp)
+plot(MunicipioYields_Z$Y_1991_Total, MunicipioYields_Z$AvgYield_Temp)
+plot(MunicipioYields_Z$Y_AGC2007_Total, MunicipioYields_Z$AvgYield_Temp)
 ```
 
 We can further test this by doing (geographically weighted?) regression of yields over time by municipio
 •	Regression table, possibly graphs
 
 ## Historical vs. Modern Regression by Municipality
+
 We can also do a limited cross validation using historical data regressed against modern data
-•	Excel spreadsheet  graphs and regression table
-o	C16 – SIAP
-o	C18 – 1960
-o	All colonial – SIAP 
+
 
 ```{r, label='Historical vs. Modern Regression by Municipality', message=FALSE,warning=FALSE}
+dat <- read.csv(paste0(wd$data_r,"Hist_vs_Modern_Yields.csv"))
 
+dat_C16 = dat %>% filter(Sample == "C16")
+
+dat_C18 = dat %>% filter(Sample == "C18") %>% filter(!(Municipio %in% c("Apan")))
+
+
+fitA = lm(Colonial ~ SIAP, dat_C16)
+fitAs = summary(fitA)
+
+fitB = lm(Colonial ~ X1960, dat_C18)
+fitBs = summary(fitB)
+
+fitC = lm(Colonial ~ SIAP, dat)
+fitCs = summary(fitC)
+
+plt_A <- ggplot(dat_C16, aes(x=SIAP, y=Colonial)) +
+  geom_point(size=2.5, color="black", shape=16) + 
+  geom_smooth(fullrange=F, method =lm, se=TRUE, colour="red", size=1) +
+  scale_x_continuous(breaks=seq(1000,4000,1000)) +
+  scale_y_continuous(breaks=seq(0,5000,1000)) +
+  coord_cartesian(xlim=c(750,4250), ylim=c(0,6500)) +
+  annotate("label", x = 1700, y = 5700, label = "atop(bold(italic(Y) == 1.23 * ~italic(X) - 92.8),bold(italic(R^2) == 0.65 ~~~~~~ italic(n) == 7 ))", parse = TRUE, color ="black", size=4)+
+  xlab("SIAP 2003-2021 Yield (kg / ha)") +
+  ylab("Early Colonial Yield (kg / ha)") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 12, color="black"),
+        axis.title.y = element_text(size = 12, face = "bold"),
+        axis.title.x = element_text(size = 12, face = "bold"))
+
+plt_B <- ggplot(dat_C18, aes(x=X1960, y=Colonial)) +
+  geom_point(size=2.5, color="black", shape=16) + 
+  geom_smooth(fullrange=F, method =lm, se=TRUE, colour="red", size=1) +
+  scale_x_continuous(breaks=seq(600,1200,200)) +
+  scale_y_continuous(breaks=seq(0,1750,250)) +
+  coord_cartesian(xlim=c(550,1250), ylim=c(0,2100)) +
+  annotate("label", x = 750, y = 1850, label = "atop(bold(italic(Y) == 1.72 * ~italic(X) - 621.6),bold(italic(R^2) == 0.49 ~~~~~~ italic(n) == 14 ))", parse = TRUE, color ="black", size=4)+
+  xlab("1960 Census Yield (kg / ha)") +
+  ylab("Late Colonial Yield (kg / ha)") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 12, color="black"),
+        axis.title.y = element_text(size = 12, face = "bold"),
+        axis.title.x = element_text(size = 12, face = "bold"))
+
+plt_C <- ggplot(dat, aes(x=SIAP, y=Colonial)) +
+  geom_point(size=2.5, color="black", shape=16) + 
+  geom_smooth(fullrange=F, method =lm, se=TRUE, colour="red", size=1) +
+  scale_x_continuous(breaks=seq(1000,4000,1000)) +
+  scale_y_continuous(breaks=seq(0,5000,1000)) +
+  coord_cartesian(xlim=c(750,4250), ylim=c(0,6000)) +
+  annotate("label", x = 1760, y = 5300, label = "atop(bold(italic(Y) == 1.07 * ~italic(X) - 747.5),bold(italic(R^2) == 0.35 ~~~~~~ italic(n) == 22 ))", parse = TRUE, color ="black", size=4)+
+  xlab("SIAP 2003-2021 Yield (kg / ha)") +
+  ylab("Colonial Yield (kg / ha)") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 12, color="black"),
+        axis.title.y = element_text(size = 12, face = "bold"),
+        axis.title.x = element_text(size = 12, face = "bold"))
+
+pltABC <- plot_grid(plt_A, plt_B, plt_C, ncol = 3, nrow = 1, labels = "AUTO", label_size = 30, hjust=-1)
+
+ggsave("Hist_vs_Modern_Yields.png", plot = pltABC, device = "png", path = wd$figs, scale = 1, width = 9.5, height = 3.25,   units = "in",  dpi = 1500, bg = "white")
+
+knitr::include_graphics(paste0(wd$figs,"Hist_vs_Modern_Yields.png"), FALSE)
 ```
-
 
 
 ## CHINAMPAS SBOM
