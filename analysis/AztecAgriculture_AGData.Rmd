@@ -1337,7 +1337,29 @@ x2 = ggbetweenstats(
 
 x2
 ```{r, label='MANOVA Violin Plots', message=FALSE,warning=FALSE}
+kruskal.test(flipper_length_mm ~ species,
+  data = dat
+)
 
+library(FSA)
+
+dunnTest(flipper_length_mm ~ species,
+  data = dat,
+  method = "holm"
+)
+
+
+ggbetweenstats(
+  data = dat,
+  x = species,
+  y = flipper_length_mm,
+  type = "nonparametric", # ANOVA or Kruskal-Wallis
+  plot.type = "box",
+  pairwise.comparisons = TRUE,
+  pairwise.display = "significant",
+  centrality.plotting = FALSE,
+  bf.message = FALSE
+)
 ```
 
 
