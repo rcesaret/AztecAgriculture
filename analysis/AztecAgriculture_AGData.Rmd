@@ -80,7 +80,7 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
               "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra", 
-              "goft", "MASS", "NSM3", "ggsn", "rlang")
+              "goft", "MASS", "NSM3", "ggsn", "rlang", "FSA")
 
 
 # Install packages not yet installed
@@ -1168,42 +1168,42 @@ names(SandersC20_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Dat
 
 
 SIAP_4_2003 = SIAP_4 %>% filter(Year == 2003) 
-SIAP_4_2003 = density(SIAP_4_2003$Yield, from=0)
-SIAP_4_2003 <- data.frame(SIAP_4_2003$x, SIAP_4_2003$y, SIAP_4_2003$bw, SIAP_4_2003$n, "SIAP 2003", "Municipal Averages by cultivation type\n(irrigation and temporal)")
-names(SIAP_4_2003) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+SIAP_4_2003_dens = density(SIAP_4_2003$Yield, from=0)
+SIAP_4_2003_dens <- data.frame(SIAP_4_2003_dens$x, SIAP_4_2003_dens$y, SIAP_4_2003_dens$bw, SIAP_4_2003_dens$n, "SIAP 2003", "Municipal Averages by cultivation type\n(irrigation and temporal)")
+names(SIAP_4_2003_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 SIAP_4_2003a = SIAP_4 %>% filter(Year == 2003) %>% group_by(EstadoMunicipio) %>% summarize(Yield = sum(Product, na.rm=T) / sum(Planted, na.rm=T))
-SIAP_4_2003a = density(SIAP_4_2003a$Yield)
-SIAP_4_2003a <- data.frame(SIAP_4_2003a$x, SIAP_4_2003a$y, SIAP_4_2003a$bw, SIAP_4_2003a$n, "SIAP 2003", "Overall municipal averages")
-names(SIAP_4_2003a) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+SIAP_4_2003a_dens = density(SIAP_4_2003a$Yield)
+SIAP_4_2003a_dens <- data.frame(SIAP_4_2003a_dens$x, SIAP_4_2003a_dens$y, SIAP_4_2003a_dens$bw, SIAP_4_2003a_dens$n, "SIAP 2003", "Overall municipal averages")
+names(SIAP_4_2003a_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 SIAP_4_2020 = SIAP_4 %>% filter(Year == 2020) 
-SIAP_4_2020 = density(SIAP_4_2020$Yield, from=0)
-SIAP_4_2020 <- data.frame(SIAP_4_2020$x, SIAP_4_2020$y, SIAP_4_2020$bw, SIAP_4_2020$n, "SIAP 2020", "Municipal Averages by cultivation type\n(irrigation and temporal)")
-names(SIAP_4_2020) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+SIAP_4_2020_dens = density(SIAP_4_2020$Yield, from=0)
+SIAP_4_2020_dens <- data.frame(SIAP_4_2020_dens$x, SIAP_4_2020_dens$y, SIAP_4_2020_dens$bw, SIAP_4_2020_dens$n, "SIAP 2020", "Municipal Averages by cultivation type\n(irrigation and temporal)")
+names(SIAP_4_2020_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 SIAP_4_2020a = SIAP_4 %>% filter(Year == 2020) %>% group_by(EstadoMunicipio) %>% summarize(Yield = sum(Product, na.rm=T) / sum(Planted, na.rm=T))
-SIAP_4_2020a = density(SIAP_4_2020a$Yield, from=0)
-SIAP_4_2020a <- data.frame(SIAP_4_2020a$x, SIAP_4_2020a$y, SIAP_4_2020a$bw, SIAP_4_2020a$n, "SIAP 2020", "Overall municipal averages")
-names(SIAP_4_2020a) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+SIAP_4_2020a_dens = density(SIAP_4_2020a$Yield, from=0)
+SIAP_4_2020a_dens <- data.frame(SIAP_4_2020a_dens$x, SIAP_4_2020a_dens$y, SIAP_4_2020a_dens$bw, SIAP_4_2020a_dens$n, "SIAP 2020", "Overall municipal averages")
+names(SIAP_4_2020a_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 SIAP_4_Avg = SIAP_4 %>% group_by(EstadoMunicipio, AGType) %>% summarise(AvgYield = mean(Yield, na.rm=T))
-SIAP_4_Avg = density(SIAP_4_Avg$AvgYield, na.rm=T, from=0)
-SIAP_4_Avg <- data.frame(SIAP_4_Avg$x, SIAP_4_Avg$y, SIAP_4_Avg$bw, SIAP_4_Avg$n, "SIAP 2003-2021 Average", "Municipal Averages by cultivation type\n(irrigation and temporal)")
-names(SIAP_4_Avg) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+SIAP_4_Avg_dens = density(SIAP_4_Avg$AvgYield, na.rm=T, from=0)
+SIAP_4_Avg_dens <- data.frame(SIAP_4_Avg_dens$x, SIAP_4_Avg_dens$y, SIAP_4_Avg_dens$bw, SIAP_4_Avg_dens$n, "SIAP 2003-2021 Average", "Municipal Averages by cultivation type\n(irrigation and temporal)")
+names(SIAP_4_Av_densg) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 SIAP_4_Avg_T = SIAP_4 %>% group_by(EstadoMunicipio) %>% summarise(AvgYield = sum(Product, na.rm=T) / sum(Planted, na.rm=T))
-SIAP_4_Avg_T = density(SIAP_4_Avg_T$AvgYield, na.rm=T, from=0)
-SIAP_4_Avg_T <- data.frame(SIAP_4_Avg_T$x, SIAP_4_Avg_T$y, SIAP_4_Avg_T$bw, SIAP_4_Avg_T$n, "SIAP 2003-2021 Average", "Overall municipal averages")
-names(SIAP_4_Avg_T) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+SIAP_4_Avg_T_dens = density(SIAP_4_Avg_T$AvgYield, na.rm=T, from=0)
+SIAP_4_Avg_T_dens <- data.frame(SIAP_4_Avg_T_dens$x, SIAP_4_Avg_T_dens$y, SIAP_4_Avg_T_dens$bw, SIAP_4_Avg_T_dens$n, "SIAP 2003-2021 Average", "Overall municipal averages")
+names(SIAP_4_Avg_T_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
-SIAP_4_Avg_T$Height = 1200
-SIAP_4_Avg$Height = 1200
-SIAP_4_2020a$Height = 2000
-SIAP_4_2020$Height = 2000
+SIAP_4_Avg_T_dens$Height = 1200
+SIAP_4_Avg_dens$Height = 1200
+SIAP_4_2020a_dens$Height = 2000
+SIAP_4_2020_dens$Height = 2000
 AGCensus2007_dens$Height = 2000
-SIAP_4_2003a$Height = 1500
-SIAP_4_2003$Height = 1500
+SIAP_4_2003a_dens$Height = 1500
+SIAP_4_2003_dens$Height = 1500
 SandersC20_dens$Height = 1300
 SandersAztec_dens$Height = 550
 AGCensus2007_dens$Height = 1200
@@ -1213,9 +1213,10 @@ AGCensus1960_T_dens$Height = 350
 LateColonial_dens$Height = 1200
 EarlyColonial_dens$Height = 2500
 
-Dens.df = rbind(EarlyColonial_dens,LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, AGCensus1960_A_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003, SIAP_4_2003a, AGCensus2007_dens, SIAP_4_2020, SIAP_4_2020a, SIAP_4_Avg, SIAP_4_Avg_T)
+Dens.df = rbind(EarlyColonial_dens, LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, AGCensus1960_A_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003_dens, SIAP_4_2003a_dens, AGCensus2007_dens, SIAP_4_2020_dens, SIAP_4_2020a_dens, SIAP_4_Avg_dens, SIAP_4_Avg_T_dens)
 
-rm(EarlyColonial_dens,LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003, AGCensus2007_dens, SIAP_4_2020, SIAP_4_Avg, s, nnn)
+rm(EarlyColonial_dens, LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, AGCensus1960_A_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003_dens, SIAP_4_2003a_dens, AGCensus2007_dens, SIAP_4_2020_dens, SIAP_4_2020a_dens, SIAP_4_Avg_dens, SIAP_4_Avg_T_dens, s, nnn)
+
 ```
 
 
@@ -1254,16 +1255,18 @@ ggp1 <- ggplot() +
 #save figure
 ggsave("RidgelineComparativeYields.png", plot = ggp1, device = "png", path = wd$figs, scale = 1, width = 10, height = 7,   units = "in",  dpi = 1500)
 
-rm(ggp1)
+rm(ggp1, Dens.df)
 
 # import figure for display
 knitr::include_graphics(paste0(wd$figs,"RidgelineComparativeYields.png"), FALSE)
 
 ```
 
+### Gamma Tests
 
 
-### Comparative Yields Gamma Tests****
+```{r, label='Comparative Yields Gamma Tests', message=FALSE,warning=FALSE}
+
 gamma_test(AGCensus1960_T$Maize1960_kgha)
 gamma_test(LateColonial$Yield)
 gamma_test(EarlyColonial$Yield)
@@ -1272,12 +1275,13 @@ gamma_test(AGCensus2007_T$Yield)
 gamma_test(SandersAztec$Yield)
 gamma_test(SandersC20$YieldAvg)
 gamma_test(SIAP_4_2003$Yield[SIAP_4_2003$Yield > 0])
+gamma_test(SIAP_4_2003a$Yield[SIAP_4_2003a$Yield > 0])
+gamma_test(SIAP_4_2020$Yield[SIAP_4_2020$Yield > 0])
 gamma_test(SIAP_4_2020a$Yield[SIAP_4_2020a$Yield > 0])
-gamma_test(SIAP_4_Avg1$AvgYield)
+gamma_test(SIAP_4_Avg$AvgYield)
+gamma_test(SIAP_4_Avg_T$AvgYield)
 
-gamma_fit(x)
-```{r, label='Gamma Tests', message=FALSE,warning=FALSE}
-
+#gamma_fit(x)
 ```
 
 
@@ -1285,6 +1289,35 @@ gamma_fit(x)
 
 https://statsandr.com/blog/anova-in-r/
 https://statsandr.com/blog/kruskal-wallis-test-nonparametric-version-anova/
+
+x2
+```{r, label='MANOVA Violin Plots', message=FALSE,warning=FALSE}
+kruskal.test(flipper_length_mm ~ species,
+  data = dat
+)
+
+
+
+dunnTest(flipper_length_mm ~ species,
+  data = dat,
+  method = "holm"
+)
+
+
+ggbetweenstats(
+  data = dat,
+  x = species,
+  y = flipper_length_mm,
+  type = "nonparametric", # ANOVA or Kruskal-Wallis
+  plot.type = "box",
+  pairwise.comparisons = TRUE,
+  pairwise.display = "significant",
+  centrality.plotting = FALSE,
+  bf.message = FALSE
+)
+
+
+
 
 CY <- read.csv(paste0(wd$data_r,"ComparativeYields.csv"))
 CY$Series <- factor(CY$Series, levels = c("AG Census 1960", "Sanders Aztec BOM Model", "AG Census 1991", "Sanders mid-20th Century BOM", "SIAP 2003-2021 Average"))
@@ -1335,31 +1368,17 @@ x2 = ggbetweenstats(
     breaks = seq(from = 0, to = 5000, by = 500)
   ) 
 
-x2
-```{r, label='MANOVA Violin Plots', message=FALSE,warning=FALSE}
-kruskal.test(flipper_length_mm ~ species,
-  data = dat
-)
-
-library(FSA)
-
-dunnTest(flipper_length_mm ~ species,
-  data = dat,
-  method = "holm"
-)
 
 
-ggbetweenstats(
-  data = dat,
-  x = species,
-  y = flipper_length_mm,
-  type = "nonparametric", # ANOVA or Kruskal-Wallis
-  plot.type = "box",
-  pairwise.comparisons = TRUE,
-  pairwise.display = "significant",
-  centrality.plotting = FALSE,
-  bf.message = FALSE
-)
+
+
+
+
+
+
+
+
+
 ```
 
 
@@ -2652,6 +2671,11 @@ plot(MunicipioYields_Z$Y_1991_Total, MunicipioYields_Z$AvgYield_Temp)
 plot(MunicipioYields_Z$Y_AGC2007_Total, MunicipioYields_Z$AvgYield_Temp)
 ```
 
+
+
+
+
+
 We can further test this by doing (geographically weighted?) regression of yields over time by municipio
 •	Regression table, possibly graphs
 
@@ -2790,6 +2814,14 @@ lines(ecdf(Norm1), do.points = FALSE, verticals=T, lwd=2, col="blue")
 
 
 
+
+
+
+
+
+
+
+
 ```{r}
 a = SIAP_4 %>% filter(AGType == "Temporal") %>% filter(!is.na(zYield))
 hist(a$zYield)
@@ -2860,6 +2892,17 @@ shapiro.test(a$zYield)
 ```
 
 
+
+
+
+
+
+
+
+
+
+
+
 ```{r}
 hist(SIAP_5$AvgYield)
 gamma_test(SIAP_5$AvgYield)
@@ -2888,6 +2931,15 @@ a= SIAP_5 %>% filter(AGType == "Riego")
 gamma_test(a$sdYield)
 hist(a$sdYield)
 ```
+
+
+
+
+
+
+
+
+
 
 ```{r, 'Rescale SIAP 2003-2021 Yield Data', message=FALSE, warning=FALSE}
 

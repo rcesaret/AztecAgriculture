@@ -24,6 +24,8 @@ pre[class] {
 }
 ```
 
+
+
 ```{r, setup, include=FALSE,echo=FALSE, message=FALSE,warning=FALSE}
 require(knitr)
 # Set so that long lines in R will be wrapped:
@@ -457,6 +459,10 @@ plot(Temp$LU_Total_perHa, Temp$AvgYield)
 plot(log(Temp$LU_Total_perHa), log(Temp$AvgYield))
 ```
 
+
+
+
+
 ### Boruta for Variable Selection
 
 Random Forest feature selection, why we need feature selection?
@@ -527,6 +533,11 @@ LU_DraftAnimals                        Rejected
 PopDensRural                           Rejected
 Temporal_PU                            Rejected
 PopDensRural 
+
+
+
+
+
 
 ### Subset Agricultural Variables
 
