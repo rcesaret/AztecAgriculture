@@ -1106,7 +1106,7 @@ AGCensus2007 <- AGCensus2007 %>%
   
 ## Ridgeline Density Plot
 
-
+   
 ### Prepare Comparative Yields Data 
 
 ```{r, label='Ridgeline Density Plot Data', message=FALSE,warning=FALSE}
@@ -1115,14 +1115,14 @@ EarlyColonial = Colonial %>% filter(Period == "C16 Sample") %>% filter(TimeSerie
 #nnn = nrow(EarlyColonial)
 #EarlyColonial <- EarlyColonial %>% rowwise() %>% mutate(Weight = ifelse(TimeSeries == F,1,0.25)) %>% ungroup() %>% mutate(Weight = Weight/nnn)
 EarlyColonial_dens = density(EarlyColonial$Yield, from=0, weights=EarlyColonial$Weight)
-EarlyColonial_dens <- data.frame(EarlyColonial_dens$x, EarlyColonial_dens$y, EarlyColonial_dens$bw, EarlyColonial_dens$n, "16th Century Sample", "Local-level sample of recorded yields")
+EarlyColonial_dens <- data.frame(EarlyColonial_dens$x, EarlyColonial_dens$y, EarlyColonial_dens$bw, EarlyColonial_dens$n, "Early\nColonial\n(16th Century)\n\n", "Sample of historically documented local-level yields")
 names(EarlyColonial_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 LateColonial = Colonial %>% filter(Period == "C18 Sample") %>% filter(TimeSeries == F) 
 #nnn = nrow(LateColonial)
 #LateColonial <- LateColonial %>% rowwise() %>% mutate(Weight = ifelse(TimeSeries == F,1,0.25)) %>% ungroup() %>% mutate(Weight = Weight/nnn)
 LateColonial_dens = density(LateColonial$Yield, from=0, weights=LateColonial$Weight)
-LateColonial_dens <- data.frame(LateColonial_dens$x, LateColonial_dens$y, LateColonial_dens$bw, LateColonial_dens$n, "18th Century Sample", "Local-level sample of recorded yields")
+LateColonial_dens <- data.frame(LateColonial_dens$x, LateColonial_dens$y, LateColonial_dens$bw, LateColonial_dens$n, "Late\nColonial\n(18th Century)\n\n", "Sample of historically documented local-level yields")
 names(LateColonial_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 AGCensus1960_A = AGCensus1960 %>% #filter(Size == "Total") %>% 
@@ -1132,7 +1132,7 @@ AGCensus1960_A = AGCensus1960 %>% #filter(Size == "Total") %>%
 s = sum(AGCensus1960_A$Maize1960_ha, na.rm = T)
 #AGCensus1960_T_dens = density(AGCensus1960_T$Maize1960_kgha, weights = AGCensus1960_T$Maize1960_ha / s, from = 0, na.rm = T)
 AGCensus1960_A_dens = density(AGCensus1960_A$Maize1960_kgha, na.rm = T, from=0)
-AGCensus1960_A_dens <- data.frame(AGCensus1960_A_dens$x, AGCensus1960_A_dens$y, AGCensus1960_A_dens$bw, AGCensus1960_A_dens$n, "1960 Agricultural Census", "Municipal averages by type of land tenure\n(ejidos, large (>5 ha) and small (<5 ha) holdings)"
+AGCensus1960_A_dens <- data.frame(AGCensus1960_A_dens$x, AGCensus1960_A_dens$y, AGCensus1960_A_dens$bw, AGCensus1960_A_dens$n, "1960\nAgricultural\nCensus\n\n", "Municipal averages by type of land tenure\n(ejidos, large (>5 ha) and small (<5 ha) holdings)"
 )
 names(AGCensus1960_A_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
@@ -1143,58 +1143,58 @@ AGCensus1960_T = AGCensus1960 %>% #filter(Size == "Total") %>%
 s = sum(AGCensus1960_T$Maize1960_ha, na.rm = T)
 #AGCensus1960_T_dens = density(AGCensus1960_T$Maize1960_kgha, weights = AGCensus1960_T$Maize1960_ha / s, from = 0, na.rm = T)
 AGCensus1960_T_dens = density(AGCensus1960_T$Maize1960_kgha, na.rm = T, from=0)
-AGCensus1960_T_dens <- data.frame(AGCensus1960_T_dens$x, AGCensus1960_T_dens$y, AGCensus1960_T_dens$bw, AGCensus1960_T_dens$n, "1960 Agricultural Census", "Overall municipal averages")
+AGCensus1960_T_dens <- data.frame(AGCensus1960_T_dens$x, AGCensus1960_T_dens$y, AGCensus1960_T_dens$bw, AGCensus1960_T_dens$n, "1960\nAgricultural\nCensus\n\n", "Overall municipal averages")
 names(AGCensus1960_T_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 AGCensus1991_T = AGCensus1991 %>% filter(!is.na(Yield)) 
 AGCensus1991_dens = density(AGCensus1991_T$Yield, na.rm = T, from=0)
-AGCensus1991_dens <- data.frame(AGCensus1991_dens$x, AGCensus1991_dens$y, AGCensus1991_dens$bw, AGCensus1991_dens$n, "1991 Agricultural Census", "Overall municipal averages")
+AGCensus1991_dens <- data.frame(AGCensus1991_dens$x, AGCensus1991_dens$y, AGCensus1991_dens$bw, AGCensus1991_dens$n, "1991\nAgricultural\nCensus\n\n", "Overall municipal averages")
 names(AGCensus1991_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 AGCensus2007_T = AGCensus2007 %>% filter(!is.na(Yield)) 
 s = sum(AGCensus2007_T$Harvested_ha, na.rm = T)
 #AGCensus2007_dens = density(AGCensus2007_T$Yield, weights = AGCensus2007_T$Harvested_ha / s, from = 0, na.rm = T)
 AGCensus2007_dens = density(AGCensus2007_T$Yield, na.rm = T, from=0)
-AGCensus2007_dens <- data.frame(AGCensus2007_dens$x, AGCensus2007_dens$y, AGCensus2007_dens$bw, AGCensus2007_dens$n, "2007 Agricultural Census", "Overall municipal averages")
+AGCensus2007_dens <- data.frame(AGCensus2007_dens$x, AGCensus2007_dens$y, AGCensus2007_dens$bw, AGCensus2007_dens$n, "2007\nAgricultural\nCensus\n\n", "Overall municipal averages")
 names(AGCensus2007_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 SandersAztec_dens = density(SandersAztec$Yield, from=0)
-SandersAztec_dens <- data.frame(SandersAztec_dens$x, SandersAztec_dens$y, SandersAztec_dens$bw, SandersAztec_dens$n, "Sanders Aztec Model\n (BOM Only)", "Model derived from mid-20th century data")
+SandersAztec_dens <- data.frame(SandersAztec_dens$x, SandersAztec_dens$y, SandersAztec_dens$bw, SandersAztec_dens$n, "Sanders\nAztec\nModel**\n\n", "Carrying capacity model derived from\nmid-20th century data")
 names(SandersAztec_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 SandersC20_dens = density(SandersC20$YieldAvg, from=0)
-SandersC20_dens <- data.frame(SandersC20_dens$x, SandersC20_dens$y, SandersC20_dens$bw, SandersC20_dens$n, "Sanders mid-20th Century\nSample (BOM Only)", "Local-level sample of recorded yields")
+SandersC20_dens <- data.frame(SandersC20_dens$x, SandersC20_dens$y, SandersC20_dens$bw, SandersC20_dens$n, "Sanders\nmid-20th\nCentury**\n\n", "Sample of ethnographically recorded local-level yields")
 names(SandersC20_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
-
+#"Sanders mid-20th Century\nSample (BOM Only)"
 
 SIAP_4_2003 = SIAP_4 %>% filter(Year == 2003) 
 SIAP_4_2003_dens = density(SIAP_4_2003$Yield, from=0)
-SIAP_4_2003_dens <- data.frame(SIAP_4_2003_dens$x, SIAP_4_2003_dens$y, SIAP_4_2003_dens$bw, SIAP_4_2003_dens$n, "SIAP 2003", "Municipal Averages by cultivation type\n(irrigation and temporal)")
+SIAP_4_2003_dens <- data.frame(SIAP_4_2003_dens$x, SIAP_4_2003_dens$y, SIAP_4_2003_dens$bw, SIAP_4_2003_dens$n, "SIAP 2003\n", "Municipal averages by cultivation type\n(irrigation and temporal)")
 names(SIAP_4_2003_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 SIAP_4_2003a = SIAP_4 %>% filter(Year == 2003) %>% group_by(EstadoMunicipio) %>% summarize(Yield = sum(Product, na.rm=T) / sum(Planted, na.rm=T))
 SIAP_4_2003a_dens = density(SIAP_4_2003a$Yield)
-SIAP_4_2003a_dens <- data.frame(SIAP_4_2003a_dens$x, SIAP_4_2003a_dens$y, SIAP_4_2003a_dens$bw, SIAP_4_2003a_dens$n, "SIAP 2003", "Overall municipal averages")
+SIAP_4_2003a_dens <- data.frame(SIAP_4_2003a_dens$x, SIAP_4_2003a_dens$y, SIAP_4_2003a_dens$bw, SIAP_4_2003a_dens$n, "SIAP 2003\n", "Overall municipal averages")
 names(SIAP_4_2003a_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 SIAP_4_2020 = SIAP_4 %>% filter(Year == 2020) 
 SIAP_4_2020_dens = density(SIAP_4_2020$Yield, from=0)
-SIAP_4_2020_dens <- data.frame(SIAP_4_2020_dens$x, SIAP_4_2020_dens$y, SIAP_4_2020_dens$bw, SIAP_4_2020_dens$n, "SIAP 2020", "Municipal Averages by cultivation type\n(irrigation and temporal)")
+SIAP_4_2020_dens <- data.frame(SIAP_4_2020_dens$x, SIAP_4_2020_dens$y, SIAP_4_2020_dens$bw, SIAP_4_2020_dens$n, "SIAP 2020\n", "Municipal averages by cultivation type\n(irrigation and temporal)")
 names(SIAP_4_2020_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 SIAP_4_2020a = SIAP_4 %>% filter(Year == 2020) %>% group_by(EstadoMunicipio) %>% summarize(Yield = sum(Product, na.rm=T) / sum(Planted, na.rm=T))
 SIAP_4_2020a_dens = density(SIAP_4_2020a$Yield, from=0)
-SIAP_4_2020a_dens <- data.frame(SIAP_4_2020a_dens$x, SIAP_4_2020a_dens$y, SIAP_4_2020a_dens$bw, SIAP_4_2020a_dens$n, "SIAP 2020", "Overall municipal averages")
+SIAP_4_2020a_dens <- data.frame(SIAP_4_2020a_dens$x, SIAP_4_2020a_dens$y, SIAP_4_2020a_dens$bw, SIAP_4_2020a_dens$n, "SIAP 2020\n", "Overall municipal averages")
 names(SIAP_4_2020a_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 SIAP_4_Avg = SIAP_4 %>% group_by(EstadoMunicipio, AGType) %>% summarise(AvgYield = mean(Yield, na.rm=T))
 SIAP_4_Avg_dens = density(SIAP_4_Avg$AvgYield, na.rm=T, from=0)
-SIAP_4_Avg_dens <- data.frame(SIAP_4_Avg_dens$x, SIAP_4_Avg_dens$y, SIAP_4_Avg_dens$bw, SIAP_4_Avg_dens$n, "SIAP 2003-2021 Average", "Municipal Averages by cultivation type\n(irrigation and temporal)")
-names(SIAP_4_Av_densg) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
+SIAP_4_Avg_dens <- data.frame(SIAP_4_Avg_dens$x, SIAP_4_Avg_dens$y, SIAP_4_Avg_dens$bw, SIAP_4_Avg_dens$n, "SIAP\n2003-2021\nAverage\n\n", "Municipal averages by cultivation type\n(irrigation and temporal)")
+names(SIAP_4_Avg_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 SIAP_4_Avg_T = SIAP_4 %>% group_by(EstadoMunicipio) %>% summarise(AvgYield = sum(Product, na.rm=T) / sum(Planted, na.rm=T))
 SIAP_4_Avg_T_dens = density(SIAP_4_Avg_T$AvgYield, na.rm=T, from=0)
-SIAP_4_Avg_T_dens <- data.frame(SIAP_4_Avg_T_dens$x, SIAP_4_Avg_T_dens$y, SIAP_4_Avg_T_dens$bw, SIAP_4_Avg_T_dens$n, "SIAP 2003-2021 Average", "Overall municipal averages")
+SIAP_4_Avg_T_dens <- data.frame(SIAP_4_Avg_T_dens$x, SIAP_4_Avg_T_dens$y, SIAP_4_Avg_T_dens$bw, SIAP_4_Avg_T_dens$n, "SIAP\n2003-2021\nAverage\n\n", "Overall municipal averages")
 names(SIAP_4_Avg_T_dens) <- c("Yield", "Density", "Bandwidth", "n", "Series", "Data")
 
 SIAP_4_Avg_T_dens$Height = 1200
@@ -1215,7 +1215,6 @@ EarlyColonial_dens$Height = 2500
 
 Dens.df = rbind(EarlyColonial_dens, LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, AGCensus1960_A_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003_dens, SIAP_4_2003a_dens, AGCensus2007_dens, SIAP_4_2020_dens, SIAP_4_2020a_dens, SIAP_4_Avg_dens, SIAP_4_Avg_T_dens)
 
-rm(EarlyColonial_dens, LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, AGCensus1960_A_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003_dens, SIAP_4_2003a_dens, AGCensus2007_dens, SIAP_4_2020_dens, SIAP_4_2020a_dens, SIAP_4_Avg_dens, SIAP_4_Avg_T_dens, s, nnn)
 
 ```
 
@@ -1225,14 +1224,22 @@ rm(EarlyColonial_dens, LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens
 
 ```{r, label='Ridgeline Density Plot', message=FALSE,warning=FALSE}
 
+if (!require("desiderata")) {remotes::install_github("DesiQuintans/desiderata")}
 
-Dens.df$Series <- factor(Dens.df$Series, levels = c("16th Century Sample", "18th Century Sample", "Sanders Aztec Model\n (BOM Only)", "1960 Agricultural Census", "Sanders mid-20th Century\nSample (BOM Only)", "1991 Agricultural Census", "SIAP 2003", "2007 Agricultural Census", "SIAP 2020", "SIAP 2003-2021 Average"))
+#Dens.df$Series <- factor(Dens.df$Series, levels = c("16th Century Sample", "18th Century Sample", "Sanders Aztec Model\n (BOM Only)", "1960 Agricultural Census", "Sanders mid-20th Century\nSample (BOM Only)", "1991 Agricultural Census", "SIAP 2003", "2007 Agricultural Census", "SIAP 2020", "SIAP 2003-2021 Average"))
+
+Dens.df$Series <- factor(Dens.df$Series, levels = c("Early\nColonial\n(16th Century)\n\n", "Late\nColonial\n(18th Century)\n\n", "Sanders\nAztec\nModel**\n\n", "1960\nAgricultural\nCensus\n\n", "Sanders\nmid-20th\nCentury**\n\n", "1991\nAgricultural\nCensus\n\n", "SIAP 2003\n", "2007\nAgricultural\nCensus\n\n", "SIAP 2020\n", "SIAP\n2003-2021\nAverage\n\n"))
+
+Dens.df$Data <- factor(Dens.df$Data, levels = c("Overall municipal averages", "Municipal averages by type of land tenure\n(ejidos, large (>5 ha) and small (<5 ha) holdings)", "Municipal averages by cultivation type\n(irrigation and temporal)", "Sample of historically documented local-level yields", "Sample of ethnographically recorded local-level yields", "Carrying capacity model derived from\nmid-20th century data"))
 
 #"Overall municipal averages","Municipal Averages by cultivation type\n(irrigation and temporal)","Municipal averages by type of land tenure\n(ejidos, large (>5 ha) and small (<5 ha) holdings)","Local-level sample of recorded yields","Model derived from mid-20th century data"
+
+
+
 ggp1 <- ggplot() + 
   geom_ridgeline(data=Dens.df, aes(x=Yield, y=Series, height=Density*Height, fill=Data, color=Data), alpha=0.2,size=0.5)+
-  scale_fill_discrete(name = "Data Specifications") +#, labels = c("Theoretical Beta (Prior)", "Empirical Aoristic (Conditional)", "Final Bayesian Prior (Posterior)") 
-  scale_colour_discrete(name = "Data Specifications", drop = FALSE)+#, labels = c("Theoretical Beta (Prior)", "Empirical Aoristic (Conditional)", "Final Bayesian Prior (Posterior)")
+  scale_fill_discrete(name = "Type of Data", drop = FALSE) +#, labels = c("Theoretical Beta (Prior)", "Empirical Aoristic (Conditional)", "Final Bayesian Prior (Posterior)") 
+  scale_colour_discrete(name = "Type of Data", drop = FALSE)+#, labels = c("Theoretical Beta (Prior)", "Empirical Aoristic (Conditional)", "Final Bayesian Prior (Posterior)")
   guides(fill = guide_legend(byrow = TRUE), color = guide_legend(byrow = TRUE)) +
   #geom_vline(data=MP, aes(xintercept = years), linetype = "dashed", alpha=0.6)+
     labs(x ="Maize Yield (kg / ha)", y = "Probability Density")+#title="Bayesian Construction of Regional-Scale Popularity Curves", subtitle = "Ceramic Complexes in the S. Basin of Mexico", 
@@ -1241,24 +1248,26 @@ ggp1 <- ggplot() +
   #scale_y_discrete(expand = c(.05, .05)) +
     scale_x_continuous(limits= c(0,11000), breaks=seq(0,11000,1000)) +#,breaks = MyBreaks,labels = MyLabs
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
-          axis.text.y = element_text(color="black", face="bold"), 
-          axis.title.x = element_text(color="black", size=14, face="bold"),
-          axis.title.y = element_text(color="black", size=14, face="bold"),
+          axis.text.y = element_text(color="black", face="bold", size=10), 
+          axis.title.x = element_text(color="black", size=16, face="bold"),
+          axis.title.y = element_text(color="black", size=16, face="bold"),
           legend.justification=c(0,1), legend.position=c(0.55,0.55), 
           legend.title=element_text(color="black", face="bold", size = 14),#element_blank(),
           legend.spacing.y = unit(0.2,"cm"),
           legend.key = element_rect(colour = "transparent", fill = "transparent"),
-          legend.text = element_text(colour="black", size = 10))
-          #legend.background = element_rect(colour = 'black', fill = 'white', linetype='solid'), 
+          legend.text = element_text(colour="black", size = 10),
+          legend.background = element_rect(colour = 'black', fill = 'white', linetype='solid')) 
          # plot.title = element_text(hjust = 0.5, face="bold"), plot.subtitle = element_text(hjust = 0.5, face="bold"))+theme(plot.background = element_rect(fill = "white", colour = NA))
-
+ggp1 = ggp1 + rotate_y_text(angle = 0, align = 0.5, valign = 0.5)
+ggp1 <- add_sub(ggp1, "**These two data series pertain to the Basin of Mexico (BOM) only, while all others pertain to the broader Central Mexico study region.", x = 1, hjust = 1, size = 11)
 #save figure
 ggsave("RidgelineComparativeYields.png", plot = ggp1, device = "png", path = wd$figs, scale = 1, width = 10, height = 7,   units = "in",  dpi = 1500)
 
-rm(ggp1, Dens.df)
-
 # import figure for display
 knitr::include_graphics(paste0(wd$figs,"RidgelineComparativeYields.png"), FALSE)
+
+rm(ggp1, Dens.df, EarlyColonial_dens, LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, AGCensus1960_A_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003_dens, SIAP_4_2003a_dens, AGCensus2007_dens, SIAP_4_2020_dens, SIAP_4_2020a_dens, SIAP_4_Avg_dens, SIAP_4_Avg_T_dens, s, nnn)
+
 
 ```
 
