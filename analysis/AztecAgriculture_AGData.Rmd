@@ -80,7 +80,8 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
               "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra", 
-              "goft", "MASS", "NSM3", "ggsn", "rlang", "FSA", "philentropy")
+              "goft", "MASS", "NSM3", "ggsn", "rlang", "FSA", "philentropy", "sfdep",
+              "spdep", "spatialreg")
 
 
 # Install packages not yet installed
@@ -2155,6 +2156,10 @@ knitr::include_graphics(paste0(wd$figs,"Hists_SIAP_AGType_sdYieldLoss.png"), FAL
 
 #### C.V. Yield Loss Histograms
 
+
+Disadvantages
+When the mean value is close to zero, the CV becomes very sensitive to small changes in the mean
+
 ```{r, label='SIAP CV Yield Histograms', message=FALSE,warning=FALSE}
 
 h1 = ggplot(SIAP_5,aes(x = cvYieldLoss)) +
@@ -2258,7 +2263,7 @@ NOT IN 1960 = IN 1960
 
 ### 1960 Agricultural Census Yields ###
 
-AGC1960 = AGCensus1960 %>% filter(INCLUDE == TRUE) %>% 
+AGC1960 = CY_data_list[["AGCensus1960"]] %>% filter(INCLUDE == TRUE) %>% 
   select(Location, State, INCLUDE, Size, Maize1960_kg, Maize1960_ha) %>%
   rename(Municipio = Location, Estado = State) %>%
   mutate(Municipio = str_to_title(Municipio)) %>%
@@ -2295,7 +2300,7 @@ AGC1960 = AGC1960 %>% bind_rows(split_cases)
 
 ### 1991 Agricultural Census Yields ###
 
-AGC1991 = AGCensus1991 %>% 
+AGC1991 = CY_data_list[["AGCensus1991"]] %>% 
   select(Name, State, Yield) %>%
   rename(Municipio = Name, Estado = State, Y_1991_Total = Yield) %>%
   unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>%
@@ -2328,7 +2333,7 @@ AGC1991 = AGC1991 %>% bind_rows(split_cases)
 
 ### 2007 Agricultural Census Yields ###
 
-AGC2007 = AGCensus2007 %>% 
+AGC2007 = CY_data_list[["AGCensus2007"]] %>% 
   select(Name, State, Yield) %>%
   rename(Municipio = Name, Estado = State, Y_AGC2007_Total = Yield) %>%
   unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>%
@@ -2394,11 +2399,26 @@ scale2 <- function(x) (x - mean(x, na.rm = T)) / sd(x, na.rm = T)
 MunicipioYields_Z <- MunicipioYields %>% 
   mutate(across(where(is.numeric), scale2))
 
+st_write(MunicipioYields, paste0(wd$data_p, "MunicipioYields.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
+st_write(MunicipioYields_Z, paste0(wd$data_p, "MunicipioYields_Z.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
+
+geo <- st_geometry(MunicipioYields_Z)
+nb <- st_contiguity(geo)
+MunicipioYields_Z <- MunicipioYields_Z %>% 
+  mutate(nb = sfdep::st_contiguity(geom),
+         wt = sfdep::st_weights(nb, allow_zero = TRUE))
+
+nb <- MunicipioYields_Z$nb
+wt <- MunicipioYields_Z$wt
 
 
 ```
-
-
+x <- MunicipioYields_Z$AvgYield_Total
+moran <- global_moran_test(x, nb, wt, alternative = "two.sided", na.action=na.omit)
+paste0("Two-Sided Moran's I Test")
+paste0("St.Dev = ", signif(moran$statistic, 3), ",  p = ", signif(moran$p.value,2))
+paste0("Moran's I = ", signif(as.numeric(moran$estimate[1]), 3), ", Expectation = ", signif(as.numeric(moran$estimate[2]),1))
+moran.test(x, nb, na.action=na.omit, zero.policy=T)
 
 Total Variables
 
@@ -2416,8 +2436,24 @@ Maps of average maize yields by municipality
 ```{r, label='Basemaps', message=FALSE,warning=FALSE}
 Hillshade <- read_stars(paste0(wd$data_r, "HillshadeCMex.tif"))
 Estados <- st_read(paste0(wd$data_r, "StatesPoly.gpkg"))
-Estados2 = Estados %>% mutate(my_nudge_x=ifelse(NOM_ENT=='Puebla',-50000,0),
-                             my_nudge_y=ifelse(NOM_ENT=='Puebla',-65000,0))
+Estados2 = Estados %>% mutate(my_nudge_x = case_when(
+    NOM_ENT == "Mexico" ~ 4000,
+    NOM_ENT == "DF" ~ 0,
+    NOM_ENT == "Hidalgo" ~ -7000,
+    NOM_ENT == "Morelos" ~ 0,
+    NOM_ENT == "Puebla" ~ -50000,
+    NOM_ENT == "Tlaxcala" ~ 0,
+    NOM_ENT == "" ~ 0),
+    my_nudge_y = case_when(
+    NOM_ENT == "Mexico" ~ 1500,
+    NOM_ENT == "DF" ~ 0,
+    NOM_ENT == "Hidalgo" ~ 0,
+    NOM_ENT == "Morelos" ~ 0,
+    NOM_ENT == "Puebla" ~ -65000,
+    NOM_ENT == "Tlaxcala" ~ 0,
+    NOM_ENT == "" ~ 0))
+
+
 
 myPalette <- colorRampPalette(c("red4", "red4", "red4", "red4", "red", "orange", "yellow", "greenyellow", "green", "green4", "green4","green4", "green4"))
 #myPalette <- c("red4", "red4", "red", "orange", "yellow", "greenyellow", "green", "green4", "green4")
@@ -2451,14 +2487,16 @@ for (i in 1:length(var)) {
   v = paste0(var[i])
   t = paste0(tit[i])
   s = paste0(subtit[i])
+  val = MunicipioYields_Z[[var[i]]]
   map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
                              sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
                              sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
                              sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
                              sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
-                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = t, mysubtitle = s)
-}
-
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = t, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
+} 
+  
 names(map_list) <- name
 
 for (i in 1:length(name)) {
@@ -2515,7 +2553,7 @@ for (i in 1:length(name)) {
 
 paths <- paste0(wd$figs,paste0(name,".png"))
 
-knitr::include_graphics(paths, FALSE)
+#knitr::include_graphics(paths, FALSE)
 
 ```
 
@@ -2561,7 +2599,7 @@ for (i in 1:length(name)) {
 
 paths <- paste0(wd$figs,paste0(name,".png"))
 
-knitr::include_graphics(paths, FALSE)
+#knitr::include_graphics(paths, FALSE)
 
 ```
 
@@ -2609,7 +2647,7 @@ for (i in 1:length(name)) {
 
 paths <- paste0(wd$figs,paste0(name,".png"))
 
-knitr::include_graphics(paths, FALSE)
+#knitr::include_graphics(paths, FALSE)
 
 ```
 
@@ -2677,7 +2715,7 @@ mysubtitle
 
 map_list = list()
 
-var = c("AvgYieldLoss_Total", "sdYieldLoss_Total", "minYieldLoss_Total", "maxYieldLoss_Total", "medYieldLoss_Total", "cvYieldLoss_Total", "AvgYieldLoss_Temp", "sdYieldLoss_Temp", "minYieldLoss_Temp", "maxYieldLoss_Temp", "medYieldLoss_Temp", "cvYieldLoss_Temp", "AvgPlanted_Temp", "sdPlanted_Temp", "cvPlanted_Temp", "AvgYieldLoss_Irrig", "sdYieldLoss_Irrig", "minYieldLoss_Irrig", "maxYieldLoss_Irrig", "medYieldLoss_Irrig", "cvYieldLoss_Irrig")
+var = c("AvgYieldLoss_Total", "sdYieldLoss_Total", "minYieldLoss_Total", "maxYieldLoss_Total", "medYieldLoss_Total", "cvYieldLoss_Total", "AvgYieldLoss_Temp", "sdYieldLoss_Temp", "minYieldLoss_Temp", "maxYieldLoss_Temp", "medYieldLoss_Temp", "cvYieldLoss_Temp", "AvgYieldLoss_Irrig", "sdYieldLoss_Irrig", "minYieldLoss_Irrig", "maxYieldLoss_Irrig", "medYieldLoss_Irrig", "cvYieldLoss_Irrig")
 tit = "Central Mexico Study Region - SIAP 2003-2021"
 #yrs = 2003:2021
 subtit = c("Z-Score Average Total Maize Yield Loss", "Z-Score St.Dev. Total Maize Yield Loss", "Z-Score Minimum Total Maize Yield Loss", "Z-Score Maximum Total Maize Yield Loss", "Z-Score Median Total Maize Yield Loss", "Z-Score C.V. Total Maize Yield Loss", "Z-Score Average Temporal Maize Yield Loss", "Z-Score St.Dev. Temporal Maize Yield Loss", "Z-Score Minimum Temporal Maize Yield Loss", "Z-Score Maximum Temporal Maize Yield Loss", "Z-Score Median Temporal Maize Yield Loss", "Z-Score C.V. Temporal Maize Yield Loss", "Z-Score Average Irrigation Maize Yield Loss", "Z-Score St.Dev. Irrigation Maize Yield Loss", "Z-Score Minimum Irrigation Maize Yield Loss", "Z-Score Maximum Irrigation Maize Yield Loss", "Z-Score Median Irrigation Maize Yield Loss", "Z-Score C.V. Irrigation Maize Yield Loss")
@@ -2723,7 +2761,7 @@ mysubtitle
 
 map_list = list()
 
-var = c("AvgPctYieldLoss_Total", "sdPctYieldLoss_Total", "minPctYieldLoss_Total", "maxPctYieldLoss_Total", "medPctYieldLoss_Total", "cvPctYieldLoss_Total", "AvgPctYieldLoss_Temp", "sdPctYieldLoss_Temp", "minPctYieldLoss_Temp", "maxPctYieldLoss_Temp", "medPctYieldLoss_Temp", "cvPctYieldLoss_Temp", "AvgPlanted_Temp", "sdPlanted_Temp", "cvPlanted_Temp", "AvgPctYieldLoss_Irrig", "sdPctYieldLoss_Irrig", "minPctYieldLoss_Irrig", "maxPctYieldLoss_Irrig", "medPctYieldLoss_Irrig", "cvPctYieldLoss_Irrig")
+var = c("AvgPctYieldLoss_Total", "sdPctYieldLoss_Total", "minPctYieldLoss_Total", "maxPctYieldLoss_Total", "medPctYieldLoss_Total", "cvPctYieldLoss_Total", "AvgPctYieldLoss_Temp", "sdPctYieldLoss_Temp", "minPctYieldLoss_Temp", "maxPctYieldLoss_Temp", "medPctYieldLoss_Temp", "cvPctYieldLoss_Temp", "AvgPctYieldLoss_Irrig", "sdPctYieldLoss_Irrig", "minPctYieldLoss_Irrig", "maxPctYieldLoss_Irrig", "medPctYieldLoss_Irrig", "cvPctYieldLoss_Irrig")
 tit = "Central Mexico Study Region - SIAP 2003-2021"
 #yrs = 2003:2021
 subtit = c("Z-Score Average Total Maize % Yield Loss", "Z-Score St.Dev. Total Maize % Yield Loss", "Z-Score Minimum Total Maize % Yield Loss", "Z-Score Maximum Total Maize % Yield Loss", "Z-Score Median Total Maize % Yield Loss", "Z-Score C.V. Total Maize % Yield Loss", "Z-Score Average Temporal Maize % Yield Loss", "Z-Score St.Dev. Temporal Maize % Yield Loss", "Z-Score Minimum Temporal Maize % Yield Loss", "Z-Score Maximum Temporal Maize % Yield Loss", "Z-Score Median Temporal Maize % Yield Loss", "Z-Score C.V. Temporal Maize % Yield Loss", "Z-Score Average Irrigation Maize % Yield Loss", "Z-Score St.Dev. Irrigation Maize % Yield Loss", "Z-Score Minimum Irrigation Maize % Yield Loss", "Z-Score Maximum Irrigation Maize % Yield Loss", "Z-Score Median Irrigation Maize % Yield Loss", "Z-Score C.V. Irrigation Maize % Yield Loss")
@@ -2800,12 +2838,12 @@ for (i in 1:length(name)) {
 
 paths <- paste0(wd$figs,paste0(name,".png"))
 
-knitr::include_graphics(paths, FALSE)
+#knitr::include_graphics(paths, FALSE)
 
 ```
 
 
-#### SIAP Temporal-Total Ratio
+#### ****SIAP Temporal-Total Ratio
 
 new folder for maps
 
@@ -2894,7 +2932,7 @@ for (i in 1:length(name)) {
 
 paths <- paste0(wd$figs,paste0(name,".png"))
 
-knitr::include_graphics(paths, FALSE)
+#knitr::include_graphics(paths, FALSE)
 
 ```
 
@@ -2965,7 +3003,7 @@ for (i in 1:length(name)) {
 
 paths <- paste0(wd$figs,paste0(name,".png"))
 
-knitr::include_graphics(paths, FALSE)
+#knitr::include_graphics(paths, FALSE)
 
 ```
 
@@ -3013,7 +3051,7 @@ for (i in 1:length(name)) {
 
 paths <- paste0(wd$figs,paste0(name,".png"))
 
-knitr::include_graphics(paths, FALSE)
+#knitr::include_graphics(paths, FALSE)
 
 ```
 
@@ -3094,12 +3132,63 @@ plot(MunicipioYields_Z$Y_AGC2007_Total, MunicipioYields_Z$AvgYield_Temp)
 ```
 
 
+Spatial regression models are statistical models that incorporate spatial dependencies or spatial effects in the analysis of relationships between variables. These models account for the fact that observations in close proximity may be more similar or related to each other compared to observations that are farther apart. Here are explanations of different types of spatial regression models:
+
+Spatial Autoregressive (SAR) Model: The SAR model assumes that the value of a dependent variable in a specific location is influenced by the values of the dependent variable in neighboring locations. It incorporates a spatial lag term, which is the weighted average of the dependent variable values in neighboring locations, to capture the spatial dependence. The weights represent the spatial relationship between locations, typically based on distance or contiguity.
+
+Spatial Error (SE) Model: The SE model assumes that the errors or residuals of a traditional regression model are spatially correlated. It accounts for the spatial autocorrelation in the residuals by including a spatially structured error term in the model. This error term captures the unexplained spatial variation that is not accounted for by the independent variables.
+
+Spatial Durbin Model: The Spatial Durbin model combines elements of the SAR and SE models. It includes both a spatial lag term and a spatially structured error term. The model allows for examining the direct spatial spillover effects of both the dependent variable and the independent variables on the dependent variable.
+
+Geographically Weighted Regression (GWR): GWR is a local regression technique that estimates regression coefficients at each location based on the neighboring observations. It allows for spatially varying relationships between the dependent variable and independent variables. GWR takes into account the spatial heterogeneity in the relationships and provides insights into how the relationships change across space.
+
+These spatial regression models provide a framework to explore and analyze spatially dependent data, where the spatial relationships among observations are taken into account. They help to account for spatial autocorrelation, spatial heterogeneity, and spatial spillover effects, allowing for a more accurate analysis of the relationships between variables in a spatial context. The choice of model depends on the specific research question, data characteristics, and underlying assumptions about the spatial patterns in the data.
 
 
+The choice of spatial regression model depends on the characteristics of your data and the research question you want to answer. Here are some considerations for when to use different spatial regression models:
+
+SAR Model: The SAR model is appropriate when you expect that the value of a dependent variable in a specific location is influenced by the values of the dependent variable in neighboring locations. This model is suitable when there is a spatial process of diffusion, spillover, or spatial interaction that you want to capture in your analysis. SAR models are commonly used when there is a clear spatial autocorrelation pattern in the data.
+
+SE Model: The SE model is suitable when you believe that the residuals or errors of a traditional regression model exhibit spatial autocorrelation. This model is appropriate when you want to account for spatially correlated error terms that may arise due to unobserved spatially varying factors or omitted variables. SE models are useful when you expect that the errors have a spatial structure that is not captured by the independent variables.
+
+Spatial Durbin Model: The Spatial Durbin model is appropriate when you want to examine both the direct and indirect spatial effects of the dependent variable and the independent variables. It allows for investigating how changes in the values of the dependent and independent variables in neighboring locations impact the value of the dependent variable at a specific location. The Spatial Durbin model is suitable when you expect both spatial spillover effects and spatially structured error terms in your analysis.
+
+GWR: Geographically Weighted Regression is useful when you suspect that the relationships between the dependent variable and independent variables vary across space. It allows for estimating spatially varying regression coefficients and provides insights into how the relationships change across different locations. GWR is appropriate when you expect spatial heterogeneity or non-stationarity in the relationships and want to capture local variations in the data.
+
+It is important to note that the appropriate choice of spatial regression model also depends on the availability and quality of spatial data, the scale of analysis, and the underlying assumptions of the models. It is often valuable to explore and compare the results from different spatial regression models to gain a more comprehensive understanding of the relationships between variables in a spatial context.
 
 
 We can further test this by doing (geographically weighted?) regression of yields over time by municipio
 •	Regression table, possibly graphs
+
+
+```{r}
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Historical vs. Modern Regression by Municipality
 
@@ -3181,9 +3270,98 @@ knitr::include_graphics(paste0(wd$figs,"Hist_vs_Modern_Yields.png"), FALSE)
 
 ## Rescale Yield Data
 
+
 ```{r, label='xxx', message=FALSE,warning=FALSE}
+nom = "Mixquiahuala de Juarez, Hidalgo"
+x = SIAP_4 %>% filter(EstadoMunicipio == nom)
+x$Yield
+
+Entropy(x$Yield[complete.cases(x$Yield)])
+SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(sdYield_Total)
+SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(sdYield_Total)
+SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(cvYield_Total)
+SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(cvYield_Total)
+hist(x$Yield)
+#hist(x$PctYieldLoss)
 
 ```
+
+
+```{r, label='xxx', message=FALSE,warning=FALSE}
+nom = "Mixquiahuala de Juarez, Hidalgo"
+x = SIAP_4 %>% filter(EstadoMunicipio == nom)
+x$YieldLoss
+x$PctYieldLoss
+Entropy(x$YieldLoss[complete.cases(x$YieldLoss)])
+SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(sdYieldLoss_Total)
+SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(sdPctYieldLoss_Total)
+SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(cvYieldLoss_Total)
+SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(cvPctYieldLoss_Total)
+hist(x$YieldLoss)
+hist(x$PctYieldLoss)
+
+```
+Tlaltizapan de Zapata, Morelos
+Xochitepec, Morelos
+Tepoztlan, Morelos
+Cuernavaca, Morelos
+Yautepec, Morelos
+Ayala, Morelos
+
+Ozumba, Mexico
+Chalco, Mexico
+Coatepec Harinas, Mexico
+Tonatico, Mexico
+Coatepec Harinas, Mexico
+Ixtapan de la Sal, Mexico
+
+Tepeojuma, Puebla
+Huaquechula, Puebla
+Tlapanala, Puebla
+Tepexco, Puebla
+Tepemaxalco, Puebla
+San Diego la Mesa Tochimiltzingo, Puebla
+Teopantlan, Puebla
+
+
+!!!!!!!!!!!!!!!!!!!!
+NE, Estado de Mexico
+Nopaltepec, Mexico
+Axapusco, Mexico
+Temascalapa, Mexico
+San Martin de las Piramides, Mexico
+Tepetlaoxtoc, Mexico
+
+SE Hidalgo
+Apan, Hidalgo
+Emiliano Zapata, Hidalgo
+Singuilucan, Hidalgo
+Epazoyucan, Hidalgo
+Mineral del Monte, Hidalgo
+
+
+S. Hidalgo
+Mixquiahuala de Juarez, Hidalgo
+Tezontepec de Aldama, Hidalgo
+Tepetitlan, Hidalgo
+Tula de Allende, Hidalgo
+Tepeji del Rio de Ocampo, Hidalgo
+
+
+Tecamachalco Region, Puebla
+Yehualtepec, Puebla
+Xochitlan Todos Santos, Puebla
+Molcaxac, Puebla
+Tecamachalco, Puebla
+Quecholac, Puebla
+
+
+
+
+
+
+
+
 
 # Drafts
 

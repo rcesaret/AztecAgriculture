@@ -8,7 +8,7 @@
 #### 
 
 pak <- c("tidyverse", "rgdal", "rgeos", "GISTools", "sf", "stars", "rlang", 
-         "ggplot2", "ggsn", "ggnewscale")
+         "ggplot2", "ggsn", "ggnewscale", "sfdep")
 # Install packages not yet installed
 ip <- pak %in% rownames(installed.packages())
 if (any(ip == FALSE)) {
@@ -87,7 +87,12 @@ CMex_AG_Map <- function(stars_hillshade,
                         north_location = "topleft",
                         scale_bar = TRUE,
                         scale_dist_km = 50,
-                        scale_box_lims = c(357134,464000,2042755,2053000)
+                        scale_box_lims = c(357134,464000,2042755,2053000),
+                        global_moran = T,
+                        moran_nb,
+                        moran_wt,
+                        moran_val,
+                        moran_box = c()
                         ) {
   #if (sf1_aes_string == TRUE){
   #  colnames(sf1) <- gsub(sf1_geom, "sf1_geom", colnames(sf1))
@@ -95,7 +100,10 @@ CMex_AG_Map <- function(stars_hillshade,
   #  st_geometry(sf1) <- "sf1_geom"
   #}
   #quo_name
-
+  
+  
+  
+  
   Out <- ggplot2::ggplot() + 
     geom_stars(data = stars_hillshade) +
     scale_fill_gradient(low = "black", high = "white", guide="none") +
@@ -115,7 +123,7 @@ CMex_AG_Map <- function(stars_hillshade,
     geom_sf(data = sf2, aes(geometry = geom), fill = sf2_fill, color = sf2_color, 
             linewidth = sf2_linewidth, inherit.aes = F) +
     {if (sf2_label == TRUE) geom_sf_text(data = sf2, aes(label = {{ sf2_label_column }}), 
-                                         size = 9, color = "white", face="bold", 
+                                         size = 9, color = "white",
                                          nudge_x = sf2_label_nudge_x, 
                                          nudge_y = sf2_label_nudge_y)} +
     #{if (sf2_label == TRUE) geom_sf_text(data = sf2, aes(label = !!sym(sf2_label_column)), 
@@ -145,6 +153,25 @@ CMex_AG_Map <- function(stars_hillshade,
           plot.title = element_text(hjust = 0.5, face="bold", size=16),
           plot.subtitle = element_text(hjust = 0.5, face="bold", size=12),
           plot.background = element_rect(fill = "white", colour = NA))
+  
+  
+  if (global_moran == T) {
+    moran <- global_moran_test(moran_val, moran_nb, moran_wt, alternative = "two.sided", na.action=na.omit, zero.policy=T)
+    l1 = paste0("Moran's I Test")
+    l2 = paste0("(Two Sided)")
+    l3 = paste0("St.Dev: ", signif(moran$statistic, 3))
+    l4 = paste0("p = ", signif(moran$p.value,2))
+    l5 = paste0("Moran's I: ", signif(as.numeric(moran$estimate[1]), 3))
+    l6 = paste0("Exp: ", signif(as.numeric(moran$estimate[2]),1))
+    
+    Out = Out + annotate("rect", xmin = moran_box[1], xmax = moran_box[2], ymin = moran_box[3], ymax = moran_box[4], color = "white", fill="white") +
+      annotate("text", x = mean(moran_box[1:2]), y = (moran_box[4] -((moran_box[4] - moran_box[3])/7)), label = l1, fontface  = "bold") +
+      annotate("text", x = mean(moran_box[1:2]), y = (moran_box[4] -((moran_box[4] - moran_box[3])*(2/7))), label = l2, fontface  = "bold") +
+      annotate("text", x = mean(moran_box[1:2]), y = (moran_box[4] -((moran_box[4] - moran_box[3])*(3/7))), label = l3) +
+      annotate("text", x = mean(moran_box[1:2]), y = (moran_box[4] -((moran_box[4] - moran_box[3])*(4/7))), label = l4) +
+      annotate("text", x = mean(moran_box[1:2]), y = (moran_box[4] -((moran_box[4] - moran_box[3])*(5/7))), label = l5) +
+      annotate("text", x = mean(moran_box[1:2]), y = (moran_box[4] -((moran_box[4] - moran_box[3])*(6/7))), label = l6)
+  }
   
   return(Out)
 }
