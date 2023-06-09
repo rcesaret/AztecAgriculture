@@ -2227,6 +2227,103 @@ knitr::include_graphics(paste0(wd$figs,"Hists_SIAP_AGType_cvYieldLoss.png"), FAL
 
 
 
+### Yield Fluctuation
+
+```{r, label='Yield Fluctuation Data', message=FALSE,warning=FALSE}
+
+z = SIAP_4 %>% 
+  select(Municipio, Estado, EstadoMunicipio, Year, AGType, Harvested, Product) %>%
+  group_by(Municipio, Estado, EstadoMunicipio, Year) %>% 
+  summarize(AGType = "Total",
+    Yield = sum(Product, na.rm=T) / sum(Harvested, na.rm=T)) %>% 
+  ungroup() %>% 
+  group_by(EstadoMunicipio) %>%
+  mutate(avg = mean(Yield, na.rm=T),
+         sd = sd(Yield, na.rm=T)) %>% ungroup() %>% 
+  mutate(Zfluct_Yield = (Yield - avg) / sd) %>%
+  ungroup() %>% 
+  select(-Yield,-avg,-sd)
+  
+SIAP_ZFluct_long = SIAP_4 %>% 
+  select(Municipio, Estado, EstadoMunicipio, Year, AGType, Yield) %>%
+  group_by(EstadoMunicipio, AGType) %>%
+  mutate(Zfluct_Yield = (Yield - mean(Yield, na.rm=T)) / sd(Yield, na.rm=T)) %>%
+  ungroup() %>% 
+  select(-Yield) %>% 
+  bind_rows(z)
+
+```
+
+
+#### Yield Fluctuation Histograms
+
+
+```{r, label='SIAP Yield Loss Histograms', message=FALSE,warning=FALSE}
+x = SIAP_ZFluct_long %>% filter(!(AGType %in% c("Total")))
+
+h1 = ggplot(x,aes(x = Zfluct_Yield)) +
+  geom_histogram(aes(group = AGType, fill = AGType),alpha = 0.5, position = "identity", binwidth = 0.2, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("cyan1", "indianred1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  #geom_density(aes(group = AGType, color = AGType, y= ..count..), adjust = 2, size=1, alpha=0.5)+
+  #scale_color_manual(name = "Agriculture Type",values = c("cyan2", "firebrick1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  labs(x ="Annual Maize Yield Z-Score for Municipio", y = "Count")+
+    theme_bw()+
+    scale_y_continuous(breaks=seq(0,400,100))+
+    scale_x_continuous(limits= c(-4.5,4.5), breaks=seq(-4,4,1)) +
+    theme(axis.text.x = element_text(vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=12, face="bold"),
+          axis.title.y = element_text(color="black", size=12, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.025,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+y = x %>% mutate(AGType = "All") %>% bind_rows(z)
+
+h2 = ggplot(y,aes(x = Zfluct_Yield)) +
+  geom_histogram(aes(group = AGType, fill = AGType),alpha = 0.5, position = "identity", binwidth = 0.2, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("grey75", "greenyellow"), breaks = c("Total", "All"), labels = c("Total", "All"))+
+  #geom_density(aes(group = Series, color = Series, y=360 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  #scale_color_manual(name = "Agriculture Type",values = c("black", "green"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
+  labs(x ="Annual Maize Yield Z-Score for Municipio", y = "Count")+
+    theme_bw()+
+    scale_x_continuous(limits= c(-4.5,4.5), breaks=seq(-4,4,1)) +
+    theme(axis.text.x = element_text(vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=12, face="bold"),
+          axis.title.y = element_text(color="black", size=12, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.7,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+ggp2 = plot_grid(h1, h2, labels = c('A', 'B'), label_size = 24)
+
+
+#save figure
+ggsave("Hists_SIAP_Zfluct_Yield.png", plot = ggp2, device = "png", path = wd$figs, scale = 1, width = 8, height = 4.5,   units = "in",  dpi = 1500)
+
+Zfluct_YieldIrrig = x %>% filter(AGType == "Riego") %>% pull(Zfluct_Yield) %>% na.omit
+Zfluct_YieldTemp = x %>% filter(AGType == "Temporal") %>% pull(Zfluct_Yield) %>% na.omit
+Zfluct_YieldTotal = y %>% filter(AGType == "Total") %>% pull(Zfluct_Yield) %>% na.omit
+Zfluct_YieldAll = y %>% filter(AGType == "All") %>% pull(Zfluct_Yield) %>% na.omit
+
+shapiro.test(Zfluct_YieldIrrig[Zfluct_YieldIrrig > 0])
+shapiro.test(Zfluct_YieldTemp[Zfluct_YieldTemp > 0])
+shapiro.test(Zfluct_YieldTotal[Zfluct_YieldTotal > 0])
+shapiro.test(Zfluct_YieldAll[Zfluct_YieldAll > 0])
+
+rm(ggp2, x,y,z, h1, h2, Zfluct_YieldIrrig, Zfluct_YieldTemp, Zfluct_YieldTotal, Zfluct_YieldAll)
+
+# import figure for display
+knitr::include_graphics(paste0(wd$figs,"Hists_SIAP_Zfluct_Yield.png"), FALSE)
+```
+
+
+
 ## Maize Yield Maps
 
 ### Merge Data and Join with Municipio Polygons
@@ -2375,9 +2472,24 @@ SIAP_averages = SIAP_6 %>% select(-Estado_ID, -ddr, -ddr_ID, -Cader, -Cader_ID, 
 #SIAP_5 <- SIAP_5 %>% mutate(across(where(is.character) & !one_of(c("Estado_ID", "Estado", "ddr_ID", "ddr", "Cader_ID", "Cader", "Municipio_ID", "Municipio", "EstadoMunicipio", "AGType")), as.numeric)) 
 
 
+
+
+
+
+SIAP_ZFluct = SIAP_ZFluct_long %>% 
+  mutate(AGType = case_when(
+    AGType == "Riego" ~ "Irrig",
+    AGType == "Temporal" ~ "Temp",
+    AGType == "Total" ~ "Total")) %>% 
+  pivot_wider(
+    names_from = c(Year, AGType),
+    names_glue = "YZf_{Year}_{AGType}",
+    values_from = Zfluct_Yield)
+
+
 ### Merge Full SIAP 2003-2021 Data ###
 
-SIAP_yields = SIAP_annual %>% left_join(SIAP_averages, by = c("Municipio", "Estado", "EstadoMunicipio"))
+SIAP_yields = SIAP_annual %>% left_join(SIAP_averages, by = c("Municipio", "Estado", "EstadoMunicipio")) 
 
 rm(SIAP_annual, SIAP_averages, x, split_cases, rEM, rM)
 
@@ -2397,13 +2509,17 @@ MunicipioYields <- Municipios2000s %>%
 scale2 <- function(x) (x - mean(x, na.rm = T)) / sd(x, na.rm = T)
 
 MunicipioYields_Z <- MunicipioYields %>% 
-  mutate(across(where(is.numeric), scale2))
+  mutate(across(where(is.numeric), scale2)) %>%
+  left_join(SIAP_ZFluct, by = c("Municipio", "Estado", "EstadoMunicipio")) 
+
+MunicipioYields <- MunicipioYields %>% 
+  left_join(SIAP_ZFluct, by = c("Municipio", "Estado", "EstadoMunicipio")) 
 
 st_write(MunicipioYields, paste0(wd$data_p, "MunicipioYields.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
 st_write(MunicipioYields_Z, paste0(wd$data_p, "MunicipioYields_Z.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
 
-geo <- st_geometry(MunicipioYields_Z)
-nb <- st_contiguity(geo)
+#geo <- st_geometry(MunicipioYields_Z)
+#nb <- st_contiguity(geo)
 MunicipioYields_Z <- MunicipioYields_Z %>% 
   mutate(nb = sfdep::st_contiguity(geom),
          wt = sfdep::st_weights(nb, allow_zero = TRUE))
@@ -2465,13 +2581,6 @@ myLegendTitle = "Z-Score\nMaize\nYield" #"Maize\nYield\n(kg/ha)"
 
 
 #### Average Yields Over Time Maps
-
-new folder for maps
-
-sf1_fill
-sf1_fill_legend_title
-mytitle
-mysubtitle
 
 ```{r, label='Average Yields Over Time Maps', message=FALSE, warning=FALSE}
 
@@ -2536,13 +2645,15 @@ for (i in 1:length(var)) {
   v = paste0(var[i])
   #t = paste0(tit[i])
   s = paste0(subtit[i])
+  val = MunicipioYields_Z[[var[i]]]
   map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
                              sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
                              sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
                              sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
                              sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
-                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s)
-}
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = t, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
+} 
 
 names(map_list) <- name
 
@@ -2582,13 +2693,15 @@ for (i in 1:length(var)) {
   v = paste0(var[i])
   #t = paste0(tit[i])
   s = paste0(subtit[i])
+  val = MunicipioYields_Z[[var[i]]]
   map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
                              sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
                              sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
                              sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
                              sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
-                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s)
-}
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = t, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
+} 
 
 names(map_list) <- name
 
@@ -2630,13 +2743,15 @@ for (i in 1:length(var)) {
   v = paste0(var[i])
   #t = paste0(tit[i])
   s = paste0(subtit[i])
+  val = MunicipioYields_Z[[var[i]]]
   map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
                              sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
                              sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
                              sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
                              sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
-                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s)
-}
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = t, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
+} 
 
 names(map_list) <- name
 
@@ -2678,13 +2793,15 @@ for (i in 1:length(var)) {
   v = paste0(var[i])
   #t = paste0(tit[i])
   s = paste0(subtit[i])
+  val = MunicipioYields_Z[[var[i]]]
   map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
                              sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
                              sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
                              sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
                              sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
-                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s)
-}
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = t, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
+} 
 
 names(map_list) <- name
 
@@ -2727,13 +2844,15 @@ for (i in 1:length(var)) {
   v = paste0(var[i])
   #t = paste0(tit[i])
   s = paste0(subtit[i])
+  val = MunicipioYields_Z[[var[i]]]
   map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
                              sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
                              sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
                              sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
                              sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
-                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s)
-}
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = t, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
+} 
 
 names(map_list) <- name
 
@@ -2774,13 +2893,15 @@ for (i in 1:length(var)) {
   v = paste0(var[i])
   #t = paste0(tit[i])
   s = paste0(subtit[i])
+  val = MunicipioYields_Z[[var[i]]]
   map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
                              sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
                              sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
                              sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
                              sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
-                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s)
-}
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = t, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
+} 
 
 names(map_list) <- name
 
@@ -2821,13 +2942,15 @@ for (i in 1:length(var)) {
   v = paste0(var[i])
   #t = paste0(tit[i])
   s = paste0(subtit[i])
+  val = MunicipioYields_Z[[var[i]]]
   map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
                              sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
                              sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
                              sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
                              sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
-                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s)
-}
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = t, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
+} 
 
 names(map_list) <- name
 
@@ -2868,13 +2991,15 @@ for (i in 1:length(var)) {
   v = paste0(var[i])
   #t = paste0(tit[i])
   s = paste0(subtit[i])
+  val = MunicipioYields_Z[[var[i]]]
   map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
                              sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
                              sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
                              sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
                              sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
-                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s)
-}
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = t, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
+} 
 
 names(map_list) <- name
 
@@ -2915,13 +3040,15 @@ for (i in 1:length(var)) {
   v = paste0(var[i])
   #t = paste0(tit[i])
   s = paste0(subtit[i])
+  val = MunicipioYields_Z[[var[i]]]
   map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
                              sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
                              sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
                              sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
                              sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
-                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s)
-}
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = t, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
+} 
 
 names(map_list) <- name
 
@@ -2935,6 +3062,148 @@ paths <- paste0(wd$figs,paste0(name,".png"))
 #knitr::include_graphics(paths, FALSE)
 
 ```
+
+
+#### SIAP Annual Z-Score Average Yield Fluctuation
+
+
+```{r, label='SIAP Annual Z-Score Avy Total Yield Fluctuation', message=FALSE, warning=FALSE}
+
+map_list = list()
+
+var = c("YZf_2003_Total", "YZf_2004_Total", "YZf_2005_Total", "YZf_2006_Total", "YZf_2007_Total", "YZf_2008_Total", "YZf_2009_Total", "YZf_2010_Total", "YZf_2011_Total", "YZf_2012_Total", "YZf_2013_Total", "YZf_2014_Total",  "YZf_2015_Total",  "YZf_2016_Total",  "YZf_2017_Total",  "YZf_2018_Total", "YZf_2019_Total",  "YZf_2020_Total",  "YZf_2021_Total")
+tit = "Central Mexico Study Region - SIAP 2003-2021"
+yrs = 2003:2021
+#subtit = paste0("Annual Municipal Z-Score ", yrs, " Average Total Maize Yield")
+#subtit = c("Annual Municipal Z-Score Average Yield", "Z-Score St.Dev. Maize Price", "Z-Score C.V. Maize Price")
+
+name = paste0("SIAP_",var)
+
+
+for (i in 1:length(var)) {
+  v = paste0(var[i])
+  #t = paste0(tit[i])
+  s = paste0("Annual Municipal Z-Score ", yrs[i], " Average Overall Maize Yield")
+  val = MunicipioYields_Z[[var[i]]]
+  map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
+                             sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
+                             sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
+                             sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
+                             sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
+} 
+
+names(map_list) <- name
+
+for (i in 1:length(name)) {
+  n = paste0(name,".png")[i]
+  ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
+}
+
+paths <- paste0(wd$figs,paste0(name,".png"))
+
+#knitr::include_graphics(paths, FALSE)
+
+```
+
+
+
+#### SIAP Annual Z-Score Temporal Yield Fluctuation
+
+
+```{r, label='SIAP Annual Z-Score Avy Temporal Yield Fluctuation', message=FALSE, warning=FALSE}
+
+map_list = list()
+
+var = c("YZf_2003_Temp", "YZf_2004_Temp", "YZf_2005_Temp", "YZf_2006_Temp", "YZf_2007_Temp", "YZf_2008_Temp", "YZf_2009_Temp",
+"YZf_2010_Temp", "YZf_2011_Temp", "YZf_2012_Temp", "YZf_2013_Temp", "YZf_2014_Temp",  "YZf_2015_Temp",  "YZf_2016_Temp",  "YZf_2017_Temp",  "YZf_2018_Temp", "YZf_2019_Temp",  "YZf_2020_Temp",  "YZf_2021_Temp")
+tit = "Central Mexico Study Region - SIAP 2003-2021"
+yrs = 2003:2021
+#subtit = paste0("Annual Municipal Z-Score ", yrs, " Average Total Maize Yield")
+#subtit = c("Annual Municipal Z-Score Average Yield", "Z-Score St.Dev. Maize Price", "Z-Score C.V. Maize Price")
+
+name = paste0("SIAP_",var)
+
+
+for (i in 1:length(var)) {
+  v = paste0(var[i])
+  #t = paste0(tit[i])
+  s = paste0("Annual Municipal Z-Score ", yrs[i], " Average Temporal Maize Yield")
+  val = MunicipioYields_Z[[var[i]]]
+  map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
+                             sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
+                             sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
+                             sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
+                             sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
+} 
+
+names(map_list) <- name
+
+for (i in 1:length(name)) {
+  n = paste0(name,".png")[i]
+  ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
+}
+
+paths <- paste0(wd$figs,paste0(name,".png"))
+
+#knitr::include_graphics(paths, FALSE)
+
+```
+
+
+
+
+
+
+#### SIAP Annual Z-Score Irrigation Yield Fluctuation
+
+
+```{r, label='SIAP Annual Z-Score Avy Irrigation Yield Fluctuation', message=FALSE, warning=FALSE}
+
+map_list = list()
+
+var = c("YZf_2003_Irrig", "YZf_2004_Irrig", "YZf_2005_Irrig", "YZf_2006_Irrig", "YZf_2007_Irrig", "YZf_2008_Irrig", "YZf_2009_Irrig", "YZf_2010_Irrig", "YZf_2011_Irrig", "YZf_2012_Irrig", "YZf_2013_Irrig", "YZf_2014_Irrig",  "YZf_2015_Irrig",  "YZf_2016_Irrig",  "YZf_2017_Irrig", "YZf_2018_Irrig", "YZf_2019_Irrig",  "YZf_2020_Irrig",  "YZf_2021_Irrig")
+tit = "Central Mexico Study Region - SIAP 2003-2021"
+yrs = 2003:2021
+#subtit = paste0("Annual Municipal Z-Score ", yrs, " Average Total Maize Yield")
+#subtit = c("Annual Municipal Z-Score Average Yield", "Z-Score St.Dev. Maize Price", "Z-Score C.V. Maize Price")
+
+name = paste0("SIAP_",var)
+
+
+for (i in 1:length(var)) {
+  v = paste0(var[i])
+  #t = paste0(tit[i])
+  s = paste0("Annual Municipal Z-Score ", yrs[i], " Average Irrigation Maize Yield")
+  val = MunicipioYields_Z[[var[i]]]
+  map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = MunicipioYields_Z, sf1_aes_string = T, sf1_geom = "geom",
+                             sf1_fill = v, sf1_fill_palette = myPalette, sf1_fill_palette_n = 11,
+                             sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
+                             sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
+                             sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
+} 
+
+names(map_list) <- name
+
+for (i in 1:length(name)) {
+  n = paste0(name,".png")[i]
+  ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
+}
+
+paths <- paste0(wd$figs,paste0(name,".png"))
+
+#knitr::include_graphics(paths, FALSE)
+
+```
+
+
+
+
 
 
 ### 2000s Agricultural Census Maps
@@ -2983,7 +3252,7 @@ for (i in 1:length(var)) {
   v = paste0(var[i])
   #t = paste0(tit[i])
   s = paste0(subtit[i])
-  
+  val = MunicipioYields_Z[[var[i]]]
   myLimits2 = c(min(Census2000s_poly_Z[[v]], na.rm=T), max(Census2000s_poly_Z[[v]], na.rm=T))
   myBreaks2 = seq(myLimits2[1],  myLimits2[2], length.out = 7)
   map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = Census2000s_poly_Z, sf1_aes_string = T, sf1_geom = "geom",
@@ -2991,7 +3260,8 @@ for (i in 1:length(var)) {
                              sf1_fill_legend_title = myLegendTitle2, sf1_fill_legend_limits = myLimits2,
                              sf1_fill_legend_breaks = myBreaks2, sf2 = Estados, sf2_geom = geom,
                              sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
-                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s)
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
 }
 
 names(map_list) <- name
@@ -3031,7 +3301,7 @@ for (i in 1:length(var)) {
   v = paste0(var[i])
   #t = paste0(tit[i])
   s = paste0(subtit[i])
-  
+  val = MunicipioYields_Z[[var[i]]]
   myLimits2 = c(min(Census2000s_poly_Z[[v]], na.rm=T), max(Census2000s_poly_Z[[v]], na.rm=T))
   myBreaks2 = seq(myLimits2[1],  myLimits2[2], length.out = 7)
   map_list[[i]] <- CMex_AG_Map(stars_hillshade = Hillshade, sf1 = Census2000s_poly_Z, sf1_aes_string = T, sf1_geom = "geom",
@@ -3039,7 +3309,8 @@ for (i in 1:length(var)) {
                              sf1_fill_legend_title = myLegendTitle2, sf1_fill_legend_limits = myLimits2,
                              sf1_fill_legend_breaks = myBreaks2, sf2 = Estados, sf2_geom = geom,
                              sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
-                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s)
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = tit, mysubtitle = s,
+                             moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
 }
 
 names(map_list) <- name
@@ -3058,7 +3329,181 @@ paths <- paste0(wd$figs,paste0(name,".png"))
 
 
 
-## Change Over Time Regression****
+## Spatial Patterning of Average Yield Over Time
+
+
+The concept of bivariate spatial correlation is complex and often misinterpreted. It is typically considered to be the correlation between one variable and the spatial lag of another variable, as originally implemented in the precursor of GeoDa (e.g., as described in Anselin, Syabri, and Smirnov 2002). However, this does not take into account the inherent correlation between the two variables. More precisely, the bivariate spatial correlation is between xi and ∑jwijyj, but does not take into account the correlation between xi  and yi, i.e., between the two variables at the same location.
+
+
+
+In its initial conceptualization, as mentioned above, a bivariate Moran scatter plot extends the idea of a Moran scatter plot with a variable on the x-axis and its spatial lag on a y-axis to a bivariate context. The fundamental difference is that in the bivariate case the spatial lag pertains to a different variable. In essence, this notion of bivariate spatial correlation measures the degree to which the value for a given variable at a location is correlated with its neighbors for a different variable.
+
+
+I have two regression models, one is a spatial error regression and the other is standard OLS. My purpose is ONLY to evaluate the correlation between two variables. The OLS model has a low R^2 (0.15) while the spatial error model has a much higher Nagelkerke pseudo-R-squared (0.65). I think that this means that there is a considerable spatial correlation between the two variables when the spatial error term is considered. This should mean that higher than expected residual values suggest a missing explanatory variable that is spatially correlated. However, model validation via the Hausman specification test and likelihood-ratio test had very low p-values (p-value < 2.2e-16), rejecting the null hypothesis that the spatial error model coefficients are valid. But, again, I am only interested in correlation here -- rather than the regression coefficients and their predictive accuracy/validity. These cross-validation tests do not invalidate the high correlation achieved by the spatial error model, do they?
+ChatGPT
+The results of the Hausman specification test and likelihood-ratio test, with very low p-values rejecting the null hypothesis, indicate that there are significant differences between the coefficients of the spatial error model and the OLS model. These tests suggest that the spatial error model may not be the appropriate model for your data, and the coefficients obtained from this model may not be valid.
+
+While the spatial error model may provide a higher Nagelkerke pseudo-R-squared and suggest spatial correlation between the variables, it is important to consider the validity and reliability of the model. The low p-values in the tests indicate that the spatial error model is not preferred over the OLS model in terms of the coefficients' validity.
+
+It is worth noting that the spatial error model assumes that the spatial correlation captured by the spatial error term is the only source of spatial dependence in the data. If there are other unobserved spatial factors or omitted variables that are driving the spatial correlation, the spatial error model may not be appropriate or reliable.
+
+Therefore, it is important to interpret the results cautiously and consider other factors such as the model assumptions, goodness-of-fit measures, and diagnostic tests when evaluating the correlation between the variables. Additionally, it may be beneficial to explore other spatial regression models or methods to further investigate and validate the spatial correlation in your data.
+
+I am merely trying to test whether there is a spatial correlation using the spatial error term. This should mean that higher than expected residual values suggest a missing explanatory variable that is spatially correlated. Just as the pearson coefficient is a valid measure of correlation without a regression model, this also means that the spatial error model's Nagelkerke pseudo-R-squared *exists* independent of the validity of the model, correct?
+
+ the Nagelkerke pseudo-R-squared, which measures the proportion of variance explained by the spatial error model, exists independent of the validity of the model. It provides a measure of the overall fit of the model in terms of explaining the variation in the dependent variable.
+
+The Nagelkerke pseudo-R-squared, similar to other R-squared measures, indicates the proportion of the total variation in the dependent variable that is explained by the independent variables, including the spatial error term. In the context of spatial regression models, the spatial error term captures the unexplained spatial dependence or spatial autocorrelation in the data.
+
+Therefore, a higher Nagelkerke pseudo-R-squared value suggests a better fit of the spatial error model in explaining the variation in the dependent variable, accounting for both the observed independent variables and the unobserved spatial dependence.
+
+However, it is important to note that while the Nagelkerke pseudo-R-squared provides a measure of overall fit, it does not necessarily indicate the presence or absence of spatial correlation between specific variables. To explicitly test for spatial correlation between the variables of interest, you may consider other measures such as spatial autocorrelation statistics (e.g., Moran's I) or spatial regression diagnostics (e.g., spatial lag or error models).
+
+Additionally, it is recommended to interpret the results in the broader context of model assumptions, goodness-of-fit measures, and diagnostic tests to ensure the reliability and validity of the spatial regression model.
+
+
+
+
+
+```{r}
+
+sf_list <- list()
+bvMI_list <- list()
+cor_list <- list()
+ols_list <- list()
+MI_list <- list()
+error_lm_list <- list()
+# List of variables
+var = c("Y_1960_Total", "Y_1960_S", "Y_1991_Total", "Y_AGC2007_Total", "AvgYield_Total", "AvgYield_Irrig", "AvgYield_Temp")
+
+# Use combn() to get all combinations of pairs
+combinations <- combn(var, 2, simplify = FALSE)
+
+df <- data.frame(rep("",length(combinations)),rep("",length(combinations)),rep(0,length(combinations)),rep(0,length(combinations)),rep(0,length(combinations)))
+names(df) <- c("Series1", "Series2", "n", "Pearson", "bvMI")
+
+  #val = 
+  
+  
+# Loop to iterate over combinations
+for (i in seq_along(combinations)) {
+  
+  vars2 = c(combinations[[i]][1], combinations[[i]][2])
+  
+  zzz = MunicipioYields_Z %>% select(all_of(vars2))  %>% 
+    filter(!is.na(!!sym(vars2[1]))) %>%
+    filter(!is.na(!!sym(vars2[2]))) %>%
+    mutate(nb = sfdep::st_contiguity(geom),
+           wt = sfdep::st_weights(nb, allow_zero = T)) %>%
+    filter(!purrr::map_lgl(nb, function(x) length(x) == 1 && x == 0))%>%
+    mutate(nb = sfdep::st_contiguity(geom),
+           wt = sfdep::st_weights(nb, allow_zero = T))
+  nn <- nrow(zzz)
+  nb <- zzz$nb
+  wt <- zzz$wt
+  
+  
+  reg_formula <- paste(vars2[1], "~", vars2[2])
+  reg_formula <- as.formula(reg_formula)
+  ols <- lm(reg_formula, data = zzz)
+  olsSum = summary(ols)
+  ols$terms
+  zzz$residuals <- ols$residuals
+  residGMI = global_moran_test(zzz$residuals, nb, wt, alternative = "two.sided", na.action=na.omit, zero.policy=T)
+  
+  zzz %>% spdep::poly2nb(queen=TRUE) %>% spdep::nb2listw(style="W") -> zzzNbList
+  
+  LMtests = lm.LMtests(ols, zzzNbList, test="all")
+  
+  #SLX.model <- spatialreg::lmSLX(reg_formula, data=zzz, zzzNbList)
+  #SLX.model_sum = summary(SLX.model)
+  #SLX.model_sum_impacts = summary(spatialreg::impacts(SLX.model, zzzNbList), zstats = TRUE)[["pzmat"]]
+  
+  #sp.lag.model <- spatialreg::lagsarlm(reg_formula, data=zzz, zzzNbList)
+  #sp.lag.model_sum = summary(sp.lag.model, Nagelkerke = TRUE) #Nagelkerke pseudo-R-squared
+  #sp.lag.model_sum_impacts = summary(spatialreg::impacts(sp.lag.model, listw = zzzNbList, R=100), zstats = TRUE)[["pzmat"]]
+
+  sp.err.model <- spatialreg::errorsarlm(reg_formula, data = zzz, listw = zzzNbList)
+  sp.err.model_sum = summary(sp.err.model, Nagelkerke = TRUE) #Nagelkerke pseudo-R-squared
+  
+  #To test the validity of the error model we can run a Spatial Hausman Test to see if the results of the analysis verify our use of the model. Developed by Pace and LeSage, they state that: "For a given set of variables, a divergence between the coefficient estimates from a spatial error model and OLS suggest that neither is yielding regression parameter estimates matching the underlying parameters. This calls into questions use of either OLS or a standard error model for that set of variables." --Pace, R.K. and LeSage, J.P. (2008) A spatial Hausman test. Economics Letters 101(3), pgs. 282-284
+  
+  #spatialreg::Hausman.test(sp.err.model)
+  
+  #Based on the p-value of 0.4992 we would not reject the HO that the estimation method should yield coefficients appropriate for a spatial error model. If the p-value had been significant, we would have concluded that the use of OLS or a standard error model may not be appropriate for this set of variables.
+  #Spatial Durbin Error Model
+  #sd.err <- spatialreg::errorsarlm(reg_formula, data = zzz, listw = zzzNbList, etype = "emixed")
+  #summary(sd.err, Nagelkerke = TRUE)
+  #summary(spatialreg::impacts(sd.err, listw = zzzNbList, R = 100), zstats = TRUE)[["pzmat"]]
+  #Based on the impacts analysis, we can see not many of the impacts are significant, so we might consider limiting the model to either the spatial error, SLX, or OLS models. Since we have already run the analysis and determined the most appropriate model of those three, we should see similar results in our likelihood ration test. This will help us test the HO that we should restrict the model to a more simple model. The first step is to determine if we should restrict the model from a Spatial Durbin Error model to a spatial error mode.
+  #likelihood ratio test:
+  #LR.Sarlm(sd.err,sp.err.model)
+  #LR.Sarlm(sp.err.model,ols)
+  #Our results are saying that, with a high p-value of 0.1573, we should not reject the null hypothesis. Meaning that we should restrict the model to a spatial error model. To provide further evidence of that, the p-value for the comparison of the Spatial Durbin Error model and the SLX model is 0.0123 and 0.0435 for the OLS model, which means we should not restrict this to a SLX or OLS model.
+  
+  #Spatial Durbin Model
+  sdm <- spatialreg::lagsarlm(reg_formula, data = zzz, listw = zzzNbList, type = "mixed")
+  
+  sf_list[[i]] <- zzz
+  
+  bvMI_list[[i]] <- global_moran_bv(zzz[[vars2[1]]], 
+                                    zzz[[vars2[2]]], 
+                                    nb, wt, nsim = 99, scale = TRUE)
+  cor_list[[i]] <- cor(zzz[[vars2[1]]], zzz[[vars2[2]]], method = 'pearson')
+  
+  ols_list[[i]] <- ols
+  
+  MI_list[[i]] <- residGMI
+  
+  error_lm_list[[i]] <- sp.err.model
+  
+  df$Series1[i] = vars2[1]
+  df$Series2[i] = vars2[2]
+  df$n[i] = nn
+  
+  df$Pearson[i] = cor_list[[i]]
+  
+  df$bvMI[i] = bvMI_list[[i]]$t0
+  
+  df$ols_R2[i] = summary(ols)$r.squared
+  df$ols_pr[i] = as.numeric(pf(olsSum$fstatistic[1],olsSum$fstatistic[2],olsSum$fstatistic[3],lower.tail=F))
+  df$ols_se[i] = summary(ols)$sigma
+  
+  df$resid_MI_sd[i] = residGMI$statistic
+  df$resid_MI_pr[i] = residGMI$p.value
+  df$resid_MI_est[i] = as.numeric(residGMI$estimate[1])
+  df$resid_MI_exp[i] = as.numeric(residGMI$estimate[2])
+  
+  df$LMerr_pr[i] = LMtests[["LMerr"]][["p.value"]][[1]]
+  df$LMlag_pr[i] = LMtests[["LMerr"]][["p.value"]][[1]]
+  df$RLMerr_pr[i] = LMtests[["RLMerr"]][["p.value"]][[1]]
+  df$RLMlag_pr[i] = LMtests[["RLMerr"]][["p.value"]][[1]]
+  #df$SARMA_pr = LMtests[["RLMerr"]][["p.value"]][[1]]
+  
+  df$sp_err_NK_psR2[i] = sp.err.model_sum$NK #Nagelkerke pseudo-R-squared
+  df$sp_err_Wald[i] = sp.err.model_sum$Wald1$statistic #The Wald statistic, also known as the Wald test or Wald chi-square test, is a statistical test used to assess the significance of individual coefficients or groups of coefficients in a statistical model. It is commonly used in the context of generalized linear models (GLMs) and other regression models. The Wald statistic is based on the asymptotic theory of maximum likelihood estimation. It compares the estimated coefficient(s) to its/their standard error(s) and assesses whether the coefficient(s) significantly deviate from zero.
+  df$sp_err_Wald_pr[i] = sp.err.model_sum$Wald1$p.value #A small p-value (usually below a specified significance level, such as 0.05) indicates evidence against the null hypothesis, suggesting that the coefficient(s) is/are significantly different from zero.
+  df$sp_err_AIC[i] = sp.err.model$AIC_lm.model #Akaike Information Criterion. It is a measure used for model selection and comparison. The AIC value quantifies the trade-off between the goodness of fit of the model and the complexity of the model.  It penalizes models with more parameters, favoring simpler models that explain the data well with fewer parameters.
+  #df$ = sp.err.model$rest.se
+  df$sp_err_s2[i] = sp.err.model_sum$s2 #ML residual variance (sigma squared) represents the estimated variance of the error term in the model. The ML residual variance is estimated using maximum likelihood estimation, which aims to find the parameter values that maximize the likelihood of observing the data given the model. The ML estimation process estimates the residual variance by optimizing the fit of the model to the observed data. The ML residual variance is an important measure in model assessment, as it provides an indication of how well the model captures the variability in the data. A lower residual variance suggests a better fit of the model to the data, indicating that the model explains a larger proportion of the variability.
+  #df$ = sp.err.model_sum$SSE
+  
+  #df$ols_coef_a = as.numeric(ols$coefficients[2])
+  #df$ols_coef_a_se = summary(ols)$coefficients[3]
+  #df$ols_coef_a_pr = summary(ols)$coefficients[7]
+  #df$ols_coef_b = as.numeric(ols$coefficients[1])
+ # df$ols_coef_b_se = summary(ols)$coefficients[4]
+  #df$ols_coef_b_pr = summary(ols)$coefficients[8]
+  
+}
+
+
+```
+
+
+
+
+
 
 ```{r}
 if (!require("psych")) {install.packages("psych")}
