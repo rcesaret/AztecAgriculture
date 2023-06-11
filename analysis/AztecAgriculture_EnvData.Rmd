@@ -250,7 +250,7 @@ nam = c("DEM", "Slope", "Accum", "Accum_fd8", "TRI", "TWI", "STI", "SPI")
 
 names(TopoEnvData) = nam
 
-writeRaster(TopoEnvData, filename = paste0(wd$data_p, "TopoEnvData.tif"), overwrite=TRUE, append=FALSE)
+writeRaster(TopoEnvData, filename = paste0(wd$data_p, "TopoEnvData.tif"), overwrite=TRUE)
 
 TopoEnv_r <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
 
@@ -383,9 +383,29 @@ BDTICM <- BDTICMi[[1]]
 rm(BDTICMi)
 
 # World Reference Base (2006) Soil Groups
-#WRB <- rast(paste0(wd$data_r, "SoilGrids/WRB.tif"))
-#WRB <- resample(WRB, resample_100m, method = "bilinear")
-#names(WRB) <- "WRB"
+WRB <- rast(paste0(wd$data_r, "SoilGrids/WRB.tif"))
+WRB <- as.factor(WRB)
+cls = levels(WRB)[[1]] %>% select(-WRB) %>%
+  mutate(WRB = case_when(
+    ID == 0 ~ "NoData",
+    ID == 3 ~ "Andosols",
+    ID == 4 ~ "Arenosols",
+    ID == 5 ~ "Calcisols",
+    ID == 6 ~ "Cambisols",
+    ID == 9 ~ "Durisols",
+    ID == 11 ~ "Fluvisols",
+    ID == 12 ~ "Gleysols",
+    ID == 16 ~ "Leptosols",
+    ID == 18 ~ "Luvisols",
+    ID == 20 ~ "Phaeozems",
+    ID == 24 ~ "Regosols",
+    ID == 25 ~ "Solonchaks",
+    ID == 26 ~ "Solonetz",
+    ID == 28 ~ "Umbrisols",
+    ID == 29 ~ "Vertisols"))
+names(WRB) <- "WRB"
+levels(WRB) <- cls
+WRB <- resample(WRB, resample_100m, method = "near")
 
 # Bulk Density
 BD_0_5 <- raster(paste0(wd$data_r, "SoilGrids/BD_0_5.tif"))
@@ -525,14 +545,14 @@ SOCS <- SOCSi[[1]]
 rm(SOCSi)
 
 #Stack Rasters
-Soil = c(BDRICM, BDRLOG, BDTICM, BD, S, Z, C, SOC, CEC, OCD, N, SOCS)
+Soil = c(BDRICM, BDRLOG, BDTICM, BD, S, Z, C, SOC, CEC, OCD, N, SOCS, WRB)
 
 # Export Soil Raster Stack
 writeRaster(Soil, filename = paste0(wd$data_p, "Soil_r_resampled.tif"), overwrite=TRUE, append=FALSE)
 
 #Remove unnecessary variables
 rm(DEM_r, Slope, DepthWeights, m)
-rm(BDRICM, BDRLOG, BDTICM, BD, S, Z, C, SOC, CEC, OCD, N, SOCS)
+rm(BDRICM, BDRLOG, BDTICM, BD, S, Z, C, SOC, CEC, OCD, N, SOCS, WRB)
 
 ```
 
@@ -850,8 +870,365 @@ writeRaster(Clim_r, filename = paste0(wd$data_p, "Clim_r_resampled.tif"), overwr
 
 
 
+# Arable Area
+
+
+Streams and their order
+Elevation
+Slope
+
+0. Load
+--DEM
+--CONABIO_2015_LandUse_30m
+--FASII_Centro_AG_LandUse -- THIS NEEDS TO BE CROPPED
+--Mask for Tlaxcala, Hidalgo, Morelos + Some Municipios in DF
+--
+
+1. Rasterize 
+--SIAP_2015_Fields
+--FASII_Centro_AG_LandUse
+
+2. Get all rasters on the same resolution
+
+3. Calculate Topo Vars
+--incl streams... geomorphons??
+--curv
+
+4. Separate into Training and Prediction
+TRAINING
+--modern fields in Tlax_Hgo_Mor_partsDF == Arable (Present) == MASK
+
+Subtract modern fields from CONABIO_2015_LandUse_30m
+
+
+--Sample inarable == Inrable (Absent) **after mask is applied**
+Elevation == All areas >= 3100 masl
+All Slopes over 30 degrees
+All CONABIO_2015_LandUse_30m == 18 or 19
+All geomorphons == 2
+--Sampled areas from CONABIO_2015_LandUse_30m c(1:14, 16)
+--Sampled geomorphons == 9 with higher accum
+--Sampled BDRICM < 100
+--Sampled BDRLOG > 40
+--Sampled Elevation > 2850
+--Sampled Slopes > 15
+
+PREDICTION
+all areas not in the SIAP_2015_Fields raster
+
+5. Stack all of the data
+
+~~~Predict Irrigation~~~
+Both Training and Prediction within Predicted Arable Area
+Irrigation sampled from Irrigation land use area (rasterized)
+
+
+
+```{r}
+
+DEM <- rast(paste0(wd$data_r,"DEM.tif"))
+
+TRI <- terra::terrain(DEM, v="TRI")# calc Terrain Ruggedness Index
+slope <- terra::terrain(DEM, v="slope", unit="degrees")#Slope
+writeRaster(slope,paste0(wd$data_p,"temp_rasts/Slope_15m.tif"), overwrite=TRUE)
+wbt_breach_depressions(dem = paste0(wd$data_r,"DEM.tif"), output = paste0(wd$data_p,"temp_rasts/DEM_breach_15m.tif"))
+wbt_d8_flow_accumulation(paste0(wd$data_p,"temp_rasts/DEM_breach_15m.tif"), output=paste0(wd$data_p,"temp_rasts/Accum_15m.tif"), out_type = "specific contributing area")
+Accum <- rast(paste0(wd$data_p, "temp_rasts/Accum_15m.tif"))
+wbt_wetness_index(sca=paste0(wd$data_p,"temp_rasts/Accum_15m.tif"), slope=paste0(wd$data_p,"temp_rasts/Slope_15m.tif"), output=paste0(wd$data_p,"temp_rasts/TWI_15m.tif"), verbose_mode = FALSE)
+TWI <- rast(paste0(wd$data_p, "temp_rasts/TWI_15m.tif"))
+TWI <- focal(TWI, w=17, fun='max', na.policy="only", na.rm=T)
+wbt_stream_power_index(sca=paste0(wd$data_p,"temp_rasts/Accum_15m.tif"),slope=paste0(wd$data_p,"temp_rasts/Slope_15m.tif"),output=paste0(wd$data_p,"temp_rasts/SPI_15m.tif"),exponent = 1)
+SPI <- rast(paste0(wd$data_p, "temp_rasts/SPI_15m.tif"))
+wbt_fd8_flow_accumulation(paste0(wd$data_p,"temp_rasts/DEM_breach_15m.tif"), output=paste0(wd$data_p,"temp_rasts/Accum_fd8_15m.tif"), out_type = "specific contributing area")
+Accum_fd8 <- rast(paste0(wd$data_p, "temp_rasts/Accum_fd8_15m.tif"))
+wbt_sediment_transport_index(sca=paste0(wd$data_p,"temp_rasts/Accum_fd8_15m.tif"),slope=paste0(wd$data_p,"temp_rasts/Slope_15m.tif"),output=paste0(wd$data_p,"temp_rasts/STI_15m.tif"))
+STI <- rast(paste0(wd$data_p, "temp_rasts/STI_15m.tif"))
+
+Topo_r_15m <- (c(DEM, slope, Accum, Accum_fd8, TRI, TWI, STI, SPI))
+
+nam = c("DEM", "Slope", "Accum", "Accum_fd8", "TRI", "TWI", "STI", "SPI")
+
+names(Topo_r_15m) = nam
+
+rm(slope, Accum, Accum_fd8, TRI, TWI, STI, SPI, nam)
+
+writeRaster(Topo_r_15m, filename = paste0(wd$data_p, "Topo_r_15m.tif"), overwrite=TRUE)
+
+#DEM = Topo_r_15m[[1]]
+
+Soil <- rast(paste0(wd$data_p, "Soil_r_resampled.tif"))
+
+z <- resample(Soil[[1]], DEM, method = "bilinear")
+
+for (i in 2:3) {
+  a = resample(Soil[[i]], DEM, method = "bilinear")
+  z = c(z,a)
+}
+
+Soil_15m = z
+rm(z,a)
+#Clim_r <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
+#Clim_r_15m <- subset(Clim_r, c("tmin_04","tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10","tmin_11"))
+#Clim_r_15m <- resample(Clim_r, DEM, method = "bilinear")
+
+Geomorphons <- rast(paste0(wd$data_r,"CMex_15m_Geomorphons.tif"))
+Geomorphons <- as.factor(Geomorphons)
+cls = as.data.frame(levels(Geomorphons)[[1]])
+cls = cls %>% select(-CMex_15m_Geomorphons) %>%
+  mutate(Geomorphons = case_when(
+    ID == 1 ~ "Flat",
+    ID == 2 ~ "Summit",
+    ID == 3 ~ "Ridge",
+    ID == 4 ~ "Shoulder",
+    ID == 5 ~ "Spur",
+    ID == 6 ~ "Slope",
+    ID == 7 ~ "Hollow",
+    ID == 8 ~ "Footslope",
+    ID == 9 ~ "Valley",
+    ID == 10 ~ "Depression"))
+levels(Geomorphons) <- cls
+
+CONABIO_2015_LandUse_30m <- rast(paste0(wd$data_r,"CONABIO_2015_LandUse_30m.tif"))
+CONABIO_2015_LandUse_30m <- as.factor(CONABIO_2015_LandUse_30m)
+cls = levels(CONABIO_2015_LandUse_30m)[[1]] %>% select(-CONABIO_2015_LandUse_30m) %>%
+  mutate(LandUse = case_when(
+    ID == 1 ~ "Forest_Coniferous_Temperate",
+    ID == 2 ~ "Forest_Coniferous_Subpolar",
+    ID == 3 ~ "Forest_Evergreen_Subtropical",
+    ID == 4 ~ "Forest_Deciduous_Subtropical",
+    ID == 5 ~ "Forest_Deciduous_Temperate",
+    ID == 6 ~ "Forest_Mixed",
+    ID == 7 ~ "Scrub_Subtropical",
+    ID == 8 ~ "Scrub_Temperate",
+    ID == 9 ~ "Grass_Subtropical",
+    ID == 10 ~ "Grass_Temperate",
+    ID == 14 ~ "Wetland",
+    ID == 15 ~ "Agriculture",
+    ID == 16 ~ "Bare_Soil",
+    ID == 17 ~ "Settlement",
+    ID == 18 ~ "Water",
+    ID == 19 ~ "Glacial"),
+    LandUseGroups = case_when(
+    ID == 1 ~ "Forest_High",
+    ID == 2 ~ "Forest_High",
+    ID == 3 ~ "Forest_Low",
+    ID == 4 ~ "Forest_Low",
+    ID == 5 ~ "Forest_Low",
+    ID == 6 ~ "Forest_Low",
+    ID == 7 ~ "Scrub",
+    ID == 8 ~ "Scrub",
+    ID == 9 ~ "Grass",
+    ID == 10 ~ "Grass",
+    ID == 14 ~ "Wetland",
+    ID == 15 ~ "Agriculture",
+    ID == 16 ~ "Bare_Soil",
+    ID == 17 ~ "Settlement",
+    ID == 18 ~ "Water",
+    ID == 19 ~ "Glacial"),
+    Sampling = case_when(
+    ID == 1 ~ "Inarable_Sample_High",
+    ID == 2 ~ "Inarable_Sample_High",
+    ID == 3 ~ "Inarable_Sample_Med",
+    ID == 4 ~ "Inarable_Sample_Med",
+    ID == 5 ~ "Inarable_Sample_Med",
+    ID == 6 ~ "Inarable_Sample_Med",
+    ID == 7 ~ "Inarable_Sample_High",
+    ID == 8 ~ "Inarable_Sample_High",
+    ID == 9 ~ "Inarable_Sample_High",
+    ID == 10 ~ "Inarable_Sample_High",
+    ID == 14 ~ "Inarable_Sample_Med",
+    ID == 15 ~ "Agriculture",
+    ID == 16 ~ "Inarable_Sample_High",
+    ID == 17 ~ "Settlement",
+    ID == 18 ~ "Inarable_All",
+    ID == 19 ~ "Inarable_All"),
+    Sampling2 = case_when(
+    ID == 1 ~ "Sample",
+    ID == 2 ~ "Sample",
+    ID == 3 ~ "Sample",
+    ID == 4 ~ "Sample",
+    ID == 5 ~ "Sample",
+    ID == 6 ~ "Sample",
+    ID == 7 ~ "Sample",
+    ID == 8 ~ "Sample",
+    ID == 9 ~ "Sample",
+    ID == 10 ~ "Sample",
+    ID == 14 ~ "Sample",
+    ID == 15 ~ "Agriculture",
+    ID == 16 ~ "Sample",
+    ID == 17 ~ "Settlement",
+    ID == 18 ~ "Inarable",
+    ID == 19 ~ "Inarable"))
+
+levels(CONABIO_2015_LandUse_30m) <- cls
+activeCat(CONABIO_2015_LandUse_30m) <- "Sampling"
+
+CONABIO_2015_LandUse_15m <- resample(CONABIO_2015_LandUse_30m, DEM, method = "near")
+CONABIO_2015_LandUse_15m <- crop(CONABIO_2015_LandUse_15m, DEM)
+
+SIAP_2015_Fields <- vect(paste0(wd$data_r,"SIAP_2015_Fields.gpkg"))
+SIAP_2015_Fields_r <- rasterize(SIAP_2015_Fields, DEM, values = 1, background = -99)
+
+SIAP_2015_Mask <- vect(paste0(wd$data_r,"SIAP_2015_Mask.gpkg"))
+SIAP_2015_Mask <- terra::rasterize(SIAP_2015_Mask, DEM, values = 1, background = NA)
+
+SIAP_2015_Fields_r <- mask(SIAP_2015_Fields_r, SIAP_2015_Mask)
+
+rc <- c(-101, -98, 1,  0.25, 1.5, NA)
+rc <- matrix(rc, ncol=3, byrow=TRUE)
+Sampling_Area <- classify(SIAP_2015_Fields_r, rc)
+
+#Elevation == All areas >= 3100 masl
+q = DEM * Sampling_Area
+q = ifel(q >= 3100, 1, 0)
+Sampling_Area <- q + Sampling_Area 
+
+#All CONABIO_2015_LandUse_15m == 18 or 19
+#q2 = CONABIO_2015_LandUse_15m * Sampling_Area
+q = ifel(CONABIO_2015_LandUse_15m == 18 | CONABIO_2015_LandUse_15m == 19, 1, 0)
+Sampling_Area <- q + Sampling_Area 
+#qq <- q + qq 
+
+#All geomorphons == 2
+q = Geomorphons * Sampling_Area
+q = ifel(Geomorphons == 2, 1, 0)
+Sampling_Area <- q + Sampling_Area 
+#qq <- q + qq 
+
+### Sampling Area
+Sampling_Area2 = ifel(Sampling_Area > 1, NA, Sampling_Area)
+
+#Sampled areas from CONABIO_2015_LandUse_15m c(1:14, 16)
+q = ifel(CONABIO_2015_LandUse_15m < 15 | CONABIO_2015_LandUse_15m == 16, 1, 0)
+Sampling_Area2 <- q + Sampling_Area2
+
+#Sampled geomorphons == 9,10 with higher accum
+q = ifel(Geomorphons == 9 | Geomorphons == 10 , 1, 0)
+Sampling_Area2 <- q + Sampling_Area2
+
+#Sampled BDRICM < 100
+q = ifel(Soil_15m[["BDRICM"]] < 100, 1, 0)
+Sampling_Area2 <- q + Sampling_Area2
+
+#Sampled BDRLOG > 40
+q = ifel(Soil_15m[["BDRLOG"]] > 40, 1, 0)
+Sampling_Area2 <- q + Sampling_Area2
+
+#Sampled Elevation > 2850
+q = ifel(DEM >= 2850, 1, 0)
+Sampling_Area2 <- q + Sampling_Area2
+
+#Sampled Slopes > 15
+q = ifel(Topo_r_15m[["Slope"]] > 15, 1, 0)
+Sampling_Area2 <- q + Sampling_Area2
+
+#STI >15*********
+q = ifel(Topo_r_15m[["STI"]] > 15, 1, 0)
+Sampling_Area2 <- q + Sampling_Area2
+
+#TRI >15
+q = ifel(Topo_r_15m[["STI"]] > 15, 1, 0)
+Sampling_Area2 <- q + Sampling_Area2
+#Accum>4500
+#TWI > 15
+#SPI >300-500
+
+writeRaster(Sampling_Area2, filename = paste0(wd$data_r, "Sampling_Area2.tif"), overwrite=TRUE)
+
+
+s = spatSample(Sampling_Area2, size = 200000, method="stratified", replace=FALSE, na.rm=T, exhaustive=T)
+
+rc <- c(3100, 10000, 1,  0.25, 1.5, NA)
+rc <- matrix(rc, ncol=3, byrow=TRUE)
+Sampling_Area <- classify(SIAP_2015_Fields_r, rc)
+
+z = spatSample(Sampling_Area, size = 200000, method="stratified", replace=FALSE, na.rm=T, exhaustive=T)
+, as.points=T
+z <- as(z, "Spatial")
+v <- terra::extract(Sampling_Area, z, cells=T)
+v <- unique(v[,3])
+m = Sampling_Area
+Sampling_Area[v] <- 2
+
+z = SpatialPoints(z)
+
+v <- extract(Sampling_Area, z, cellnumbers=T)
+
+df = crds(SIAP_2015_Fields_r, df=T, na.rm=T)
+  df$r = as.numeric(values(r))
+  df$r[is.nan(df$r)] <- NA
+  df$na_cells <- is.na(df$r)
+  colnames(df) <- c("x", "y", colname, "na_cells")
+  return(df)
+
+m_df = Terra_df(SIAP_2015_Mask, "Train_States_Mask")
+names(m_df) <- c("x", "y", "Train_States_Mask", "outside")
+r_df = Terra_df(r, "Arable")
+names(m_df) <- c("x", "y", "Arable", "can_sample")
+r_df = r_df %>% 
+
+  
+  
+  
+names(m_df) <- c("x", "y", "Train_States_Mask", "outside")
+    r_df = merge(r_df, m_df, all = F, sort = F)
+
+
+
+m <- vect(paste0(wd$data_p, "Municipios2000s_Data.gpkg"))
+Prediction_mask <- rasterize(SIAP_2015_Fields, DEM, values = NA, background = 1)
+Prediction_mask <- mask(Prediction_mask, m)
+
+Train_Response 
+
+
+as.bool(x, filename, ...)
+
+values(DEM) <- 1
+m <- mask(resample_100m_b, Municipios2000s)
 
 
 
 
+
+r_df = Terra_df(r, rnam)
+
+
+
+
+# Define your reclassification rules
+reclass_rules <- c(0:50, 1,
+                  51:100, 2,
+                  101:150, 3)
+
+# Reclassify the raster using the defined rules
+reclassified_raster <- reclassify(r, reclass_rules)
+m <- c(-101, -98, 1,  0.25, 0.5, 2,  0.5, 1, 3)
+rclmat <- matrix(m, ncol=3, byrow=TRUE)
+rc <- reclassify(SIAP_2015_Fields_r, rclmat, include.lowest=TRUE)
+
+
+```
+
+4. Separate into Training and Prediction
+TRAINING
+--modern fields in Tlax_Hgo_Mor_partsDF == Arable (Present) == MASK
+
+Subtract modern fields from CONABIO_2015_LandUse_30m
+
+
+--Sample inarable == Inrable (Absent) **after mask is applied**
+Elevation == All areas >= 3100 masl
+All Slopes over 30 degrees
+All CONABIO_2015_LandUse_30m == 18 or 19
+All geomorphons == 2
+--Sampled areas from CONABIO_2015_LandUse_30m c(1:14, 16)
+--Sampled geomorphons == 9 with higher accum
+--Sampled BDRICM < 100
+--Sampled BDRLOG > 40
+--Sampled Elevation > 2850
+--Sampled Slopes > 15
+
+PREDICTION
+all areas not in the SIAP_2015_Fields raster
 

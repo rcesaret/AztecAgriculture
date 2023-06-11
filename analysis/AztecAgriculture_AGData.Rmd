@@ -106,6 +106,9 @@ rm(FUNCS)
 
 # 2000s Agricultural Data
 
+
+
+
 ## Municipios
 
 ```{r, 'Load Municipios Polygons', message=FALSE, warning=FALSE}
@@ -1068,6 +1071,54 @@ rm(LU_Cases, SIAP_Cases, LU2000e, SIAP_LU_poly, SIAP_LU_poly, SIAP_LU_poly_Cases
  
  
  
+## Remove Cases
+
+```{r}
+
+CASES_REMOVE = TRUE
+
+SAVE_DATA = FALSE
+#"Soyaniquilpan de Juarez, Mexico", 
+cases_remove <- c("Mixquiahuala de Juarez, Hidalgo", "Tezontepec de Aldama, Hidalgo", "Tepetitlan, Hidalgo", "Tula de Allende, Hidalgo", "Tepeji del Rio de Ocampo, Hidalgo", "Tlaxcoapan, Hidalgo", "Tlahuelilpan, Hidalgo", "Atitalaquia, Hidalgo", "Atotonilco de Tula, Hidalgo", "Francisco I. Madero, Hidalgo", "Tetepango, Hidalgo", "Ajacuba, Hidalgo", "Tetepango, Hidalgo")
+
+
+if (CASES_REMOVE == TRUE) {
+  
+  SIAP_3 = SIAP_3 %>% filter(!(EstadoMunicipio %in% cases_remove))
+  SIAP_4 = SIAP_4 %>% filter(!(EstadoMunicipio %in% cases_remove))
+  SIAP_5 = SIAP_5 %>% filter(!(EstadoMunicipio %in% cases_remove))
+  SIAP_6 = SIAP_6 %>% filter(!(EstadoMunicipio %in% cases_remove))
+  Data2000s_poly = Data2000s_poly %>% filter(!(EstadoMunicipio %in% cases_remove))
+  Data2000s_cases = Data2000s_cases %>% filter(!(EstadoMunicipio %in% cases_remove))
+  LU2000e = LU2000e %>% filter(!(EstadoMunicipio %in% cases_remove))
+  Census2000s_poly = Census2000s_poly %>% filter(!(EstadoMunicipio %in% cases_remove))
+  Census2000s = Census2000s %>% filter(!(EstadoMunicipio %in% cases_remove))
+  Municipios2000s_Cases = Municipios2000s_Cases %>% filter(!(EstadoMunicipio %in% cases_remove))
+  Municipios2000s = Municipios2000s %>% filter(!(EstadoMunicipio %in% cases_remove))
+  
+  if (SAVE_DATA == TRUE) {
+    
+    st_write(Data2000s_poly, paste0(wd$data_p, "Data2000s_poly.gpkg"), driver = "GPKG", overwrite=TRUE, append=FALSE)
+    write.csv(Data2000s_cases, paste0(wd$data_p,"Data2000s_poly.csv"))
+    write.csv(SIAP_3, paste0(wd$data_r,"SIAP_3.csv"))
+    write.csv(SIAP_4, paste0(wd$data_r,"SIAP_4.csv"))
+    write.csv(SIAP_5, paste0(wd$data_r,"SIAP_5.csv"))
+    write.csv(SIAP_6, paste0(wd$data_r,"SIAP_6.csv"))
+    write.csv(Census2000s, paste0(wd$data_r,"CensusData2000s.csv"))
+    st_write(LU2000e, paste0(wd$data_r, "LU2000e.gpkg"), driver = "GPKG", overwrite=TRUE, append=FALSE)
+    Municipios2000s_Cases = st_drop_geometry(Municipios2000s)
+    st_write(Municipios2000s, paste0(wd$data_p, "Municipios2000s_Data.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
+    st_write(Census2000s_poly, paste0(wd$data_r, "Census2000s_poly.gpkg"), driver = "GPKG", overwrite=TRUE, append=FALSE)
+    
+  }
+  
+  
+}
+
+
+
+```
+
  
  
  
@@ -1097,6 +1148,17 @@ AGCensus2007 <- read.csv(paste0(wd$data_r,"AGCensus2007_MaizeYields.csv"))
 SandersAztec <- read.csv(paste0(wd$data_r,"SandersModelAztecBOM2.csv"))
 
 SandersC20 <- read.csv(paste0(wd$data_r,"SandersC20EthnogBOM.csv"))
+
+if (CASES_REMOVE == TRUE) {
+  
+  cases_remove_CAP <- toupper(cases_remove)
+  
+  AGCensus1960 = AGCensus1960 %>% filter(!(NOM %in% cases_remove_CAP))
+  AGCensus1991 = AGCensus1991 %>% filter(!(NOM %in% cases_remove_CAP))
+  AGCensus2007 = AGCensus2007 %>% filter(!(Municipio %in% cases_remove))
+  
+}
+
 
 ```
 
@@ -2326,7 +2388,7 @@ knitr::include_graphics(paste0(wd$figs,"Hists_SIAP_Zfluct_Yield.png"), FALSE)
 
 ## Maize Yield Maps
 
-### Merge Data and Join with Municipio Polygons
+### Prepare Map Data
 •	Merge 1960, 1991, 2007 and SIAP data with municipios polygons
 
 NOT IN 1960 = IN 1960
@@ -2356,7 +2418,9 @@ NOT IN 1960 = IN 1960
 "Santa Isabel Xiloxoxtla, Tlaxcala" = "Zacatelco, Tlaxcala", 
 "Temoac, Morelos" = "Zacualpan, Morelos", 
 
-```{r, label='Merge Data and Join with Municipio Polygons', message=FALSE,warning=FALSE}
+
+
+```{r, label='Prepare Map Data', message=FALSE,warning=FALSE}
 
 ### 1960 Agricultural Census Yields ###
 
@@ -2379,6 +2443,7 @@ AGC1960 = CY_data_list[["AGCensus1960"]] %>% filter(INCLUDE == TRUE) %>%
   mutate(across(everything(), ~ifelse(is.nan(.), NA, .))) %>% 
   rename(Y_1960_E = Ejido, Y_1960_S = Small, Y_1960_L = Large, Y_1960_Total = Total)
 
+
 # 1960 split municipios
 
 rEM = c("Santa Cruz Quilehtla, Tlaxcala", "Valle de Chalco Solidaridad, Mexico", "La Magdalena Tlaltelulco, Tlaxcala", "San Francisco Tetlanohcan, Tlaxcala", "Cuautitlan Izcalli, Mexico", "Santa Ana Nopalucan, Tlaxcala", "Tonanitla, Mexico", "Cuauhtemoc, Distrito Federal", "Venustiano Carranza, Distrito Federal", "Benito Juarez, Distrito Federal", "Santa Apolonia Teacalco, Tlaxcala", "San Jose del Rincon, Mexico", "Benito Juarez, Tlaxcala", "San Juan Huactzinco, Tlaxcala", "Santa Catarina Ayometla, Tlaxcala", "Emiliano Zapata, Tlaxcala", "Lazaro Cardenas, Tlaxcala", "San Damian Texoloc, Tlaxcala", "San Jeronimo Zacualpan, Tlaxcala", "Tlahuelilpan, Hidalgo", "San Jose Teacalco, Tlaxcala", "San Lucas Tecopilco, Tlaxcala", "San Lorenzo Axocomanitla, Tlaxcala", "Santa Isabel Xiloxoxtla, Tlaxcala", "Temoac, Morelos")
@@ -2393,6 +2458,7 @@ split_cases$Municipio = rM
 split_cases$EstadoMunicipio = rEM
 split_cases = split_cases %>% select(-count)
 AGC1960 = AGC1960 %>% bind_rows(split_cases)
+
 
 
 ### 1991 Agricultural Census Yields ###
@@ -2444,6 +2510,18 @@ AGC2007 = CY_data_list[["AGCensus2007"]] %>%
                                     "Atltzayanca" = "Altzayanca"))) %>%
   mutate(Y_AGC2007_Total = as.numeric(Y_AGC2007_Total))# %>%
   #mutate(AGType = "Total")
+
+
+
+if (CASES_REMOVE == TRUE) {
+  
+  AGC1960 = AGC1960 %>% filter(!(EstadoMunicipio %in% cases_remove))
+  AGC1991 = AGC1991 %>% filter(!(EstadoMunicipio %in% cases_remove))
+  AGC2007 = AGC2007 %>% filter(!(EstadoMunicipio %in% cases_remove))
+  
+}
+
+
 
 ### SIAP 2003-2021 ANNUAL Yields ###
 
@@ -2529,6 +2607,8 @@ wt <- MunicipioYields_Z$wt
 
 
 ```
+
+
 x <- MunicipioYields_Z$AvgYield_Total
 moran <- global_moran_test(x, nb, wt, alternative = "two.sided", na.action=na.omit)
 paste0("Two-Sided Moran's I Test")
@@ -2545,7 +2625,7 @@ PctArea_AvgHarvested = AvgHarvested / Area_ha
 PctArea_AvgProduct = AvgProduct / Area_ha
 PctArea_AvgValue = AvgValue / Area_ha
 
-### Maps of Average Yield Over Time
+### Maps 
 Maps of average maize yields by municipality
 •	Same spatial patterning??
 
