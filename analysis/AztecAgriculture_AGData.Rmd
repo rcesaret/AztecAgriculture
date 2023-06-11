@@ -2613,7 +2613,7 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name, ".png"))
 
 knitr::include_graphics(paths, FALSE)
 
@@ -2662,7 +2662,7 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
 #knitr::include_graphics(paths, FALSE)
 
@@ -2671,12 +2671,6 @@ paths <- paste0(wd$figs,paste0(name,".png"))
 
 #### SIAP Temporal Yield Time Series
 
-new folder for maps
-
-sf1_fill
-sf1_fill_legend_title
-mytitle
-mysubtitle
 
 ```{r, label='SIAP Temporal Yield Time Series', message=FALSE, warning=FALSE}
 
@@ -2710,7 +2704,7 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
 #knitr::include_graphics(paths, FALSE)
 
@@ -2721,12 +2715,7 @@ paths <- paste0(wd$figs,paste0(name,".png"))
 
 #### SIAP Irrigation Yield Time Series
 
-new folder for maps
 
-sf1_fill
-sf1_fill_legend_title
-mytitle
-mysubtitle
 
 ```{r, label='SIAP Irrigation Yield Time Series', message=FALSE, warning=FALSE}
 
@@ -2760,7 +2749,7 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
 #knitr::include_graphics(paths, FALSE)
 
@@ -2770,12 +2759,7 @@ paths <- paste0(wd$figs,paste0(name,".png"))
 
 #### SIAP Yield Variability
 
-new folder for maps
 
-sf1_fill
-sf1_fill_legend_title
-mytitle
-mysubtitle
 
 ```{r, label='SIAP Yield Variability', message=FALSE, warning=FALSE}
 
@@ -2810,7 +2794,7 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
 knitr::include_graphics(paths, FALSE)
 
@@ -2821,12 +2805,7 @@ knitr::include_graphics(paths, FALSE)
 
 #### SIAP Yield Loss
 
-new folder for maps
 
-sf1_fill
-sf1_fill_legend_title
-mytitle
-mysubtitle
 
 ```{r, label='SIAP Yield Loss', message=FALSE, warning=FALSE}
 
@@ -2861,20 +2840,17 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
 knitr::include_graphics(paths, FALSE)
 
 ```
 
+
+
 #### SIAP Percent Yield Loss
 
-new folder for maps
 
-sf1_fill
-sf1_fill_legend_title
-mytitle
-mysubtitle
 
 ```{r, label='SIAP Percent Yield Loss', message=FALSE, warning=FALSE}
 
@@ -2910,7 +2886,7 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
 knitr::include_graphics(paths, FALSE)
 
@@ -2919,12 +2895,6 @@ knitr::include_graphics(paths, FALSE)
 
 #### SIAP Irrigation-Total Ratio
 
-new folder for maps
-
-sf1_fill
-sf1_fill_legend_title
-mytitle
-mysubtitle
 
 ```{r, label='SIAP Irrigation-Total Ratio', message=FALSE, warning=FALSE}
 
@@ -2959,7 +2929,7 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
 #knitr::include_graphics(paths, FALSE)
 
@@ -2968,12 +2938,7 @@ paths <- paste0(wd$figs,paste0(name,".png"))
 
 #### ****SIAP Temporal-Total Ratio
 
-new folder for maps
 
-sf1_fill
-sf1_fill_legend_title
-mytitle
-mysubtitle
 
 ```{r, label='SIAP Temporal-Total Ratio', message=FALSE, warning=FALSE}
 
@@ -3008,7 +2973,7 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
 knitr::include_graphics(paths, FALSE)
 
@@ -3017,12 +2982,6 @@ knitr::include_graphics(paths, FALSE)
 
 #### SIAP Maize Price
 
-new folder for maps
-
-sf1_fill
-sf1_fill_legend_title
-mytitle
-mysubtitle
 
 ```{r, label='SIAP Maize Price', message=FALSE, warning=FALSE}
 
@@ -3057,7 +3016,7 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
 #knitr::include_graphics(paths, FALSE)
 
@@ -3101,7 +3060,7 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
 #knitr::include_graphics(paths, FALSE)
 
@@ -3147,9 +3106,9 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
-#knitr::include_graphics(paths, FALSE)
+knitr::include_graphics(paths, FALSE)
 
 ```
 
@@ -3195,9 +3154,9 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
-#knitr::include_graphics(paths, FALSE)
+knitr::include_graphics(paths, FALSE)
 
 ```
 
@@ -3271,9 +3230,9 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
-#knitr::include_graphics(paths, FALSE)
+knitr::include_graphics(paths, FALSE)
 
 ```
 
@@ -3320,9 +3279,9 @@ for (i in 1:length(name)) {
   ggsave(n, plot = map_list[[i]], device = "png", path = wd$figs, scale = 1, width = 6.85, height = 5.257, units = "in",  dpi = 1500)
 }
 
-paths <- paste0(wd$figs,paste0(name,".png"))
+paths <- paste0(wd$figs,paste0("Maps/", name,".png"))
 
-#knitr::include_graphics(paths, FALSE)
+knitr::include_graphics(paths, FALSE)
 
 ```
 
