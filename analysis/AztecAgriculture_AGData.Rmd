@@ -251,7 +251,8 @@ Census2000s <- Census2000s %>% mutate(
   DraftAnimals_perHa = DraftAnimals_Total / AGPasture_ha, # Density of draught animals per hectare of agriculture+pasture land
   Pct_AG_ha = AG_ha / AGPasture_ha, # Percentage of total agriculture+pasture land that is agricultural
   Pct_Pasture_ha = Pasture_ha / AGPasture_ha, # Percentage of total agriculture+pasture land that is pasture
-  
+  Fertilizer = Pct_FertilChem_ha + Pct_FertilManure_ha,
+  Techniques = Pct_FertilChem_ha + Pct_FertilManure_ha + Pct_Herbicides_ha + Pct_Insecticides_ha + Pct_ControlledBurn_ha,
   #### Calculation of "Labor Units" ####
   # used to equivocate different forms of labor input (machine, animal, human)
   # using efficiencies calculated from 20th century statistics on cultivation labor 
@@ -259,11 +260,11 @@ Census2000s <- Census2000s %>% mutate(
   # One "Labor Unit" (LU) == 1 person-year of manual labor based on person-day equivalents
   # for common tasks undertaken over the course of the agricultural season
 
-  LU_MechanizEquip = MechanizEquip * 20, # one piece of mechanized equipment is equivalent to 20 people
-  LU_DraftAnimals = DraftAnimals_Total * 1, # draught animals and humans have 1-to-1 LU relationship 
+  LU_MechanizEquip = MechanizEquip * 30, #20 one piece of mechanized equipment is equivalent to 20 people
+  LU_DraftAnimals = DraftAnimals_Total * 2, # draught animals and humans have 1-to-1 LU relationship 
   LU_FamLabor = FamLabor_Tot * 1, # Each family farm operator contributes 1 labor unit
   LU_ContractFull = ContractLabor_More6Mo * 1, # Each full-time contract laborer contributes 1 labor unit
-  LU_ContractPart = ContractLabor_Less6Mo * 0.5, # Each seasonal contract laborer contributes 0.5 labor units
+  LU_ContractPart = ContractLabor_Less6Mo * 1, #0.5 Each seasonal contract laborer contributes 0.5 labor units
   LU_Total = LU_MechanizEquip + LU_DraftAnimals + LU_FamLabor + LU_ContractFull + LU_ContractPart, # total LUs == sum of all LUs
   LU_Total_perHa = LU_Total / AGPasture_ha # Density of total LUs per hectare of agriculture+pasture land
   ) %>% mutate(
@@ -524,19 +525,50 @@ SIAP_ID <- read.csv(paste0(wd$data_r,"SIAP_ID_EDITS.csv")) %>%
 
 # left-join edited SIAP_ID dataframe with SIAP_2 yield data
 SIAP_3 = SIAP_2 %>% left_join(SIAP_ID, by = c('Estado_ID', 'Estado', 'ddr_ID', 'ddr', 'Cader_ID', 'Cader', 'Municipio_ID', 'Municipio', 'EstadoMunicipio')) %>% 
-  # filter the data to only include Maize states and municipalities in the CMex focal region
-  filter(Cultigen == "Maiz grano", INCLUDE == TRUE) %>%
-  # convert units -- tons to kg -- for yield, yield loss and product
-  mutate(Yield = Yield * 1000, Yield_orig = Yield_orig * 1000, Product = Product* 1000, YieldLoss = YieldLoss*1000) %>% 
+  # filter the data to only include states and municipalities in the CMex focal region
+  filter(INCLUDE == TRUE) %>%
   # only consider Spring-Summer crop cycle yields (exclude Autumn-Winter yields)
-  filter(Cycle == "Primavera-Verano") %>%
-  # calculate overall municipal average maize yields for all agricultural types (temporal and riego)
-  # by first grouping by state-municipality and year, and then dividing the sum of the product by the sum of the hectares planted
+  filter(Cycle %in% c("Primavera-Verano", "Perennes")) %>%
+  mutate(CultigenGroup = case_when(
+    Cultigen == "Maiz grano" ~ "Maize",
+    Cultigen == "Avena forrajera seca" ~ "Fodder",
+    Cultigen == "Pastos y praderas seco" ~ "Fodder",
+    Cultigen == "Alfalfa verde" ~ "Fodder",
+    Cultigen == "Pastos y praderas" ~ "Fodder",
+    Cultigen == "Cebada forrajera en verde" ~ "Fodder",
+    Cultigen == "Pastos y praderas achicalado" ~ "Fodder",
+    .default = "OtherCrops"))
+  group_by(EstadoMunicipio, Year, AGType) %>%
+    mutate(Area_AGType = sum(Planted, na.rm=T),
+           Area_AGType_Maize = sum(Planted[CultigenGroup == "Maize"], na.rm=T),
+           Area_AGType_Maize = ifelse(is.na(Area_AGType_Maize), 0, Area_AGType_Maize),
+           Area_AGType_Fodder = sum(Planted[CultigenGroup == "Fodder"], na.rm=T),
+           Area_AGType_Fodder = ifelse(is.na(Area_AGType_Fodder), 0, Area_AGType_Fodder),
+           Area_AGType_OtherCrops = sum(Planted[CultigenGroup == "OtherCrops"], na.rm=T),
+           Area_AGType_OtherCrops = ifelse(is.na(Area_AGType_OtherCrops), 0, Area_AGType_OtherCrops)) %>% ungroup() %>%
   group_by(EstadoMunicipio, Year) %>%
-  mutate(TotYield = (sum(Product, na.rm=T) / sum(Planted, na.rm=T)) + runif(1, min = 0.0001, max = 0.01),
-         TotYield_orig = sum(Product, na.rm=T) / sum(Harvested, na.rm=T),
-         TotYieldLoss = TotYield_orig - TotYield,
-         TotPctYieldLoss = (1-(TotYield/TotYield_orig))*100) %>% ungroup()
+    mutate(Area_Total = sum(Planted, na.rm=T),
+           Area_Total_Maize = sum(Planted[CultigenGroup == "Maize"], na.rm=T),
+           Area_Total_Maize = ifelse(is.na(Area_Total_Maize), 0, Area_Total_Maize),
+           Area_Total_Fodder = sum(Planted[CultigenGroup == "Fodder"], na.rm=T),
+           Area_Total_Fodder = ifelse(is.na(Area_Total_Fodder), 0, Area_Total_Fodder),
+           Area_Total_OtherCrops = sum(Planted[CultigenGroup == "OtherCrops"], na.rm=T),
+           Area_Total_OtherCrops = ifelse(is.na(Area_Total_OtherCrops), 0, Area_Total_OtherCrops)) %>% ungroup() %>%
+    mutate(PctArea_Maize_Crops_AGType = Area_AGType_Maize / (Area_AGType_Maize + Area_AGType_OtherCrops),
+           PctArea_Maize_AGType = Area_AGType_Maize / (Area_AGType_Maize + Area_AGType_OtherCrops + Area_AGType_Fodder),
+           PctArea_Maize_Crops_Total = Area_Total_Maize / (Area_Total_Maize + Area_Total_OtherCrops),
+           PctArea_Maize_Total = Area_Total_Maize / (Area_Total_Maize + Area_Total_OtherCrops + Area_Total_Fodder)) %>%
+    # filter the data to only include Maize from the spring-summer cycle
+    filter(Cultigen == "Maiz grano", Cycle == "Primavera-Verano") %>%
+    # convert units -- tons to kg -- for yield, yield loss and product
+    mutate(Yield = Yield * 1000, Yield_orig = Yield_orig * 1000, Product = Product* 1000, YieldLoss = YieldLoss*1000) %>%
+    group_by(EstadoMunicipio, Year) %>%
+    # calculate overall municipal average maize yields for all agricultural types (temporal and riego)
+    # by first grouping by state-municipality and year, and then dividing the sum of the product by the sum of the hectares planted
+    mutate(TotYield = (sum(Product, na.rm=T) / sum(Planted, na.rm=T)) + runif(1, min = 0.0001, max = 0.01),
+           TotYield_orig = sum(Product, na.rm=T) / sum(Harvested, na.rm=T),
+           TotYieldLoss = TotYield_orig - TotYield,
+           TotPctYieldLoss = (1-(TotYield/TotYield_orig))*100) %>% ungroup()
   
 #write.csv(SIAP_3, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
 
@@ -545,8 +577,6 @@ SIAP_3 = SIAP_2 %>% left_join(SIAP_ID, by = c('Estado_ID', 'Estado', 'ddr_ID', '
 
 
 #### Remove Cases
-
-
 
 
 ```{r, 'Remove Cases', message=FALSE, warning=FALSE}
@@ -2441,7 +2471,8 @@ AGC1960 = CY_data_list[["AGCensus1960"]] %>% filter(INCLUDE == TRUE) %>%
   summarize(Yield = sum(as.numeric(Maize1960_kg), na.rm=T) / sum(as.numeric(Maize1960_ha), na.rm=T))  %>%
   pivot_wider(names_from = Size, values_from = Yield, values_fill = NA) %>% 
   mutate(across(everything(), ~ifelse(is.nan(.), NA, .))) %>% 
-  rename(Y_1960_E = Ejido, Y_1960_S = Small, Y_1960_L = Large, Y_1960_Total = Total)
+  rename(Y_1960_E = Ejido, Y_1960_S = Small, Y_1960_L = Large, Y_1960_Total = Total) %>%
+  rowwise() %>% mutate(Y_1960_Max = max(Y_1960_E, Y_1960_S, Y_1960_L, Y_1960_Total, na.rm=T)) %>% ungrou()
 
 
 # 1960 split municipios
@@ -3318,7 +3349,6 @@ knitr::include_graphics(paths, FALSE)
 
 
 #### AG Census 2007
-
 
 
 
