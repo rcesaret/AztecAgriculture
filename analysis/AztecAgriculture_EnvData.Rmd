@@ -107,7 +107,8 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "purrr", "spatialEco", "whitebox", "classInt","ggnewscale", "lbmech", 
               "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
-              "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra")
+              "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra", 
+              "Boruta", "mlbench", "caret")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -1271,6 +1272,45 @@ for (i in 2:nlyr(Train)) {
   #Train_df <- cbind(Train_df, t[,1])
   #names(Train_df) <- c(names(Train_df)[1:(i-1)], names(Train[[i]]))
 }
+Train_df = Train_df[complete.cases(Train_df), ]
+
+boruta <- Boruta(Arable ~ ., data = Train_df, maxRuns = 1000)#, doTrace = 2
+print(boruta)
+boruta[["finalDecision"]]
+plot(boruta, las = 2, cex.axis = 0.7)
+bor <- TentativeRoughFix(boruta)
+bor[["finalDecision"]]
+b=attStats(boruta)
+form=getConfirmedFormula(boruta)
+
+RF_model <- ranger(formula = form, data = Train_df, save.memory = save_mem)
+
+print(RF_model)
+
+activeCat(Predict[[14]]) <- "LandUseGroups"
+
+Predict_df <- as.data.frame(Predict[[2]])
+names(Predict_df) <- "DEM"
+Predict_df <- rownames_to_column(Predict_df, var = "Cells")
+
+for (i in 3:nlyr(Predict)) {
+  
+  t = as.data.frame(Predict[[i]])
+  t <- rownames_to_column(t, var = "Cells")
+  names(t) <- c("Cells", names(Predict[[i]]))
+  Predict_df <- Predict_df %>% left_join(t, by="Cells")
+
+}
+Predict_df = Predict_df[complete.cases(Predict_df), ]
+
+RF_pred <- predict(RF_model, data=Predict_df)
+                         
+f <- names(train)
+  f <- f[f != names(r)]
+  form <- paste(names(r), "~", paste(f, collapse = " + "))
+  form <- as.formula(form)
+  
+
 ```
 
 4. Separate into Training and Prediction

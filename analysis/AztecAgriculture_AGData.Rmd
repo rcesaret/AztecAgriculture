@@ -2619,10 +2619,15 @@ scale2 <- function(x) (x - mean(x, na.rm = T)) / sd(x, na.rm = T)
 
 MunicipioYields_Z <- MunicipioYields %>% 
   mutate(across(where(is.numeric), scale2)) %>%
-  left_join(SIAP_ZFluct, by = c("Municipio", "Estado", "EstadoMunicipio")) 
+  left_join(SIAP_ZFluct, by = c("Municipio", "Estado", "EstadoMunicipio")) %>%
+  mutate(CoT_1960_SIAP_dif = AvgYield_Total - Y_1960_Total,
+         CoT_1960_SIAP_rat = AvgYield_Total / Y_1960_Total)
+
 
 MunicipioYields <- MunicipioYields %>% 
-  left_join(SIAP_ZFluct, by = c("Municipio", "Estado", "EstadoMunicipio")) 
+  left_join(SIAP_ZFluct, by = c("Municipio", "Estado", "EstadoMunicipio")) %>%
+  mutate(CoT_1960_SIAP_dif = AvgYield_Total - Y_1960_Total,
+         CoT_1960_SIAP_rat = AvgYield_Total / Y_1960_Total)
 
 st_write(MunicipioYields, paste0(wd$data_p, "MunicipioYields.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
 st_write(MunicipioYields_Z, paste0(wd$data_p, "MunicipioYields_Z.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
@@ -3783,12 +3788,26 @@ knitr::include_graphics(paste0(wd$figs,"Hist_vs_Modern_Yields.png"), FALSE)
 ```
 
 ## Rescale Yield Data
-
-
-```{r, label='xxx', message=FALSE,warning=FALSE}
 nom = "Mixquiahuala de Juarez, Hidalgo"
 x = SIAP_4 %>% filter(EstadoMunicipio == nom)
 x$Yield
+
+
+
+```{r, label='xxx', message=FALSE,warning=FALSE}
+
+"Mixquiahuala de Juarez, Hidalgo", 
+"Tezontepec de Aldama, Hidalgo", 
+"Tepetitlan, Hidalgo", 
+"Tula de Allende, Hidalgo", 
+"Tepeji del Rio de Ocampo, Hidalgo", 
+"Tlaxcoapan, Hidalgo", 
+"Soyaniquilpan de Juarez, Mexico", 
+"Tlahuelilpan, Hidalgo", 
+"Atitalaquia, Hidalgo", 
+"Atotonilco de Tula, Hidalgo", 
+"Francisco I. Madero, Hidalgo", 
+```
 
 Entropy(x$Yield[complete.cases(x$Yield)])
 SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(sdYield_Total)
@@ -3797,9 +3816,6 @@ SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(cvYield_Total)
 SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(cvYield_Total)
 hist(x$Yield)
 #hist(x$PctYieldLoss)
-
-```
-
 
 ```{r, label='xxx', message=FALSE,warning=FALSE}
 nom = "Mixquiahuala de Juarez, Hidalgo"
