@@ -108,7 +108,7 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
               "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra", 
-              "Boruta", "mlbench", "caret")
+              "Boruta", "mlbench", "caret", "readr")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -1111,6 +1111,7 @@ Geomorphons <- rast(paste0(wd$data_p, "CMex_30m_Geomorphons.tif"))
 CONABIO_2015_LandUse_30m <- rast(paste0(wd$data_p, "CONABIO_2015_LandUse_30m.tif"))
 
 SIAP_2015_Fields <- rast(paste0(wd$data_p, "SIAP_2015_Fields.tif"))
+SIAP_2015_Mask <- rast(paste0(wd$data_p, "SIAP_2015_Mask.tif"))
 SIAP_2015_Fields <- mask(SIAP_2015_Fields, SIAP_2015_Mask)
 SIAP_2015_Fields_f <- as.factor(SIAP_2015_Fields)
 levels(SIAP_2015_Fields_f) = levels(SIAP_2015_Fields_f)[[1]] %>% select(-layer) %>%
@@ -1120,7 +1121,7 @@ levels(SIAP_2015_Fields_f) = levels(SIAP_2015_Fields_f)[[1]] %>% select(-layer) 
 
 SIAP_2015_FieldsNA <- ifel(SIAP_2015_Fields == 0, NA, SIAP_2015_Fields)
 
-SIAP_2015_Mask <- rast(paste0(wd$data_p, "SIAP_2015_Mask.tif"))
+
 #Inarable_Sampling_Area <- rast(paste0(wd$data_p, "Inarable_Sampling_Area.tif"))
 #InarableSample1 <- rast(paste0(wd$data_p, "InarableSample1.tif"))
 #InarableSample2 <- rast(paste0(wd$data_p, "InarableSample2.tif"))
@@ -1146,9 +1147,15 @@ f = f %>% mutate(zone_f = case_when(
     zone == 1 ~ "Cultivated"))
 c = crosstab(c(SIAP_2015_Fields_f,CONABIO_2015_LandUse_30m), digits=0, long=FALSE, useNA=FALSE)
 ## S4 method for signature 'SpatRaster,SpatRaster'
-z1 = zonal(Predictors, SIAP_2015_Fields, fun="mean")
-z2 = zonal(Predictors, SIAP_2015_Fields, fun="min")
-z3 = zonal(Predictors, SIAP_2015_Fields, fun="max")
+z1 = zonal(Predictors, SIAP_2015_Fields, fun="mean", na.rm=T)
+z1$stat = "Mean"
+z2 = zonal(Predictors, SIAP_2015_Fields, fun="min", na.rm=T)
+z2$stat = "Min"
+z3 = zonal(Predictors, SIAP_2015_Fields, fun="max", na.rm=T)
+z3$stat = "Max"
+z = rbind(z1, z2, z3) %>% mutate(zone = case_when(
+    layer == 0 ~ "Uncultivated",
+    layer == 1 ~ "Cultivated"))
 
 x_df <- as.data.frame(x[[1]])
 names(x_df) <- "SIAP_2015_Fields_f"
@@ -1163,9 +1170,37 @@ for (i in 2:nlyr(x)) {
   #Train_df <- cbind(Train_df, t[,1])
   #names(Train_df) <- c(names(Train_df)[1:(i-1)], names(Train[[i]]))
 }
+x_df = x_df[complete.cases(x_df), ]
+
+
+
+write_csv(x_df, paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
+Arable_RF_Train_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
+
+rm(x_df)
+
+
+selected_rows <- Arable_RF_Train_df %>%
+  filter(var1 > 3 & var2 == "A") %>%
+  slice_sample(n = n, replace = FALSE)
+
+
+LandUse == "Cultivated"
+
+
 
 
 ```
+write.csv(x_df, paste0(wd$data_r,"ArableArea_RFModel_TrainData.csv"))
+library(readr)
+write_csv(x_df, paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
+Arable_RF_Train_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
+TRI > 26
+
+25.938477
+
+BDRICM < 40
+
 
 CROSSTAB Cross-tabulate the layers of a SpatRaster to create a contingency table.
 **x**; SpatRaster
@@ -1344,27 +1379,18 @@ writeRaster(InarableSample2, filename = paste0(wd$data_r, "InarableSample2.tif")
 rm(s, v, q, s2, t)
 
 ```
+##### Combining the Inarable Samples
 
 ```{r}
 
-
-
-
-
-#rc <- c(-101, -98, 1,  0.25, 1.5, NA)
-#rc <- matrix(rc, ncol=3, byrow=TRUE)
-#Sampling_Area <- classify(SIAP_2015_Fields, rc)
-
-
-
-
-
-
-
 InarableSample <- mosaic(inarable1, inarable2, fun=sum)
 writeRaster(InarableSample, filename = paste0(wd$data_r, "InarableSample.tif"), overwrite=TRUE)
+```
 
 
+##### Arable Sample
+
+```{r}
 Arable <- rasterize(SIAP_2015_Fields, DEM, values = 0, background = NA) #values = 0
 table(values(Arable))
 sa = spatSample(Arable, size = 233000, method="random", replace=FALSE, na.rm=T, exhaustive=T, cells=T) #225000 == 0.06222285
@@ -1378,6 +1404,14 @@ ArableSample <- mosaic(Arable, ArableSamp, fun=sum)
 writeRaster(ArableSample, filename = paste0(wd$data_r, "ArableSample.tif"), overwrite=TRUE)
 
 
+```
+
+
+
+### Training Dataset
+
+
+```{r}
 rm(q, s, s2, sa, Sampling_Area2, Sampling_Area1, r_list, v, mask, masked_raster, cls, rc, t, wts, Soil, inarable1, inarable2, ArableSamp, Arable)
 
 Covariates = c(Topo_r_30m, Soil_30m, Geomorphons, CONABIO_2015_LandUse_30m)
@@ -1416,6 +1450,7 @@ Predict <- mask(Predict, Prediction)
 rm(SIAP_2015_Fields, ArableSample, InarableSample, cls, DEM)
 
 
+
 activeCat(Train[[14]]) <- "LandUseGroups"
 
 Train_df <- as.data.frame(Train[[1]])
@@ -1433,18 +1468,12 @@ for (i in 2:nlyr(Train)) {
 }
 Train_df = Train_df[complete.cases(Train_df), ]
 
-boruta <- Boruta(Arable ~ ., data = Train_df, maxRuns = 1000)#, doTrace = 2
-print(boruta)
-boruta[["finalDecision"]]
-plot(boruta, las = 2, cex.axis = 0.7)
-#bor <- TentativeRoughFix(boruta)
-#bor[["finalDecision"]]
-attStats(boruta)
-form=getConfirmedFormula(boruta)
+```
 
-RF_model <- ranger(Arable ~ DEM + Slope + Accum_fd8 + TRI + TWI + STI + SPI + BDRICM + BDRLOG + BDTICM + Geomorphons + LandUseGroups, data = Train_df, importance = 'impurity')
 
-print(RF_model)
+### Prediction Dataset
+
+```{r}
 
 activeCat(Predict[[14]]) <- "LandUseGroups"
 
@@ -1462,7 +1491,103 @@ for (i in 3:nlyr(Predict)) {
 }
 Predict_df = Predict_df[complete.cases(Predict_df), ]
 
+```
+
+
+## Random Forest Model
+
+### Variable Selection
+
+```{r}
+
+
+boruta <- Boruta(Arable ~ ., data = Train_df, maxRuns = 1000)#, doTrace = 2
+print(boruta)
+boruta[["finalDecision"]]
+plot(boruta, las = 2, cex.axis = 0.7)
+#bor <- TentativeRoughFix(boruta)
+#bor[["finalDecision"]]
+attStats(boruta)
+form=getConfirmedFormula(boruta)
+```
+
+
+### Train the Model
+
+```{r}
+
+RF_model <- ranger(Arable ~ DEM + Slope + Accum_fd8 + TRI + TWI + STI + SPI + BDRICM + BDRLOG + BDTICM + Geomorphons + LandUseGroups, data = Train_df, importance = 'impurity')
+
+print(RF_model)
+
+```
+
+### Model Predictions
+
+```{r}
+
 RF_pred <- predict(RF_model, data=Predict_df)
+
+```
+
+  predicted_vals <- predict(model, pred)
+  pred$pred <- predicted_vals$predictions
+  
+  x = r_df %>% left_join(pred, by = f)
+  
+  r2 = r
+  raster_values <- values(r2)
+  missing_values <- is.na(raster_values)
+  df_values <- x$pred[missing_values]
+  r2[missing_values] <- df_values
+  names(r2) <- rnam
+  
+### Model Cross-Validation
+
+```{r}
+p.ra <- predict(m.lzn.ra, data=meuse)
+str(p.ra)
+
+summary(r.rap <- meuse$logZn - p.ra$predictions)
+
+(rmse.ra <- sqrt(sum(r.rap^2)/length(r.rap)))
+
+plot(meuse$logZn ~ p.ra$predictions, asp=1, pch=20, xlab="fitted", ylab="actual", xlim=c(2,3.3),          ylim=c(2,3.3), main="log10(Zn), Meuse topsoils, Ranger")
+grid(); abline(0,1)
+
+
+summary(m.lzn.ra$predictions)
+
+plot(meuse$logZn ~ m.lzn.ra$predictions, asp=1, pch=20,
+     ylab="actual", xlab="OOB X-validation estimates",
+    xlim=c(2,3.3), ylim=c(2,3.3),
+    main="ranger")
+abline(0,1); grid()
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Extras
+
+```{r}
+
+#rc <- c(-101, -98, 1,  0.25, 1.5, NA)
+#rc <- matrix(rc, ncol=3, byrow=TRUE)
+#Sampling_Area <- classify(SIAP_2015_Fields, rc)
                          
 f <- names(train)
   f <- f[f != names(r)]
