@@ -617,7 +617,18 @@ SIAP_3 = SIAP_3 %>%
 
 ```
 
-
+Area_AGType
+Area_AGType_Maize
+Area_AGType_Fodder
+Area_AGType_OtherCrops
+Area_Total
+Area_Total_Maize
+Area_Total_Fodder
+Area_Total_OtherCrops
+PctArea_Maize_Crops_AGType
+PctArea_Maize_AGType
+PctArea_Maize_Crops_Total
+PctArea_Maize_Total
 
 #### SIAP_4: Annual Data
 
@@ -3363,7 +3374,7 @@ knitr::include_graphics(paths, FALSE)
 
 map_list = list()
 
-var = c("Pct_Fallow_ha", "Pct_Rest_ha", "Pct_Rented_ha", "Pct_FertilChem_ha", "Pct_FertilManure_ha", "Pct_ImprovSeed_ha", "Pct_Herbicides_ha", "Pct_Insecticides_ha", "Pct_ControlledBurn_ha", "Pct_Tract_Mechaniz_pu", "Pct_Tract_Animal_pu", "Pct_Tract_Manual_pu", "TotalLaborDens", "MechanizEquip_perHa", "DraftAnimals_perHa", "Pct_AG_ha", "Pct_Pasture_ha", "LU_Total_perHa")
+var = c("Pct_Fallow_ha", "Pct_Rest_ha", "Pct_Rented_ha", "Pct_FertilChem_ha", "Pct_FertilManure_ha", "Pct_ImprovSeed_ha", "Pct_Herbicides_ha", "Pct_Insecticides_ha", "Pct_ControlledBurn_ha", "Pct_Tract_Mechaniz_pu", "Pct_Tract_Animal_pu", "Pct_Tract_Manual_pu", "TotalLaborDens", "MechanizEquip_perHa", "DraftAnimals_perHa", "Pct_AG_ha", "Pct_Pasture_ha", "LU_Total_perHa", "Fertilizer", "Techniques")
 tit = "Central Mexico Study Region - 2007 Agricultural Census"
 #yrs = 2003:2021
 subtit = c("Z-Score Percent Farmland Under Fallow Rotation", "Z-Score Percent Farmland Left Uncultivated", "Z-Score Percent Farmland Rented", "Z-Score Percent Farmland Chemically Fertilized", "Z-Score Percent Farmland Manure Fertilized", "Z-Score Percent Farmland Improved Seed", "Z-Score Percent Farmland Herbicides", "Z-Score Percent Farmland Insecticides", "Z-Score Percent Farmland Controlled Burn", "Z-Score Percent Production Units Mechanized Traction","Z-Score Percent Production Units Animal Traction", "Z-Score Percent Production Units Manual Traction", "Z-Score Density of Total AG Laborers per ha Farmland", "Z-Score Mechanized Equipment per ha Farmland", "Z-Score Draught Animals per ha Farmland", "Z-Score Percent Land under Cultivation", "Z-Score Percent Land under Pasture", "Z-Score Total Labor Units per ha Farmland")

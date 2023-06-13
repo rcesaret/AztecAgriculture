@@ -923,7 +923,15 @@ all areas not in the SIAP_2015_Fields raster
 Both Training and Prediction within Predicted Arable Area
 Irrigation sampled from Irrigation land use area (rasterized)
 
-```{r}
+## Prepare Data
+
+
+### Predictor Variables
+
+```{r, label='Prepare Predictor Data', message=FALSE,warning=FALSE}
+
+### DEM and Topographic Data ###
+
 resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
 DEM <- rast(paste0(wd$data_r,"DEM.tif"))
 DEM <- resample(DEM, resample_30m, method = "bilinear")
@@ -957,8 +965,11 @@ names(Topo_r_30m) = nam
 rm(slope, Accum, Accum_fd8, TRI, TWI, STI, SPI, nam)
 
 writeRaster(Topo_r_30m, filename = paste0(wd$data_p, "Topo_r_30m.tif"), overwrite=TRUE)
-writeRaster(Topo_r_30m, filename = paste0(wd$data_p, "Topo_r_30m.tif"), overwrite=TRUE)
+
 #DEM = Topo_r_15m[[1]]
+
+
+### Soil Data ###
 
 Soil <- rast(paste0(wd$data_p, "Soil_r_resampled.tif"))
 
@@ -973,20 +984,10 @@ Soil_30m = z
 rm(z,a)
 
 writeRaster(Soil_30m, filename = paste0(wd$data_p, "Soil_r_30m.tif"), overwrite=TRUE)
-```
 
 
-```{r}
+### Geomorphons ###
 
-DEM <- rast(paste0(wd$data_p, "DEM_30m.tif"))
-
-Topo_r_30m <- rast(paste0(wd$data_p, "Topo_r_30m.tif"))
-
-Soil_30m <- rast(paste0(wd$data_p, "Soil_r_30m.tif"))
-
-#Clim_r <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
-#Clim_r_15m <- subset(Clim_r, c("tmin_04","tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10","tmin_11"))
-#Clim_r_15m <- resample(Clim_r, DEM, method = "bilinear")
 
 Geomorphons <- rast(paste0(wd$data_r,"CMex_15m_Geomorphons.tif"))
 Geomorphons <- as.factor(Geomorphons)
@@ -1005,78 +1006,79 @@ cls = cls %>% select(-CMex_15m_Geomorphons) %>%
     ID == 10 ~ "Depression"))
 levels(Geomorphons) <- cls
 Geomorphons <- resample(Geomorphons, DEM, method = "near")
+writeRaster(Geomorphons, filename = paste0(wd$data_p, "CMex_30m_Geomorphons.tif"), overwrite=TRUE)
 
 CONABIO_2015_LandUse_30m <- rast(paste0(wd$data_r,"CONABIO_2015_LandUse_30m.tif"))
 CONABIO_2015_LandUse_30m <- as.factor(CONABIO_2015_LandUse_30m)
 cls = levels(CONABIO_2015_LandUse_30m)[[1]] %>% select(-CONABIO_2015_LandUse_30m) %>%
   mutate(LandUse = case_when(
-    ID == 1 ~ "Forest_Coniferous_Temperate",
-    ID == 2 ~ "Forest_Coniferous_Subpolar",
-    ID == 3 ~ "Forest_Evergreen_Subtropical",
-    ID == 4 ~ "Forest_Deciduous_Subtropical",
-    ID == 5 ~ "Forest_Deciduous_Temperate",
-    ID == 6 ~ "Forest_Mixed",
-    ID == 7 ~ "Scrub_Subtropical",
-    ID == 8 ~ "Scrub_Temperate",
-    ID == 9 ~ "Grass_Subtropical",
-    ID == 10 ~ "Grass_Temperate",
-    ID == 14 ~ "Wetland",
-    ID == 15 ~ "Agriculture",
-    ID == 16 ~ "Bare_Soil",
-    ID == 17 ~ "Settlement",
-    ID == 18 ~ "Water",
-    ID == 19 ~ "Glacial"),
-    LandUseGroups = case_when(
-    ID == 1 ~ "Forest_High",
-    ID == 2 ~ "Forest_High",
-    ID == 3 ~ "Forest_Low",
-    ID == 4 ~ "Forest_Low",
-    ID == 5 ~ "Forest_Low",
-    ID == 6 ~ "Forest_Low",
-    ID == 7 ~ "Scrub",
-    ID == 8 ~ "Scrub",
-    ID == 9 ~ "Grass",
-    ID == 10 ~ "Grass",
-    ID == 14 ~ "Wetland",
-    ID == 15 ~ "Agriculture",
-    ID == 16 ~ "Bare_Soil",
-    ID == 17 ~ "Settlement",
-    ID == 18 ~ "Water",
-    ID == 19 ~ "Glacial"),
-    Sampling = case_when(
-    ID == 1 ~ "Inarable_Sample_High",
-    ID == 2 ~ "Inarable_Sample_High",
-    ID == 3 ~ "Inarable_Sample_Med",
-    ID == 4 ~ "Inarable_Sample_Med",
-    ID == 5 ~ "Inarable_Sample_Med",
-    ID == 6 ~ "Inarable_Sample_Med",
-    ID == 7 ~ "Inarable_Sample_High",
-    ID == 8 ~ "Inarable_Sample_High",
-    ID == 9 ~ "Inarable_Sample_High",
-    ID == 10 ~ "Inarable_Sample_High",
-    ID == 14 ~ "Inarable_Sample_Med",
-    ID == 15 ~ "Agriculture",
-    ID == 16 ~ "Inarable_Sample_High",
-    ID == 17 ~ "Settlement",
-    ID == 18 ~ "Inarable_All",
-    ID == 19 ~ "Inarable_All"),
-    Sampling2 = case_when(
-    ID == 1 ~ "Sample",
-    ID == 2 ~ "Sample",
-    ID == 3 ~ "Sample",
-    ID == 4 ~ "Sample",
-    ID == 5 ~ "Sample",
-    ID == 6 ~ "Sample",
-    ID == 7 ~ "Sample",
-    ID == 8 ~ "Sample",
-    ID == 9 ~ "Sample",
-    ID == 10 ~ "Sample",
-    ID == 14 ~ "Sample",
-    ID == 15 ~ "Agriculture",
-    ID == 16 ~ "Sample",
-    ID == 17 ~ "Settlement",
-    ID == 18 ~ "Inarable",
-    ID == 19 ~ "Inarable"))
+            ID == 1 ~ "Forest_Coniferous_Temperate",
+            ID == 2 ~ "Forest_Coniferous_Subpolar",
+            ID == 3 ~ "Forest_Evergreen_Subtropical",
+            ID == 4 ~ "Forest_Deciduous_Subtropical",
+            ID == 5 ~ "Forest_Deciduous_Temperate",
+            ID == 6 ~ "Forest_Mixed",
+            ID == 7 ~ "Scrub_Subtropical",
+            ID == 8 ~ "Scrub_Temperate",
+            ID == 9 ~ "Grass_Subtropical",
+            ID == 10 ~ "Grass_Temperate",
+            ID == 14 ~ "Wetland",
+            ID == 15 ~ "Agriculture",
+            ID == 16 ~ "Bare_Soil",
+            ID == 17 ~ "Settlement",
+            ID == 18 ~ "Water",
+            ID == 19 ~ "Glacial"),
+        LandUseGroups = case_when(
+            ID == 1 ~ "Forest_High",
+            ID == 2 ~ "Forest_High",
+            ID == 3 ~ "Forest_Low",
+            ID == 4 ~ "Forest_Low",
+            ID == 5 ~ "Forest_Low",
+            ID == 6 ~ "Forest_Low",
+            ID == 7 ~ "Scrub",
+            ID == 8 ~ "Scrub",
+            ID == 9 ~ "Grass",
+            ID == 10 ~ "Grass",
+            ID == 14 ~ "Wetland",
+            ID == 15 ~ "Agriculture",
+            ID == 16 ~ "Bare_Soil",
+            ID == 17 ~ "Settlement",
+            ID == 18 ~ "Water",
+            ID == 19 ~ "Glacial"),
+        Sampling = case_when(
+            ID == 1 ~ "Inarable_Sample_High",
+            ID == 2 ~ "Inarable_Sample_High",
+            ID == 3 ~ "Inarable_Sample_Med",
+            ID == 4 ~ "Inarable_Sample_Med",
+            ID == 5 ~ "Inarable_Sample_Med",
+            ID == 6 ~ "Inarable_Sample_Med",
+            ID == 7 ~ "Inarable_Sample_High",
+            ID == 8 ~ "Inarable_Sample_High",
+            ID == 9 ~ "Inarable_Sample_High",
+            ID == 10 ~ "Inarable_Sample_High",
+            ID == 14 ~ "Inarable_Sample_Med",
+            ID == 15 ~ "Agriculture",
+            ID == 16 ~ "Inarable_Sample_High",
+            ID == 17 ~ "Settlement",
+            ID == 18 ~ "Inarable_All",
+            ID == 19 ~ "Inarable_All"),
+        Sampling2 = case_when(
+            ID == 1 ~ "Sample",
+            ID == 2 ~ "Sample",
+            ID == 3 ~ "Sample",
+            ID == 4 ~ "Sample",
+            ID == 5 ~ "Sample",
+            ID == 6 ~ "Sample",
+            ID == 7 ~ "Sample",
+            ID == 8 ~ "Sample",
+            ID == 9 ~ "Sample",
+            ID == 10 ~ "Sample",
+            ID == 14 ~ "Sample",
+            ID == 15 ~ "Agriculture",
+            ID == 16 ~ "Sample",
+            ID == 17 ~ "Settlement",
+            ID == 18 ~ "Inarable",
+            ID == 19 ~ "Inarable"))
 
 levels(CONABIO_2015_LandUse_30m) <- cls
 activeCat(CONABIO_2015_LandUse_30m) <- "Sampling"
@@ -1084,104 +1086,245 @@ activeCat(CONABIO_2015_LandUse_30m) <- "Sampling"
 CONABIO_2015_LandUse_30m <- resample(CONABIO_2015_LandUse_30m, DEM, method = "near")
 CONABIO_2015_LandUse_30m <- crop(CONABIO_2015_LandUse_30m, DEM)
 
+writeRaster(CONABIO_2015_LandUse_30m, filename = paste0(wd$data_p, "CONABIO_2015_LandUse_30m.tif"), overwrite=TRUE)
+
+#Clim_r <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
+#Clim_r_15m <- subset(Clim_r, c("tmin_04","tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10","tmin_11"))
+#Clim_r_15m <- resample(Clim_r, DEM, method = "bilinear")
+
+```
+
+
+
+### Shortcut Import
+
+```{r, label='Shortcut', message=FALSE,warning=FALSE}
+
+DEM <- rast(paste0(wd$data_p, "DEM_30m.tif"))
+
+Topo_r_30m <- rast(paste0(wd$data_p, "Topo_r_30m.tif"))
+
+Soil_30m <- rast(paste0(wd$data_p, "Soil_r_30m.tif"))
+
+Geomorphons <- rast(paste0(wd$data_p, "CMex_30m_Geomorphons.tif"))
+
+CONABIO_2015_LandUse_30m <- rast(paste0(wd$data_p, "CONABIO_2015_LandUse_30m.tif"))
+
+SIAP_2015_Fields <- rast(paste0(wd$data_p, "SIAP_2015_Fields.tif"))
+SIAP_2015_Fields <- mask(SIAP_2015_Fields, SIAP_2015_Mask)
+SIAP_2015_Fields_f <- as.factor(SIAP_2015_Fields)
+levels(SIAP_2015_Fields_f) = levels(SIAP_2015_Fields_f)[[1]] %>% select(-layer) %>%
+  mutate(SIAP_2015_Fields = case_when(
+    ID == 0 ~ "Uncultivated",
+    ID == 1 ~ "Cultivated"))
+
+SIAP_2015_FieldsNA <- ifel(SIAP_2015_Fields == 0, NA, SIAP_2015_Fields)
+
+SIAP_2015_Mask <- rast(paste0(wd$data_p, "SIAP_2015_Mask.tif"))
+#Inarable_Sampling_Area <- rast(paste0(wd$data_p, "Inarable_Sampling_Area.tif"))
+#InarableSample1 <- rast(paste0(wd$data_p, "InarableSample1.tif"))
+#InarableSample2 <- rast(paste0(wd$data_p, "InarableSample2.tif"))
+#Inarable_Sampling_Area1 <- rast(paste0(wd$data_p, "Inarable_Sampling_Area1.tif"))
+#Inarable_Sampling_Area2 <- rast(paste0(wd$data_p, "Inarable_Sampling_Area2.tif"))
+
+Predictors = c(Topo_r_30m, Soil_30m, Geomorphons, CONABIO_2015_LandUse_30m)
+Predictors_FieldsNA <- mask(Predictors, SIAP_2015_FieldsNA)
+Predictors = mask(Predictors, SIAP_2015_Mask)
+```
+```{r}
+x = c(SIAP_2015_Fields_f, CONABIO_2015_LandUse_30m, Topo_r_30m, Soil_30m, Geomorphons)
+xf <- mask(x, SIAP_2015_FieldsNA)
+x = mask(x, SIAP_2015_Mask)
+
+
+
+
+
+f = freq(x, digits=0, value=NULL, bylayer=TRUE, usenames=T, zones=SIAP_2015_Fields, wide=F)
+f = f %>% mutate(zone_f = case_when(
+    zone == 0 ~ "Uncultivated",
+    zone == 1 ~ "Cultivated"))
+c = crosstab(c(SIAP_2015_Fields_f,CONABIO_2015_LandUse_30m), digits=0, long=FALSE, useNA=FALSE)
+## S4 method for signature 'SpatRaster,SpatRaster'
+z1 = zonal(Predictors, SIAP_2015_Fields, fun="mean")
+z2 = zonal(Predictors, SIAP_2015_Fields, fun="min")
+z3 = zonal(Predictors, SIAP_2015_Fields, fun="max")
+
+x_df <- as.data.frame(x[[1]])
+names(x_df) <- "SIAP_2015_Fields_f"
+x_df <- rownames_to_column(x_df, var = "Cells")
+
+for (i in 2:nlyr(x)) {
+  
+  t = as.data.frame(x[[i]])
+  t <- rownames_to_column(t, var = "Cells")
+  names(t) <- c("Cells", names(x[[i]]))
+  x_df <- x_df %>% left_join(t, by="Cells")
+  #Train_df <- cbind(Train_df, t[,1])
+  #names(Train_df) <- c(names(Train_df)[1:(i-1)], names(Train[[i]]))
+}
+
+
+```
+
+CROSSTAB Cross-tabulate the layers of a SpatRaster to create a contingency table.
+**x**; SpatRaster
+**digits**; integer. The number of digits for rounding the values before cross-tabulation
+**long**; logical. If TRUE the results are returned in ’long’ format data.frame instead of a table
+**useNA**; logical, indicting if the table should includes counts of NA values
+
+FREQ Frequency table of the values of a SpatRaster. NAs are not counted unless value=NA.**You can provide a SpatVector or additional SpatRaster to define zones for which to do tabulations.**
+**x**; SpatRaster
+**digits**; integer. Used for rounding the values before tabulation. Ignored if NA
+**value**; numeric. An optional single value to only count the number of cells with that value. This value can be NA
+**bylayer**; logical. If TRUE tabulation is done by layer
+**usenames**; logical. If TRUE layers are identified by their names instead of their numbers.
+Only relevant if bylayer is TRUE
+**zones**; SpatRaster or SpatVector to define zones for which the tabulation should be done
+**wide**; logical. Should the results by "wide" instead of "long"?
+
+zonal Zonal statistics
+Compute zonal statistics, that is summarize values of a SpatRaster for each "zone" defined by another SpatRaster, or by a SpatVector with polygon geometry.
+If fun is a true R function, the <SpatRaster,SpatRaster> method may fail when using very large
+SpatRasters, except for the functions ("mean", "min", "max", "sum", "isNA", and "notNA").
+You can also summarize values of a SpatVector for each polygon (zone) defined by another SpatVec
+
+x SpatRaster or SpatVector
+z SpatRaster with cell-values representing zones or a SpatVector with each polygon geometry representing a zone. z can have multiple layers to define intersecting zones
+fun function to be applied to summarize the values by zone. Either as character:
+"mean", "min", "max", "sum", "isNA", and "notNA" and, for relatively small
+SpatRasters, a proper function
+... additional arguments passed to fun, such as na.rm=TRUE
+w SpatRaster with weights. Should have a single-layer with non-negative values
+wide logical. Should the values returned in a wide format? This only affects the
+results when nlyr(z) == 2
+as.raster logical. If TRUE, a SpatRaster is returned with the zonal statistic for each zone
+filename character. Output filename (ignored if as.raster=FALSE
+overwrite logical. If TRUE, filename is overwritten
+wopt list with additional arguments for writing files as in writeRaster
+weights logical. If TRUE and y has polygons, the approximate fraction of each cell that is
+covered is returned as well, for example to compute a weighted mean
+### Dependent Variable
+
+#### Import and Rasterize Data
+
+```{r, label='Shortcut', message=FALSE,warning=FALSE}
 SIAP_2015_Fields <- vect(paste0(wd$data_r,"SIAP_2015_Fields.gpkg"))
-SIAP_2015_Fields_r <- rasterize(SIAP_2015_Fields, DEM, values = 1, background = -99)
+SIAP_2015_Fields <- rasterize(SIAP_2015_Fields, DEM, values = 1, background = 0)
+writeRaster(SIAP_2015_Fields, filename = paste0(wd$data_p, "SIAP_2015_Fields.tif"), overwrite=TRUE)
 
 SIAP_2015_Mask <- vect(paste0(wd$data_r,"SIAP_2015_Mask.gpkg"))
 SIAP_2015_Mask <- terra::rasterize(SIAP_2015_Mask, DEM, values = 1, background = NA)
+writeRaster(SIAP_2015_Mask, filename = paste0(wd$data_p, "SIAP_2015_Mask.tif"), overwrite=TRUE)
 
-SIAP_2015_Fields_r <- mask(SIAP_2015_Fields_r, SIAP_2015_Mask)
+SIAP_2015_Fields <- mask(SIAP_2015_Fields, SIAP_2015_Mask)
 
-rc <- c(-101, -98, 1,  0.25, 1.5, NA)
-rc <- matrix(rc, ncol=3, byrow=TRUE)
-Sampling_Area <- classify(SIAP_2015_Fields_r, rc)
+#rc <- c(-0.5, 0.5, 1,  0.5, 1.5, NA)
+#rc <- matrix(c(-0.5, 0.5, 1,  0.5, 1.5, NA), ncol=3, byrow=TRUE)
+Inarable_Sampling_Area <- classify(SIAP_2015_Fields, matrix(c(-0.5, 0.5, 1,  0.5, 1.5, NA), ncol=3, byrow=TRUE))
+writeRaster(Inarable_Sampling_Area, filename = paste0(wd$data_p, "Inarable_Sampling_Area.tif"), overwrite=TRUE)
 
-#Elevation == All areas >= 3100 masl
-q = DEM * Sampling_Area
+rm(SIAP_2015_Fields)
+
+```
+
+
+#### Absence (Inarable) Sample of Background Points
+
+
+
+##### Inarable Sample #1: Totally Inarable
+
+```{r, label='Inarable Sample #1: Totally Inarable', message=FALSE,warning=FALSE}
+
+InarableSample1 = Inarable_Sampling_Area
+
+#Elevation >= 3100 masl
+q = DEM * InarableSample1
 q = ifel(q >= 3100, 1, 0)
-Sampling_Area <- q + Sampling_Area 
+InarableSample1 <- q + InarableSample1
 
-#All CONABIO_2015_LandUse_15m == 18 or 19
-#q2 = CONABIO_2015_LandUse_15m * Sampling_Area
+#CONABIO_2015_LandUse_15m == 18 and 19
 q = ifel(CONABIO_2015_LandUse_30m == 18 | CONABIO_2015_LandUse_30m == 19, 1, 0)
-Sampling_Area <- q + Sampling_Area 
-#qq <- q + qq 
+InarableSample1 <- q + InarableSample1
 
+InarableSample1 <- ifel(InarableSample1 > 1, 1, NA)
+Inarable_Sampling_Area1 <- InarableSample1
+writeRaster(Inarable_Sampling_Area1, filename = paste0(wd$data_p, "Inarable_Sampling_Area1.tif"), overwrite=TRUE)
+
+#table(values(Sampling_Area1))
+s = spatSample(InarableSample1, size = 50000, method="random", replace=FALSE, na.rm=T, exhaustive=T, cells=T) #40000 = 0.0639091
+
+v <- unique(s$cell)
+InarableSample1 = ifel(InarableSample1 > 0, 0, NA)
+InarableSample1[v] <- 2
+InarableSample1 = ifel(InarableSample1 > 1, 2, 0)
+
+writeRaster(InarableSample1, filename = paste0(wd$data_p, "InarableSample1.tif"), overwrite=TRUE)
+
+InarableSample1 <- rast(paste0(wd$data_p, "InarableSample1.tif"))
+
+rm(s, v, q)
+
+```
+
+
+##### Inarable Sample #2: High Likelihood Inarable
+
+```{r, label='Inarable Sample #2: High Likelihood Inarable', message=FALSE,warning=FALSE}
 
 ### Sampling Area2
-Sampling_Area2 = ifel(Sampling_Area > 1, NA, Sampling_Area)
+InarableSample2 <- mosaic(Inarable_Sampling_Area1, Inarable_Sampling_Area, fun=sum)
+InarableSample2 = ifel(InarableSample2 > 1, NA, 0)
 
 #Sampled areas from CONABIO_2015_LandUse_15m c(1:14, 16)
 q = ifel(CONABIO_2015_LandUse_30m < 15 | CONABIO_2015_LandUse_30m == 16, 1, 0)
-Sampling_Area2 <- q + Sampling_Area2
+InarableSample2 <- q + InarableSample2
 
 #Sampled geomorphons == 9,10 with higher accum
-q = ifel(Geomorphons == 9 | Geomorphons == 10 | Geomorphons == 10, 1, 0)
-Sampling_Area2 <- q + Sampling_Area2
+q = ifel(Geomorphons == 9 | Geomorphons == 10 | Geomorphons == 2, 1, 0)
+InarableSample2 <- q + InarableSample2
 
 #Sampled BDRICM < 100
 q = ifel(Soil_30m[["BDRICM"]] < 100, 1, 0)
-Sampling_Area2 <- q + Sampling_Area2
+InarableSample2 <- q + InarableSample2
 
 #Sampled BDRLOG > 40
 q = ifel(Soil_30m[["BDRLOG"]] > 40, 1, 0)
-Sampling_Area2 <- q + Sampling_Area2
+InarableSample2 <- q + InarableSample2
 
 #Sampled Elevation > 2850
 q = ifel(DEM >= 2850, 1, 0)
-Sampling_Area2 <- q + Sampling_Area2
+InarableSample2 <- q + InarableSample2
 
 #Sampled Slopes > 15
 q = ifel(Topo_r_30m[["Slope"]] > 15, 1, 0)
-Sampling_Area2 <- q + Sampling_Area2
+InarableSample2 <- q + InarableSample2
 
 #STI >15*********
 q = ifel(Topo_r_30m[["STI"]] > 15, 1, 0)
-Sampling_Area2 <- q + Sampling_Area2
+InarableSample2 <- q + InarableSample2
 
 #TRI >15
 q = ifel(Topo_r_30m[["TRI"]] > 15, 1, 0)
-Sampling_Area2 <- q + Sampling_Area2
+InarableSample2 <- q + InarableSample2
 #Accum>4500
 #TWI > 15
 #SPI >300-500
-writeRaster(Sampling_Area, filename = paste0(wd$data_r, "Sampling_Area.tif"), overwrite=TRUE)
-writeRaster(Sampling_Area2, filename = paste0(wd$data_r, "Sampling_Area2.tif"), overwrite=TRUE)
 
-Sampling_Area1 <- ifel(Sampling_Area > 1, 1, NA)
-#table(values(Sampling_Area1))
-s = spatSample(Sampling_Area1, size = 50000, method="random", replace=FALSE, na.rm=T, exhaustive=T, cells=T) #40000 = 0.0639091
-
-v <- unique(s$cell)
-inarable1 = ifel(Sampling_Area > 0, 0, NA)
-inarable1[v] <- 2
-inarable1 = ifel(inarable1 > 1, 2, 0)
-
-
-
-
-
-
-
-t = as.data.frame(table(values(Sampling_Area2)))
+t = freq(InarableSample2)
 t = t[-c(1),]
-t$Prob = c(0.004, 0.008, 0.015, 0.03, 0.06, 0.25, 1.0)
-t$n = t$Prob * t$Freq
-t$n = round(t$n,0)
-sum(t$n)
-
-
-
-
-unique_values <- 2:Sampling_Area2@ptr[["range_max"]]
+t$prob = c(0.004, 0.008, 0.015, 0.03, 0.06, 0.25, 1.0)
+t$sample = round((t$prob * t$count),0)
+sum(t$sample)
 
 # Create a list to store the individual rasters
 r_list <- list()
 
 # Loop through each unique value
-for (i in 1:(Sampling_Area2@ptr[["range_max"]]-1)) {
+for (i in t$value) {
   # Create a binary mask for the current value
-  masked_raster <- ifel(Sampling_Area2 == unique_values[i], 1, NA)
+  masked_raster <- ifel(InarableSample2 == t$value[i], 1, NA)
   
   s2 = spatSample(x = masked_raster, size = t$n[i], method="random", replace=FALSE, na.rm=T, exhaustive=T, cells=T) #
 
@@ -1189,17 +1332,33 @@ for (i in 1:(Sampling_Area2@ptr[["range_max"]]-1)) {
   r_list[[as.character(unique_values[i])]] <- s2
 }
 
-#rc <- c(0.5, 1.5, 0.0025,  1.5, 2.5, 0.005, 2.5, 3.5, 0.01, 3.5, 4.5, 0.02, 4.5, 5.5, 0.03, 5.5, 6.5, 0.05, 6.5, 7.5, 0.5, 7.5, 9, 1.0)
-#rc <- matrix(rc, ncol=3, byrow=TRUE)
-#wts <- classify(Sampling_Area2, rc, include.lowest=T)
-
-#s2 = spatSample(x = Sampling_Area2, size = 150000, method="stratified", weights = wts, replace=FALSE, na.rm=T, exhaustive=T) #
 s2 = do.call(rbind, r_list)
 
 v <- unique(s2$cell)
-inarable2 <- ifel(Sampling_Area > 0, 0, NA)
-inarable2[v] <- 2
-inarable2 = ifel(inarable2 > 1, 2, 0)
+InarableSample2 <- ifel(Inarable_Sampling_Area > 0, 0, NA)
+InarableSample2[v] <- 2
+InarableSample2 = ifel(InarableSample2 > 1, 2, 0)
+
+writeRaster(InarableSample2, filename = paste0(wd$data_r, "InarableSample2.tif"), overwrite=TRUE)
+
+rm(s, v, q, s2, t)
+
+```
+
+```{r}
+
+
+
+
+
+#rc <- c(-101, -98, 1,  0.25, 1.5, NA)
+#rc <- matrix(rc, ncol=3, byrow=TRUE)
+#Sampling_Area <- classify(SIAP_2015_Fields, rc)
+
+
+
+
+
 
 
 InarableSample <- mosaic(inarable1, inarable2, fun=sum)
@@ -1254,7 +1413,7 @@ Predict <- mask(Predict, Prediction)
 #plot(Train[[2]])
 #plot(Predict[[2]])
 
-rm(SIAP_2015_Fields, SIAP_2015_Fields_r, ArableSample, InarableSample, cls, DEM)
+rm(SIAP_2015_Fields, ArableSample, InarableSample, cls, DEM)
 
 
 activeCat(Train[[14]]) <- "LandUseGroups"
@@ -1278,12 +1437,12 @@ boruta <- Boruta(Arable ~ ., data = Train_df, maxRuns = 1000)#, doTrace = 2
 print(boruta)
 boruta[["finalDecision"]]
 plot(boruta, las = 2, cex.axis = 0.7)
-bor <- TentativeRoughFix(boruta)
-bor[["finalDecision"]]
-b=attStats(boruta)
+#bor <- TentativeRoughFix(boruta)
+#bor[["finalDecision"]]
+attStats(boruta)
 form=getConfirmedFormula(boruta)
 
-RF_model <- ranger(formula = form, data = Train_df, save.memory = save_mem)
+RF_model <- ranger(Arable ~ DEM + Slope + Accum_fd8 + TRI + TWI + STI + SPI + BDRICM + BDRLOG + BDTICM + Geomorphons + LandUseGroups, data = Train_df, importance = 'impurity')
 
 print(RF_model)
 
@@ -1313,25 +1472,44 @@ f <- names(train)
 
 ```
 
-4. Separate into Training and Prediction
-TRAINING
---modern fields in Tlax_Hgo_Mor_partsDF == Arable (Present) == MASK
 
-Subtract modern fields from CONABIO_2015_LandUse_30m
+mtry = NULL,
+
+probability = T #Grow a probability forest as in Malley et al. (2012).
 
 
---Sample inarable == Inrable (Absent) **after mask is applied**
-Elevation == All areas >= 3100 masl
-All Slopes over 30 degrees
-All CONABIO_2015_LandUse_30m == 18 or 19
-All geomorphons == 2
---Sampled areas from CONABIO_2015_LandUse_30m c(1:14, 16)
---Sampled geomorphons == 9 with higher accum
---Sampled BDRICM < 100
---Sampled BDRLOG > 40
---Sampled Elevation > 2850
---Sampled Slopes > 15
+regularization.factor = 1,Regularization factor (gain penalization), either a vector of length p or one value
+for all variables.
 
-PREDICTION
-all areas not in the SIAP_2015_Fields raster
+regularization.usedepth = FALSE,Consider the depth in regularization
+
+quantreg = FALSE,Prepare quantile prediction as in quantile regression forests (Meinshausen 2006).
+Regression only. Set keep.inbag = TRUE to prepare out-of-bag quantile prediction.
+
+importance = "none",Variable importance mode, one of ’none’, ’impurity’, ’impurity_corrected’, ’permutation’. The ’impurity’ measure is the Gini index for classification, the variance of the responses for regression and the sum of test statistics (see splitrule)
+for survival.
+keep.inbag = FALSE,
+inbag = NULL,Save how often observations are in-bag in each tree.
+
+save.memory = FALSE  Use memory saving (but slower) splitting mode. No effect for survival and
+GWAS data. Warning: This option slows down the tree growing, use only if you
+encounter memory problems.
+
+classification = NULL, Set to TRUE to grow a classification forest. Only needed if the data is a matrix or
+the response numeric.
+
+midpoints of all arable polygons;
+negative buffer so observations arent on edges
+
+
+
+OOB (Out-of-Bag) prediction error, also known as OOB error, is a measure of prediction accuracy for models trained using bootstrap aggregating (bagging) techniques, such as random forests. It is commonly used to estimate the performance of a model without the need for an explicit validation set.
+
+When training a bagging model, each base model (also known as a weak learner) is trained on a random subset of the original data, called a bootstrap sample. The remaining data points, on average around 36.8% of the original data, are not included in the bootstrap sample and are referred to as out-of-bag (OOB) observations.
+
+The OOB prediction error is calculated by evaluating the performance of each base model on the OOB observations. For each data point that was not included in the bootstrap sample for a particular base model, the model's prediction is compared to the true target value. The OOB error is then computed as the average prediction error across all out-of-bag observations.
+
+The OOB error serves as an estimate of the model's performance on unseen data. It can be useful for assessing the generalization capability of the model and comparing different models or tuning parameters within the same algorithm. However, it's important to note that the OOB error might not be as reliable as a dedicated validation set for model evaluation in some cases.
+
+In summary, the OOB prediction error provides an estimate of the model's performance using the observations that were not included in the training process due to the bootstrap sampling. It is a useful tool for evaluating bagging-based models such as random forests.
 
