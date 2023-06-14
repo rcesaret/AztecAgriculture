@@ -1176,7 +1176,7 @@ rm(SIAP_2015_Fields)
 
 #########################################################
 
-CMex_Mask <- st_read(paste0(wd$data_r, "Municipios2000s_Data.gpkg"))
+CMex_Mask <- st_read(paste0(wd$data_r, "Municipios_Sample_Central.gpkg"))
 CMex_Mask = vect(CMex_Mask)
 CMex_Mask <- terra::rasterize(CMex_Mask, DEM, values = 1, background = NA)
 writeRaster(CMex_Mask, filename = paste0(wd$data_p, "CMex_Mask.tif"), overwrite=TRUE)
@@ -1247,10 +1247,10 @@ Geomorphons <- rast(paste0(wd$data_p, "CMex_30m_Geomorphons.tif"))
 
 CONABIO_2015_LandUse_30m <- rast(paste0(wd$data_p, "CONABIO_2015_LandUse_30m.tif"))
 
-SIAP_2015_Mask <- rast(paste0(wd$data_p,"SIAP_2015_Mask.tif"))
+#SIAP_2015_Mask <- rast(paste0(wd$data_p,"SIAP_2015_Mask.tif"))
 
-SIAP_2015_Fields <- rast(paste0(wd$data_p,"SIAP_2015_Fields.tif"))
-SIAP_2015_Fields <- mask(SIAP_2015_Fields, SIAP_2015_Mask)
+#SIAP_2015_Fields <- rast(paste0(wd$data_p,"SIAP_2015_Fields.tif"))
+#SIAP_2015_Fields <- mask(SIAP_2015_Fields, SIAP_2015_Mask)
 
 CMex_Mask <- rast(paste0(wd$data_p,"CMex_Mask.tif"))
 
@@ -1313,6 +1313,9 @@ rm(x, dat, Geomorphons, Cultiv, CONABIO_2015_LandUse_30m)
 
 x <- rast(paste0(wd$data_p,"Arable_Raster_Data.tif"))
 Cultiv <- x[[1]]
+x <- subset(x, c("SIAP_LU_Fields", "LandUseArchy", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "BDRICM", "BDRLOG", "BDTICM", "BD", "SOC", "OCD", "N", "SOCS", "WRB" ))
+
+
 CONABIO_2015_LandUse_30m <- x[[2]]
 Geomorphons <- x[[3]]
 #SIAP_LU_Fields <- mask(SIAP_LU_Fields, CMex_Mask)
@@ -1399,18 +1402,18 @@ for (i in 2:nlyr(x)) {
 }
 x_df = x_df[complete.cases(x_df), ]
 
-write_csv(x_df, paste0(wd$data_p,"ArableArea_RFModel_Data.csv.gz"))
-rm(x_df)
-Arable_RF_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_Data.csv.gz"))
+#write_csv(x_df, paste0(wd$data_p,"ArableArea_RFModel_Data.csv.gz"))
+#rm(x_df)
+#Arable_RF_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_Data.csv.gz"))
 
-Arable_RF_df <- Arable_RF_df %>% 
+Arable_RF_df <- x_df %>% 
   mutate(Cultiv = factor(Cultiv, levels = c("Uncultivated", "Cultivated")),
-         LandUseArchy = factor(LandUseArchy, levels = c("Unknown", "Wetland", "Settlement", "Water", "Glacial")),
+         #LandUseArchy = factor(LandUseArchy, levels = c("Unknown", "Wetland", "Settlement", "Water", "Glacial")),
          Geomorphons = factor(Geomorphons, levels = c("Flat", "Summit", "Ridge", "Shoulder", "Spur", "Slope", "Hollow", "Footslope", "Valley", "Depression")),
          WRB = factor(WRB, levels = c("NoData", "Andosols", "Arenosols", "Calcisols", "Cambisols", "Durisols", "Fluvisols", "Gleysols", "Leptosols", "Luvisols", "Phaeozems", "Regosols", "Solonchaks", "Solonetz", "Umbrisols", "Vertisols")))
 #%>%
   #rename(Cultivated = SIAP_2015_Fields_f)
-Arable_RF_df = Arable_RF_df[complete.cases(Arable_RF_df), ]
+#Arable_RF_df = Arable_RF_df[complete.cases(Arable_RF_df), ]
 ```
 
 
@@ -1508,6 +1511,12 @@ geom_histogram(aes(x = SOC, color = Cultiv, fill = Cultiv), alpha = 0.4, positio
   labs(x ="Soil Organic Carbon", y = "Count") + theme_classic()
 
 Arable_RF_df %>% ggplot() +
+geom_histogram(aes(x = BD, color = Cultiv, fill = Cultiv), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "green"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "green4"), guide = "none")+
+  labs(x ="Bulk Density", y = "Count") + theme_classic()
+
+Arable_RF_df %>% ggplot() +
 geom_histogram(aes(x = OCD, color = Cultiv, fill = Cultiv), alpha = 0.4, position = "identity") +
   scale_fill_manual(values = c("indianred1", "green"), guide = "none")+
   scale_color_manual(values = c("firebrick1", "green4"), guide = "none")+
@@ -1589,30 +1598,41 @@ Arable_RF_df = Arable_RF_df[complete.cases(Arable_RF_df), ]
 
 
 ### Sampling the Dataframe
+Arable_RF_df <- Arable_RF_df %>% mutate(zone = case_when(
+    Cultiv == 1 ~ "Uncultivated",
+    Cultiv == 2 ~ "Cultivated"))
 
+#zzz = Arable_RF_df[1:100000,]
+zzz <- zzz %>% mutate(Cultiv = ifelse(Cultiv == "Cultivated" & LandUseArchy == "Settlement", "Uncultivated", Cultiv))
 ```{r}
 
+#Arable_RF_df
+
 Arable_RF_df <- Arable_RF_df %>% 
-  mutate(#Problem = FALSE,
+  mutate(Cultiv2 = case_when(
+         Cultiv == "Uncultivated" ~ 1,
+         Cultiv == "Cultivated" ~ 2),
+    #Problem = FALSE,
          #Cultiv_3100masl = ifelse(Cultiv == "Cultivated" & DEM >= 3100, TRUE, FALSE),
          #Problem = ifelse(Cultiv == "Cultivated" & LandUse == "Water", TRUE, Problem),
          #Problem = ifelse(Cultiv == "Cultivated" & LandUse == "Wetland", TRUE, Problem),
          #Problem = ifelse(Cultiv == "Cultivated" & LandUse == "Settlement", TRUE, Problem),
          #Problem_3100masl = ifelse(Cultiv == "Cultivated" & DEM >= 3100, TRUE, Problem),
          
-         
          #Cultiv_3100masl = ifelse(Cultiv == "Cultivated" & DEM >= 3100, TRUE, FALSE),
-         Cultiv = ifelse(Cultiv == "Cultivated" & LandUse == "Water", "Uncultivated", Cultiv),
-         Cultiv = ifelse(Cultiv == "Cultivated" & LandUse == "Wetland", "Uncultivated", Cultiv),
-         Cultiv = ifelse(Cultiv == "Cultivated" & LandUse == "Settlement", "Uncultivated", Cultiv),
+         Cultiv2 = ifelse(Cultiv == "Cultivated" & LandUseArchy == "Water", 1, Cultiv2),
+         Cultiv2 = ifelse(Cultiv == "Cultivated" & LandUseArchy == "Wetland", 1, Cultiv2),
+         Cultiv2 = ifelse(Cultiv == "Cultivated" & LandUseArchy == "Settlement", 1, Cultiv2),
          #Cultiv = ifelse(Cultiv == "Cultivated" & DEM >= 3100, "Uncultivated", Cultiv),
 
-         Inarable1_wt = 0,
+         Cultiv = factor(Cultiv2, levels = c(1, 2), labels = c("Uncultivated", "Cultivated"))) %>%
+  select(-Cultiv2) %>% 
+  mutate(Inarable1_wt = 0,
          Inarable1_wt = ifelse(Cultiv == "Uncultivated" & DEM >= 3100, (Inarable1_wt+1), Inarable1_wt),
-         Inarable1_wt = ifelse(Cultiv == "Uncultivated" & LandUse == "Water", (Inarable1_wt+1), Inarable1_wt),
-         Inarable1_wt = ifelse(Cultiv == "Uncultivated" & LandUse == "Wetland", (Inarable1_wt+1), Inarable1_wt),
-         Inarable1_wt = ifelse(Cultiv == "Uncultivated" & LandUse == "Settlement", (Inarable1_wt+1), Inarable1_wt),
-         Inarable1_wt = ifelse(Cultiv == "Uncultivated" & LandUse == "Glacial", (Inarable1_wt+1), Inarable1_wt),
+         Inarable1_wt = ifelse(Cultiv == "Uncultivated" & LandUseArchy == "Water", (Inarable1_wt+1), Inarable1_wt),
+         Inarable1_wt = ifelse(Cultiv == "Uncultivated" & LandUseArchy == "Wetland", (Inarable1_wt+1), Inarable1_wt),
+         Inarable1_wt = ifelse(Cultiv == "Uncultivated" & LandUseArchy == "Settlement", (Inarable1_wt+1), Inarable1_wt),
+         Inarable1_wt = ifelse(Cultiv == "Uncultivated" & LandUseArchy == "Glacial", (Inarable1_wt+1), Inarable1_wt),
          Inarable1 = ifelse(Inarable1_wt > 0, TRUE, FALSE),
          
          #Inarable_3100masl = ifelse(Cultiv == "Uncultivated" & DEM >= 3100, TRUE, FALSE),
@@ -1629,35 +1649,40 @@ Arable_RF_df <- Arable_RF_df %>%
          Inarable2_wt = ifelse(Cultiv == "Uncultivated" & TRI > 15, (Inarable2_wt+1), Inarable2_wt),
          #Inarable2_wt = ifelse(Cultiv == "Uncultivated" & SPI > XXX, (Inarable2_wt+1), Inarable2_wt),
          #Inarable2_wt = ifelse(Cultiv == "Uncultivated" & TWI > XXX, (Inarable2_wt+1), Inarable2_wt),
-         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & flood_order > XXX, (Inarable2_wt+1), Inarable2_wt),
-         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & valleys_lq > XXX, (Inarable2_wt+1), Inarable2_wt),
-         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & elev_watershed > XXX, (Inarable2_wt+1), Inarable2_wt),
-         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & curv_vert_excess > XXX, (Inarable2_wt+1), Inarable2_wt),
-         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & curv_horiz_excess > XXX, (Inarable2_wt+1), Inarable2_wt),
-         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & curv_min > XXX, (Inarable2_wt+1), Inarable2_wt),
-         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & curv_max > XXX, (Inarable2_wt+1), Inarable2_wt),
-         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & curv_mean > XXX, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(Cultiv == "Uncultivated" & flood_order > XXX, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(Cultiv == "Uncultivated" & valleys_lq > XXX, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(Cultiv == "Uncultivated" & elev_watershed > XXX, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(Cultiv == "Uncultivated" & curv_vert_excess > XXX, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(Cultiv == "Uncultivated" & curv_horiz_excess > XXX, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & curv_min > 0.0024170212, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & curv_min < -0.002, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & curv_max > 0.0015, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & curv_max < -0.0015, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & curv_mean > 0.001, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & curv_mean < -0.001, (Inarable2_wt+1), Inarable2_wt),
          
          Inarable2_wt = ifelse(Cultiv == "Uncultivated" & BDRLOG > 70, (Inarable2_wt+1), Inarable2_wt),
-         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & BDRICM < 40.79, (Inarable2_wt+1), Inarable2_wt),
-         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & BDTICM <= 3.36, (Inarable2_wt+1), Inarable2_wt),
-         #Inarable2_wt = ifelse(Cultiv == "Uncultivated" & SOC > XXX, (Inarable2_wt+1), Inarable2_wt),
-         #Inarable2_wt = ifelse(Cultiv == "Uncultivated" & BD > XXX, (Inarable2_wt+1), Inarable2_wt),
-         #Inarable2_wt = ifelse(Cultiv == "Uncultivated" & OCD > XXX, (Inarable2_wt+1), Inarable2_wt),
-         #Inarable2_wt = ifelse(Cultiv == "Uncultivated" & N > XXX, (Inarable2_wt+1), Inarable2_wt),
-         #Inarable2_wt = ifelse(Cultiv == "Uncultivated" & SOCS > XXX, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & BDRICM < 62.87024, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(Cultiv == "Uncultivated" & BDTICM <= 3.36, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & SOC > 350, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & BD < 108, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & OCD > 350, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & N > 300, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & SOCS > 80, (Inarable2_wt+1), Inarable2_wt),
          
          
          Inarable2_wt = ifelse(Cultiv == "Uncultivated" & Geomorphons == "Summit", (Inarable2_wt+1), Inarable2_wt),
          Inarable2_wt = ifelse(Cultiv == "Uncultivated" & Geomorphons == "Depression", (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(Cultiv == "Uncultivated" & Geomorphons == "Valley", (Inarable2_wt+1), Inarable2_wt),
          Inarable2 = ifelse(Inarable2_wt > 0, TRUE, FALSE),
+         Inarable2 = ifelse(Inarable1 == T & Inarable2 == T & Inarable2_wt <= Inarable1_wt, F, Inarable2),
+         Inarable1 = ifelse(Inarable1 == T & Inarable2 == T & Inarable2_wt > Inarable1_wt, F, Inarable1),
+         #|
+         Arable = ifelse(Cultiv == "Cultivated", TRUE, FALSE),
+         Arable_wt = ifelse(Cultiv == "Cultivated", 1, 0),
          
-         Arable = ifelse(Cultiv == "Cultivated" & Problem == FALSE, TRUE, FALSE),
-         Arable_wt = ifelse(Cultiv == "Cultivated" & Problem == FALSE, 1, 0),
-         
-         wt = Inarable2_wt + Inarable2_wt + Arable_wt,
-         
-         Stratum = ifelse(Arable == TRUE, "ArableSample", Stratum),
+         wt = Inarable1_wt + Inarable2_wt + Arable_wt,
+
          Stratum = case_when(
                 Arable == TRUE ~ "ArableSample",
                 Inarable1 == TRUE ~ "InarableSample1",
@@ -1666,34 +1691,74 @@ Arable_RF_df <- Arable_RF_df %>%
          SampSize = case_when(
                 Stratum == "ArableSample" ~ 225000,
                 Stratum == "InarableSample1" ~ 50000,
-                Stratum == "InarableSample2" ~ "125000",
+                Stratum == "InarableSample2" ~ 125000,
                 .default = 0))
 
+dt = setDT(zzz)
 
-Arable_RF_Train_df = Arable_RF_df %>% group_by(Stratum) %>%
-  slice_sample(n = SampSize[1], weight_by = wt, replace = FALSE) #prop, by = NULL, 
+a <- dt[Stratum == "ArableSample"][sample(.N, 225000, replace = FALSE)]
 
-write_csv(Arable_RF_Train_df, paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
-rm(Arable_RF_Train_df)
-Arable_RF_Train_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
+i1 <- dt[Stratum == "InarableSample1"][sample(.N, 50000, replace = FALSE, prob = wt)]
+
+i2 <- dt[Stratum == "InarableSample2"][sample(.N, 125000, replace = FALSE, prob = wt)]
+
+dt <- rbindlist(list(a, i1, i2))
+
+rm(i1, i2, a)
+
+Arable_RF_Train_df <- as.data.frame(dt)
+
+rm(dt)
 
 tt = Arable_RF_Train_df %>% select(Cells) %>% mutate(TraningSample = TRUE)
 
-Arable_RF_df = Arable_RF_df %>% left_join(tt, by = "Cells") %>%
+zzz = zzz %>% left_join(tt, by = "Cells") %>%
   mutate(TraningSample = ifelse(TraningSample == TRUE, TRUE, FALSE),
          PredictionData = ifelse(TraningSample == TRUE, FALSE, TRUE))
 
 rm(tt)
 
-write_csv(Arable_RF_df, paste0(wd$data_p,"ArableArea_RFModel_Data.csv.gz"))
-rm(Arable_RF_df)
-Arable_RF_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_Data.csv.gz"))
+Arable_RF_Predict_df = zzz %>% filter(PredictionData == T)#Arable_RF_df
 
-Arable_RF_Predict_df = Arable_RF_df %>% filter(PredictionData = T)
+
+
+
+
+#a = zzz %>% filter(Stratum == "ArableSample") %>% slice_sample(n = 225000, weight_by = wt, replace = FALSE)
+
+#i1 = zzz %>% filter(Stratum == "InarableSample1") %>% slice_sample(n = 50000, weight_by = wt, replace = FALSE)
+
+#i2 = zzz %>% filter(Stratum == "InarableSample2") %>% slice_sample(n = 125000, weight_by = wt, replace = FALSE)
+
+#Arable_RF_Train_df = rbind(a, i1, i2)
+#rm(a, i1, i2)
+
+#Arable_RF_Train_df = Arable_RF_df %>% group_by(Stratum) %>%
+  #slice_sample(n = SampSize[1], weight_by = wt, replace = FALSE) #prop, by = NULL, 
+
+#write_csv(Arable_RF_Train_df, paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
+#rm(Arable_RF_Train_df)
+#Arable_RF_Train_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
+
+tt = Arable_RF_Train_df %>% select(Cells) %>% mutate(TraningSample = TRUE)
+
+zzz = zzz %>% left_join(tt, by = "Cells") %>%
+  mutate(TraningSample = ifelse(TraningSample == TRUE, TRUE, FALSE),
+         PredictionData = ifelse(TraningSample == TRUE, FALSE, TRUE))
+#Arable_RF_df = Arable_RF_df %>% left_join(tt, by = "Cells") %>%
+#  mutate(TraningSample = ifelse(TraningSample == TRUE, TRUE, FALSE),
+#         PredictionData = ifelse(TraningSample == TRUE, FALSE, TRUE))
+rm(tt)
+
+#write_csv(Arable_RF_df, paste0(wd$data_p,"ArableArea_RFModel_Data.csv.gz"))
+#rm(Arable_RF_df)
+#Arable_RF_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_Data.csv.gz"))
+
+Arable_RF_Predict_df = zzz %>% filter(PredictionData == T)#Arable_RF_df
   
-write_csv(Arable_RF_Predict_df, paste0(wd$data_p,"ArableArea_RFModel_PredictData.csv.gz"))
-rm(Arable_RF_Predict_df)
-Arable_RF_Predict_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_PredictData.csv.gz"))
+#write_csv(Arable_RF_Predict_df, paste0(wd$data_p,"ArableArea_RFModel_PredictData.csv.gz"))
+#rm(Arable_RF_Predict_df)
+#Arable_RF_Predict_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_PredictData.csv.gz"))
 
 rm(z, fgeo, fgeo_col_pc, fgeo_row_pc, fLU_row_pc, fLU_col_pc, fLU, CONABIO_2015_LandUse_30m, Geomorphons)
 
@@ -1706,11 +1771,15 @@ rm(z, fgeo, fgeo_col_pc, fgeo_row_pc, fLU_row_pc, fLU_col_pc, fLU, CONABIO_2015_
 
 ```{r}
 
-x <- rast(paste0(wd$data_p,"Arable_Raster_Data.tif"))
-Cultiv <- x[[1]]
-Arable_RF_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_Data.csv.gz"))
-Arable_RF_Predict_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_PredictData.csv.gz"))
-Arable_RF_Train_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
+
+  
+  
+  
+#x <- rast(paste0(wd$data_p,"Arable_Raster_Data.tif"))
+#Cultiv <- x[[1]]
+#Arable_RF_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_Data.csv.gz"))
+#Arable_RF_Predict_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_PredictData.csv.gz"))
+#Arable_RF_Train_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
 
 
 #SIAP_LU_Fields <- mask(SIAP_LU_Fields, CMex_Mask)
@@ -1736,6 +1805,18 @@ form=getConfirmedFormula(boruta)
 
 
 ```
+
+```{r}
+x <- subset(x, c("SIAP_LU_Fields", "LandUseArchy", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "BDRICM", "BDRLOG", "BDTICM", "BD", "SOC", "OCD", "N", "SOCS", "WRB" ))
+
+Arable_RF_df <- Arable_RF_df %>% select()
+
+Arable_RF_Train_df <- Arable_RF_df %>% select()
+
+Arable_RF_Predict_df <- Arable_RF_df %>% select()
+```
+
+
 
 
 ### Train the Model

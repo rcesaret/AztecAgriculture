@@ -617,18 +617,7 @@ SIAP_3 = SIAP_3 %>%
 
 ```
 
-Area_AGType
-Area_AGType_Maize
-Area_AGType_Fodder
-Area_AGType_OtherCrops
-Area_Total
-Area_Total_Maize
-Area_Total_Fodder
-Area_Total_OtherCrops
-PctArea_Maize_Crops_AGType
-PctArea_Maize_AGType
-PctArea_Maize_Crops_Total
-PctArea_Maize_Total
+
 
 #### SIAP_4: Annual Data
 
@@ -688,6 +677,49 @@ SIAP_4 = SIAP_3 %>%
          cvPctYieldLoss_Temp = sdPctYieldLoss_Temp/AvgPctYieldLoss_Temp*100) %>% 
   # calculate variable for the overall number of time series cases by state-municipality
   add_tally(name = "n_Total") %>% 
+  mutate(AvgArea_Irrig = mean(Area_Irrig[AGType == "Riego"], na.rm=T),
+         sdArea_Irrig = sd(Area_Irrig[AGType == "Riego"], na.rm=T),
+         cvArea_Irrig = sdArea_Irrig/AvgArea_Irrig*100,
+         AvgArea_Irrig_Maize = mean(Area_Irrig_Maize[AGType == "Riego"], na.rm=T),
+         sdArea_Irrig_Maize = sd(Area_Irrig_Maize[AGType == "Riego"], na.rm=T),
+         cvArea_Irrig_Maize = sdArea_Irrig_Maize/AvgArea_Irrig_Maize*100,
+         AvgArea_Irrig_Fodder = mean(Area_Irrig_Fodder[AGType == "Riego"], na.rm=T),
+         AvgArea_Irrig_OtherCrops = mean(Area_Irrig_OtherCrops[AGType == "Riego"], na.rm=T),
+         AvgPctArea_Maize_Crops_Irrig = mean(PctArea_Maize_Crops_Irrig[AGType == "Riego"], na.rm=T),
+         sdPctArea_Maize_Crops_Irrig = sd(PctArea_Maize_Crops_Irrig[AGType == "Riego"], na.rm=T),
+         cvPctArea_Maize_Crops_Irrig = sdPctArea_Maize_Crops_Irrig/AvgPctArea_Maize_Crops_Irrig*100,
+         AvgPctArea_Maize_Irrig = mean(PctArea_Maize_Irrig[AGType == "Riego"], na.rm=T),
+         sdPctArea_Maize_Irrig = sd(PctArea_Maize_Irrig[AGType == "Riego"], na.rm=T),
+         cvPctArea_Maize_Irrig = sdPctArea_Maize_Irrig/AvgPctArea_Maize_Irrig*100,
+         AvgArea_Temp = mean(Area_Temp[AGType == "Temporal"], na.rm=T),
+         sdArea_Temp = sd(Area_Temp[AGType == "Temporal"], na.rm=T),
+         cvArea_Temp = sdArea_Temp/AvgArea_Temp*100,
+         AvgArea_Temp_Maize = mean(Area_Temp_Maize[AGType == "Temporal"], na.rm=T),
+         sdArea_Temp_Maize = sd(Area_Temp_Maize[AGType == "Temporal"], na.rm=T),
+         cvArea_Temp_Maize = sdArea_Temp_Maize/AvgArea_Temp_Maize*100,
+         AvgArea_Temp_Fodder = mean(Area_Temp_Fodder[AGType == "Temporal"], na.rm=T),
+         AvgArea_Temp_OtherCrops = mean(Area_Temp_OtherCrops[AGType == "Temporal"], na.rm=T),
+         AvgPctArea_Maize_Crops_Temp = mean(PctArea_Maize_Crops_Temp[AGType == "Temporal"], na.rm=T),
+         sdPctArea_Maize_Crops_Temp = sd(PctArea_Maize_Crops_Temp[AGType == "Temporal"], na.rm=T),
+         cvPctArea_Maize_Crops_Temp = sdPctArea_Maize_Crops_Temp/AvgPctArea_Maize_Crops_Temp*100,
+         AvgPctArea_Maize_Temp = mean(PctArea_Maize_Temp[AGType == "Temporal"], na.rm=T),
+         sdPctArea_Maize_Temp = sd(PctArea_Maize_Temp[AGType == "Temporal"], na.rm=T),
+         cvPctArea_Maize_Temp = sdPctArea_Maize_Temp/AvgPctArea_Maize_Temp*100,
+         
+         AvgArea_Total = mean(Area_AGType, na.rm=T), # It is correct that the _Total = f(_AGType) 
+         sdArea_Total = sd(Area_AGType, na.rm=T), # because _AGType has a single value for each row (year + EstadoMunicipio + AGType)
+         cvArea_Total = sdArea_Total/AvgArea_Total*100, # while _Total is the average of them per year per EstadoMunicipio
+         AvgArea_Total_Maize = mean(Area_AGType_Maize, na.rm=T),
+         sdArea_Total_Maize = sd(Area_AGType_Maize, na.rm=T),
+         cvArea_Total_Maize = sdArea_AGType_Maize/AvgArea_Total_Maize*100,
+         AvgArea_Total_Fodder = mean(Area_AGType_Fodder, na.rm=T),
+         AvgArea_Total_OtherCrops = mean(Area_AGType_OtherCrops, na.rm=T),
+         AvgPctArea_Maize_Crops_Total = mean(PctArea_Maize_Crops_AGType, na.rm=T),
+         sdPctArea_Maize_Crops_Total = sd(PctArea_Maize_Crops_AGType, na.rm=T),
+         cvPctArea_Maize_Crops_Total = sdPctArea_Maize_Crops_AGType/AvgPctArea_Maize_Crops_AGType*100,
+         AvgPctArea_Maize_Total = mean(PctArea_Maize_AGType, na.rm=T),
+         sdPctArea_Maize_Total = sd(PctArea_Maize_AGType, na.rm=T),
+         cvPctArea_Maize_Total = sdPctArea_Maize_AGType/AvgPctArea_Maize_AGType*100) %>%
   # ungroup the data
   ungroup() %>% 
   # calculate additional variables of interest
@@ -788,9 +820,53 @@ SIAP_5 = SIAP_4 %>%
             ITr_AvgYieldLoss = mean(ITr_AvgYieldLoss, na.rm=T), # irrigation-to-total ratio for mean maize yield loss
             ITr_cvYieldLoss = mean(ITr_cvYieldLoss, na.rm=T),# irrigation-to-total ratio for coefficient of variation of maize yield loss
             TTr_AvgYieldLoss = mean(TTr_AvgYieldLoss, na.rm=T), # temporal-to-total ratio for mean maize yield loss
-            TTr_cvYieldLoss = mean(TTr_cvYieldLoss, na.rm=T)# temporal-to-total ratio for coefficient of variation of maize yield loss
+            TTr_cvYieldLoss = mean(TTr_cvYieldLoss, na.rm=T),# temporal-to-total ratio for coefficient of variation of maize yield loss
+            
+            AvgArea_Irrig = mean(AvgArea_Irrig, na.rm=T),
+            sdArea_Irrig = mean(sdArea_Irrig, na.rm=T),
+            cvArea_Irrig = mean(cvArea_Irrig, na.rm=T),
+            AvgArea_Irrig_Maize = mean(AvgArea_Irrig_Maize, na.rm=T),
+            sdArea_Irrig_Maize = mean(sdArea_Irrig_Maize, na.rm=T),
+            cvArea_Irrig_Maize = mean(cvArea_Irrig_Maize, na.rm=T),
+            AvgArea_Irrig_Fodder = mean(AvgArea_Irrig_Fodder, na.rm=T),
+            AvgArea_Irrig_OtherCrops = mean(AvgArea_Irrig_OtherCrops, na.rm=T),
+            AvgPctArea_Maize_Crops_Irrig = mean(AvgPctArea_Maize_Crops_Irrig, na.rm=T),
+            sdPctArea_Maize_Crops_Irrig = mean(sdPctArea_Maize_Crops_Irrig, na.rm=T),
+            cvPctArea_Maize_Crops_Irrig = mean(cvPctArea_Maize_Crops_Irrig, na.rm=T),
+            AvgPctArea_Maize_Irrig = mean(AvgPctArea_Maize_Irrig, na.rm=T),
+            sdPctArea_Maize_Irrig = mean(sdPctArea_Maize_Irrig, na.rm=T),
+            cvPctArea_Maize_Irrig = mean(cvPctArea_Maize_Irrig, na.rm=T),
+            AvgArea_Temp = mean(AvgArea_Temp, na.rm=T),
+            sdArea_Temp = mean(sdArea_Temp, na.rm=T),
+            cvArea_Temp = mean(cvArea_Temp, na.rm=T),
+            AvgArea_Temp_Maize = mean(AvgArea_Temp_Maize, na.rm=T),
+            sdArea_Temp_Maize = mean(sdArea_Temp_Maize, na.rm=T),
+            cvArea_Temp_Maize = mean(cvArea_Temp_Maize, na.rm=T),
+            AvgArea_Temp_Fodder = mean(AvgArea_Temp_Fodder, na.rm=T),
+            AvgArea_Temp_OtherCrops = mean(AvgArea_Temp_OtherCrops, na.rm=T),
+            AvgPctArea_Maize_Crops_Temp = mean(AvgPctArea_Maize_Crops_Temp, na.rm=T),
+            sdPctArea_Maize_Crops_Temp = mean(sdPctArea_Maize_Crops_Temp, na.rm=T),
+            cvPctArea_Maize_Crops_Temp = mean(cvPctArea_Maize_Crops_Temp, na.rm=T),
+            AvgPctArea_Maize_Temp = mean(AvgPctArea_Maize_Temp, na.rm=T),
+            sdPctArea_Maize_Temp = mean(sdPctArea_Maize_Temp, na.rm=T),
+            cvPctArea_Maize_Temp = mean(cvPctArea_Maize_Temp, na.rm=T),
+            
+            AvgArea_Total = mean(Area_AGType, na.rm=T), # It is correct that the _Total = f(_AGType) 
+            sdArea_Total = sd(Area_AGType, na.rm=T), # because _AGType has a single value for each row (year + EstadoMunicipio + AGType)
+            cvArea_Total = sdArea_Total/AvgArea_Total*100, # while _Total is the average of them per year per EstadoMunicipio
+            AvgArea_Total_Maize = mean(Area_AGType_Maize, na.rm=T),
+            sdArea_Total_Maize = sd(Area_AGType_Maize, na.rm=T),
+            cvArea_Total_Maize = sdArea_AGType_Maize/AvgArea_Total_Maize*100,
+            AvgArea_Total_Fodder = mean(Area_AGType_Fodder, na.rm=T),
+            AvgArea_Total_OtherCrops = mean(Area_AGType_OtherCrops, na.rm=T),
+            AvgPctArea_Maize_Crops_Total = mean(PctArea_Maize_Crops_AGType, na.rm=T),
+            sdPctArea_Maize_Crops_Total = sd(PctArea_Maize_Crops_AGType, na.rm=T),
+            cvPctArea_Maize_Crops_Total = sdPctArea_Maize_Crops_AGType/AvgPctArea_Maize_Crops_AGType*100,
+            AvgPctArea_Maize_Total = mean(PctArea_Maize_AGType, na.rm=T),
+            sdPctArea_Maize_Total = sd(PctArea_Maize_AGType, na.rm=T),
+            cvPctArea_Maize_Total = sdPctArea_Maize_AGType/AvgPctArea_Maize_AGType*100) %>%
             # ungroup the data
-  ) %>% ungroup() %>% rowwise() %>%
+  ungroup() %>% rowwise() %>%
   # Remove NaN values from affected variables
   mutate(cvYieldLoss = ifelse(is.nan(cvYieldLoss), 0, cvYieldLoss),
          cvLost = ifelse(is.nan(cvLost), 0, cvLost)) %>% 
@@ -848,7 +924,21 @@ x = SIAP_4 %>%
             AvgPrice = mean(Price, na.rm=T), # average price per kg in $MX for maize
             sdPrice = sd(Price, na.rm=T), # standard deviation of price per kg in $MX for maize
             cvPrice = sdPrice/AvgPrice*100, # coefficient of variation of price per kg in $MX for maize
-            n = mean(n, na.rm=T)) %>% # number of time series cases by state-municipality and agriculture type
+            n = mean(n, na.rm=T),# number of time series cases by state-municipality and agriculture type
+            AvgArea = mean(Area_AGType, na.rm=T), # It is correct that the _Total = f(_AGType) 
+            sdArea = sd(Area_AGType, na.rm=T), # because _AGType has a single value for each row (year + EstadoMunicipio + AGType)
+            cvArea = sdArea_Total/AvgArea_Total*100, # while _Total is the average of them per year per EstadoMunicipio
+            AvgArea_Maize = mean(Area_AGType_Maize, na.rm=T),
+            sdArea_Maize = sd(Area_AGType_Maize, na.rm=T),
+            cvArea_Maize = sdArea_AGType_Maize/AvgArea_Total_Maize*100,
+            AvgArea_Fodder = mean(Area_AGType_Fodder, na.rm=T),
+            AvgArea_OtherCrops = mean(Area_AGType_OtherCrops, na.rm=T),
+            AvgPctArea_Maize_Crops = mean(PctArea_Maize_Crops_AGType, na.rm=T),
+            sdPctArea_Maize_Crops = sd(PctArea_Maize_Crops_AGType, na.rm=T),
+            cvPctArea_Maize_Crops = sdPctArea_Maize_Crops_AGType/AvgPctArea_Maize_Crops_AGType*100,
+            AvgPctArea_Maize = mean(PctArea_Maize_AGType, na.rm=T),
+            sdPctArea_Maize = sd(PctArea_Maize_AGType, na.rm=T),
+            cvPctArea_Maize = sdPctArea_Maize_AGType/AvgPctArea_Maize_AGType*100) %>% 
   ungroup()
 
 SIAP_6 = SIAP_4 %>% 
@@ -895,7 +985,21 @@ SIAP_6 = SIAP_4 %>%
             AvgPrice = mean(Price, na.rm=T), # average price per kg in $MX for maize
             sdPrice = sd(Price, na.rm=T), # standard deviation of price per kg in $MX for maize
             cvPrice = sdPrice/AvgPrice*100, # coefficient of variation of price per kg in $MX for maize
-            n = n()) %>% # number of time series cases by state-municipality and agriculture type
+            n = n(),# number of time series cases by state-municipality and agriculture type
+            AvgArea = mean(Area_AGType, na.rm=T), # It is correct that the _Total = f(_AGType) 
+            sdArea = sd(Area_AGType, na.rm=T), # because _AGType has a single value for each row (year + EstadoMunicipio + AGType)
+            cvArea = sdArea_Total/AvgArea_Total*100, # while _Total is the average of them per year per EstadoMunicipio
+            AvgArea_Maize = mean(Area_AGType_Maize, na.rm=T),
+            sdArea_Maize = sd(Area_AGType_Maize, na.rm=T),
+            cvArea_Maize = sdArea_AGType_Maize/AvgArea_Total_Maize*100,
+            AvgArea_Fodder = mean(Area_AGType_Fodder, na.rm=T),
+            AvgArea_OtherCrops = mean(Area_AGType_OtherCrops, na.rm=T),
+            AvgPctArea_Maize_Crops = mean(PctArea_Maize_Crops_AGType, na.rm=T),
+            sdPctArea_Maize_Crops = sd(PctArea_Maize_Crops_AGType, na.rm=T),
+            cvPctArea_Maize_Crops = sdPctArea_Maize_Crops_AGType/AvgPctArea_Maize_Crops_AGType*100,
+            AvgPctArea_Maize = mean(PctArea_Maize_AGType, na.rm=T),
+            sdPctArea_Maize = sd(PctArea_Maize_AGType, na.rm=T),
+            cvPctArea_Maize = sdPctArea_Maize_AGType/AvgPctArea_Maize_AGType*100) %>% 
   ungroup() %>% 
   bind_rows(x) %>% 
   pivot_longer(-c(Estado_ID, Estado, ddr_ID, ddr, Cader_ID, Cader, Municipio_ID, Municipio, EstadoMunicipio, AGType), names_to = "Variable", values_to = "Value") %>% 
