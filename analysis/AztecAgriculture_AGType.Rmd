@@ -1,0 +1,734 @@
+---
+title: "Aztec Agricultural Productivity Model"
+subtitle: "Random Forest Model for Agriculture Type"
+author: "Rudolf Cesaretti"
+date: "Last run on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+    number_sections: true
+bibliography: References.bib
+csl: apa.csl
+link-citations: yes
+---
+
+```{css, echo=FALSE}
+pre {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+pre[class] {
+  max-height: 300px;
+}
+```
+
+```{r, setup, include=FALSE,echo=FALSE, message=FALSE,warning=FALSE}
+require(knitr)
+# Set so that long lines in R will be wrapped:
+opts_chunk$set(tidy.opts=list(width.cutoff=75),tidy=TRUE)
+#
+rm(list = ls())
+```
+
+
+# Setup 
+
+All of the data and scripts are downloadable from the [Aztec Agriculture github repository](https://https://github.com/rcesaret/AztecAgriculture), which can be downloaded locally as a .zip folder or cloned to your own account.
+
+Either way, once you have done so, you will need to modify the working directory (setwd("C:/...)") path and "dir" variables in the code chunk below to match the repository location on your computer.
+
+```{r, label='Set Local Directory Location', message=FALSE,warning=FALSE}
+
+wd <- list()
+
+#SET YOUR LOCAL DIRECTORY LOCATION HERE:
+wd$dir <- "D:/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
+#wd$dir <- "C:/Users/TJ McMote/Dropbox (ASU)/Huexotzinco/HuexTlaxAnal2022/HuexTlax2022Analysis/"
+
+wd$analysis <- paste0(wd$dir,"analysis/")
+wd$data_r <- paste0(wd$dir,"data-raw/")
+wd$data_p <- paste0(wd$dir,"data-processed/")
+wd$data_f <- paste0(wd$dir,"data-final-outputs/")
+wd$figs <- paste0(wd$dir,"figures/")
+wd$funcs <- paste0(wd$dir,"functions/")
+
+```
+
+
+
+## Load R Packages and Custom Functions
+
+```{r, label='Load Libraries', message=FALSE,warning=FALSE}
+# Package names
+packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster", 
+              "Matrix", "terra","gdistance", "lwgeom", "tidyr", "stars", "dismo", 
+              "purrr", "spatialEco", "whitebox", "classInt","ggnewscale", "lbmech", 
+              "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
+              "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
+              "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra", 
+              "Boruta", "mlbench", "caret", "readr")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# load packages
+invisible(lapply(packages, library, character.only = TRUE))
+
+rm(packages,installed_packages)
+
+#Read in custom R functions located in the wd$funcs directory folder
+FUNCS <- list("RescaleSpatRast.R", "Terra_df.R", "RF_ImputeRast.R")#"splitByAttributes.R", 
+invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
+rm(FUNCS)
+
+```
+
+
+
+
+# Agriculture Type
+
+
+## Prepare Data
+
+
+### Import Data
+
+
+
+```{r, label='AGType - Import Data', message=FALSE,warning=FALSE}
+
+DEM <- rast(paste0(wd$data_p, "DEM_30m.tif"))
+
+Topo_r_30m <- rast(paste0(wd$data_p, "Topo_r_30m.tif"))
+
+Soil_30m <- rast(paste0(wd$data_p, "Soil_r_30m.tif"))
+
+Geomorphons <- rast(paste0(wd$data_p, "CMex_30m_Geomorphons.tif"))
+
+CONABIO_2015_LandUse_30m <- rast(paste0(wd$data_p, "CONABIO_2015_LandUse_30m.tif"))
+
+CMex_Mask <- rast(paste0(wd$data_p,"CMex_Mask.tif"))
+
+SIAP_LU_Fields_AGType <- rast(paste0(wd$data_p,"SIAP_LU_Fields_AGType.tif"))
+SIAP_LU_Fields_AGType <- mask(SIAP_LU_Fields_AGType, CMex_Mask)
+
+ArableArea <- rast(paste0(wd$data_p,"ArableArea.tif"))
+
+
+```
+
+
+
+
+### Combine Data
+
+```{r, label='AGType - Combine Data', message=FALSE,warning=FALSE}
+AGType <- SIAP_LU_Fields_AGType
+x = c(AGType, CONABIO_2015_LandUse_30m, Geomorphons, Topo_r_30m, Soil_30m)
+#xf <- mask(x, SIAP_LU_Fields_AGTypeNA)
+x = mask(x, SIAP_LU_Fields_AGType)
+
+writeRaster(x, filename = paste0(wd$data_p, "AGType_Raster_Data.tif"), overwrite=TRUE)
+
+rm(Topo_r_30m, Soil_30m, SIAP_LU_Fields_AGType, CMex_Mask, x, Geomorphons, AGType, CONABIO_2015_LandUse_30m)
+
+```
+
+
+### Convert Data from Raster Stack to Dataframe 
+
+```{r, label='AGType - Convert Data from Raster Stack to Dataframe ', message=FALSE,warning=FALSE}
+
+x_df <- as.data.frame(x[[1]])
+names(x_df) <- "AGType"
+x_df <- rownames_to_column(x_df, var = "Cells")
+
+for (i in 2:nlyr(x)) {
+  
+  t = as.data.frame(x[[i]])
+  t <- rownames_to_column(t, var = "Cells")
+  names(t) <- c("Cells", names(x[[i]]))
+  x_df <- x_df %>% left_join(t, by="Cells")
+
+}
+x_df = x_df[complete.cases(x_df), ]
+
+AGType_RF_df <- x_df %>% 
+  mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")),
+         LandUseArchy = factor(LandUseArchy, levels = c("Unknown", "Wetland", "Settlement", "Water", "Glacial")),
+         Geomorphons = factor(Geomorphons, levels = c("Flat", "Summit", "Ridge", "Shoulder", "Spur", "Slope", "Hollow", "Footslope", "Valley", "Depression")),
+         WRB = factor(WRB, levels = c("NoData", "Andosols", "Arenosols", "Calcisols", "Cambisols", "Durisols", "Fluvisols", "Gleysols", "Leptosols", "Luvisols", "Phaeozems", "Regosols", "Solonchaks", "Solonetz", "Umbrisols", "Vertisols")))
+
+rm(x_df)
+
+AGType_RF_df %>%
+  mutate(part = case_when(
+    row_number() <= ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data1",
+    row_number() <= 2 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data2",
+    row_number() <= 3 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data3",
+    row_number() <= 4 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data4",
+    TRUE ~ "AGType_RFModel_Data5"
+  )) %>%
+  group_split(part) %>%
+  purrr::walk2(
+    .,
+    c("AGType_RFModel_Data1", "AGType_RFModel_Data2", "AGType_RFModel_Data3", "AGType_RFModel_Data4", "AGType_RFModel_Data5"),
+    ~ write_csv(.x, file = paste0(wd$data_p, .y, ".csv.gz"))
+  )
+
+```
+
+#### Shortcut Import #1
+
+
+```{r, label='AGType - Shortcut Import #1', message=FALSE,warning=FALSE}
+
+x <- rast(paste0(wd$data_p,"AGType_Raster_Data.tif"))
+AGType <- x[[1]]
+CONABIO_2015_LandUse_30m <- x[[2]]
+Geomorphons <- x[[3]]
+
+l = 1:5
+file_paths <- paste0(wd$data_p, "AGType_RFModel_Data", l, ".csv.gz")
+
+```
+
+
+
+### Exploratory Data Analysis
+
+#### Descriptive Statistics
+
+```{r, label='AGType - EDA Descriptive Statistics', message=FALSE,warning=FALSE}
+AGType2 <- as.numeric(AGType)
+#y = c(CONABIO_2015_LandUse_30m, Geomorphons)
+fLU = freq(CONABIO_2015_LandUse_30m, usenames=T, zones=AGType2, wide=T)
+fLU = fLU %>% mutate(zone = case_when(
+    zone == 1 ~ "Temporal",
+    zone == 2 ~ "Irrigation")) %>% rowwise() %>% 
+  mutate(Total = sum(c_across(Flat:Depression))) %>% ungroup()
+column_sums <- as.numeric(colSums(fLU[, -c(1:2)]))
+y = as.matrix(fLU[, -c(1, 2)])
+d = fLU[, c(1:2)]
+fLU_col_pc = cbind(d, as.data.frame(sweep(y, 2, column_sums, `/`)*100))
+row_sums <- as.numeric(rowSums(fLU[, -c(1:2)]))
+fLU_row_pc = cbind(d, as.data.frame(sweep(y, 1, row_sums, `/`)*200))
+
+fWRB = freq(x[["WRB"]], usenames=T, zones=AGType2, wide=T)
+fWRB = fWRB %>% mutate(zone = case_when(
+    zone == 1 ~ "Temporal",
+    zone == 2 ~ "Irrigation")) %>% rowwise() %>% 
+  mutate(Total = sum(c_across(NoData:Vertisols))) %>% ungroup()
+column_sums <- as.numeric(colSums(fWRB[, -c(1:2)]))
+y = as.matrix(fWRB[, -c(1, 2)])
+d = fWRB[, c(1:2)]
+fWRB_col_pc = cbind(d, as.data.frame(sweep(y, 2, column_sums, `/`)*100))
+row_sums <- as.numeric(rowSums(fWRB[, -c(1:2)]))
+fWRB_row_pc = cbind(d, as.data.frame(sweep(y, 1, row_sums, `/`)*200))
+
+fgeo = freq(Geomorphons, usenames=T, zones=AGType2, wide=T)
+fgeo = fgeo %>% mutate(zone = case_when(
+    zone == 1 ~ "Temporal",
+    zone == 2 ~ "Irrigation")) %>% rowwise() %>% 
+  mutate(Total = sum(c_across(Forest_Coniferous_Temperate:Water))) %>% ungroup()
+column_sums <- as.numeric(colSums(fgeo[, -c(1:2)]))
+y = as.matrix(fgeo[, -c(1, 2)])
+d = fgeo[, c(1:2)]
+fgeo_col_pc = cbind(d, as.data.frame(sweep(y, 2, column_sums, `/`)*100))
+row_sums <- as.numeric(rowSums(fgeo[, -c(1:2)]))
+fgeo_row_pc = cbind(d, as.data.frame(sweep(y, 1, row_sums, `/`)*200))
+
+rm(column_sums, row_sums, y, d )
+
+z1 = zonal(c(Topo_r_30m, Soil_30m), AGType, fun="mean", na.rm=T)
+z1$stat = "Mean"
+z2 = zonal(c(Topo_r_30m, Soil_30m), AGType, fun="min", na.rm=T)
+z2$stat = "Min"
+z3 = zonal(c(Topo_r_30m, Soil_30m), AGType, fun="max", na.rm=T)
+z3$stat = "Max"
+z = rbind(z1, z2, z3) %>% mutate(zone = case_when(
+    layer == 0 ~ "Temporal",
+    layer == 1 ~ "Irrigation"))
+
+rm(z1, z2, z3)
+```
+
+
+#### Histograms
+
+```{r, label='AGType - EDA Histograms', message=FALSE,warning=FALSE}
+
+#Hist_DEM <- 
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = DEM, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Elevation (masl)", y = "Count") + theme_classic()
+
+#Hist_Slope <- 
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = Slope, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Slope (degrees)", y = "Count") + theme_classic()
+
+#Hist_TRI <- 
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = TRI, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Topographic Roughness Index (TRI)", y = "Count") + theme_classic()
+
+#Hist_TWI <- 
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = TWI, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Topographic Wetness Index (TWI)", y = "Count") + theme_classic()
+
+#Hist_STI <- 
+AGType_RF_df %>% filter(STI <= 100) %>% ggplot() +
+geom_histogram(aes(x = STI, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Sediment Transport Index (STI)", y = "Count") + theme_classic() +
+  scale_x_continuous( breaks=seq(0,100,5))
+
+#Hist_SPI <- 
+AGType_RF_df %>% filter(SPI <= 1200) %>% ggplot() +
+geom_histogram(aes(x = SPI, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Stream Power Index (SPI)", y = "Count") + theme_classic()
+
+#Hist_BDRICM <- 
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = BDRICM, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Depth to bedrock up to 200cm (BDRICM)", y = "Count") + theme_classic()
+
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = BDRLOG, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Probability of R horizon (BDRLOG)", y = "Count") + theme_classic() +
+  scale_x_continuous( breaks=seq(0,100,5))
+
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = BDTICM, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Absolute depth to bedrock in cm (BDTICM)", y = "Count") + theme_classic()
+
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = curv_min, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Minimum Curvature", y = "Count") + theme_classic()
+
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = curv_max, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Maximum Curvature", y = "Count") + theme_classic()
+
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = curv_mean, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Mean Curvature", y = "Count") + theme_classic()
+
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = SOC, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Soil Organic Carbon", y = "Count") + theme_classic()
+
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = OCD, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Organic Carbon Density", y = "Count") + theme_classic()
+
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = N, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Nitrogen", y = "Count") + theme_classic()
+
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = SOCS, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Soil Organic Carbon Stock", y = "Count") + theme_classic()
+
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = S, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Sand", y = "Count") + theme_classic()
+
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = Z, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Silt", y = "Count") + theme_classic()
+
+AGType_RF_df %>% ggplot() +
+geom_histogram(aes(x = C, color = AGType, fill = AGType), alpha = 0.4, position = "identity") +
+  scale_fill_manual(values = c("indianred1", "cyan1"), guide = "none")+
+  scale_color_manual(values = c("firebrick1", "cyan2"), guide = "none")+
+  labs(x ="Clay", y = "Count") + theme_classic()
+
+```
+
+### Subset Predictors
+
+```{r, label='AGType - Sampling the Dataframe', message=FALSE,warning=FALSE}
+#TopoEnv_r_sub <- subset(x, c("DEM", "Slope","Accum", "TRI", "TWI", "STI", "SPI"))
+
+```
+
+
+#### Shortcut Import #2
+
+
+```{r, label='AGType - Shortcut Import #2', message=FALSE,warning=FALSE}
+x <- rast(paste0(wd$data_p,"AGType_Raster_Data.tif"))
+AGType <- x[[1]]
+x <- subset(x, c("SIAP_LU_Fields_AGType", "LandUseArchy", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "BDRICM", "BDRLOG", "BDTICM", "BD", "SOC", "OCD", "N", "SOCS", "WRB" ))
+
+l = 1:5
+file_paths <- paste0(wd$data_p, "AGType_RFModel_Data", l, ".csv.gz")
+AGType_RF_df <- file_paths %>%
+  map_dfr(~ read_csv(.x))
+
+AGType_RF_df <- AGType_RF_df %>% 
+  mutate(Cultiv = factor(Cultiv, levels = c("Uncultivated", "Cultivated")),
+         LandUseArchy = factor(LandUseArchy, levels = c("Unknown", "Wetland", "Settlement", "Water", "Glacial")),
+         Geomorphons = factor(Geomorphons, levels = c("Flat", "Summit", "Ridge", "Shoulder", "Spur", "Slope", "Hollow", "Footslope", "Valley", "Depression")),
+         WRB = factor(WRB, levels = c("NoData", "Andosols", "Arenosols", "Calcisols", "Cambisols", "Durisols", "Fluvisols", "Gleysols", "Leptosols", "Luvisols", "Phaeozems", "Regosols", "Solonchaks", "Solonetz", "Umbrisols", "Vertisols")))
+
+```
+
+
+### Sampling the Dataframe
+
+```{r, label='AGType - Sampling the Dataframe', message=FALSE,warning=FALSE}
+
+AGType_RF_df <- AGType_RF_df %>% 
+  mutate(Cultiv2 = case_when(
+         AGType == "Temporal" ~ 1,
+         AGType == "Irrigated" ~ 2),
+    #Problem = FALSE,
+         #Cultiv_3100masl = ifelse(AGType == "Cultivated" & DEM >= 3100, TRUE, FALSE),
+         #Problem = ifelse(AGType == "Cultivated" & LandUse == "Water", TRUE, Problem),
+         #Problem = ifelse(AGType == "Cultivated" & LandUse == "Wetland", TRUE, Problem),
+         #Problem = ifelse(AGType == "Cultivated" & LandUse == "Settlement", TRUE, Problem),
+         #Problem_3100masl = ifelse(AGType == "Cultivated" & DEM >= 3100, TRUE, Problem),
+         
+         #Cultiv_3100masl = ifelse(AGType == "Cultivated" & DEM >= 3100, TRUE, FALSE),
+         AGType2 = ifelse(AGType == "Cultivated" & LandUseArchy == "Water", 1, AGType2),
+         AGType2 = ifelse(AGType == "Cultivated" & LandUseArchy == "Wetland", 1, AGType2),
+         AGType2 = ifelse(AGType == "Cultivated" & LandUseArchy == "Settlement", 1, AGType2),
+         #AGType = ifelse(AGType == "Cultivated" & DEM >= 3100, "Uncultivated", AGType),
+
+         AGType = factor(AGType2, levels = c(1, 2), labels = c("Temporal", "Irrigated"))) %>%
+  select(-AGType2) %>% 
+  mutate(Temporal1_wt = 0,
+         Temporal1_wt = ifelse(AGType == "Temporal" & DEM >= 3100, (Inarable1_wt+1), Inarable1_wt),
+         Temporal1_wt = ifelse(AGType == "Temporal" & LandUseArchy == "Water", (Inarable1_wt+1), Inarable1_wt),
+         Temporal1_wt = ifelse(AGType == "Temporal" & LandUseArchy == "Wetland", (Inarable1_wt+1), Inarable1_wt),
+         Temporal1_wt = ifelse(AGType == "Temporal" & LandUseArchy == "Settlement", (Inarable1_wt+1), Inarable1_wt),
+         Temporal1_wt = ifelse(AGType == "Temporal" & LandUseArchy == "Glacial", (Inarable1_wt+1), Inarable1_wt),
+         Inarable1 = ifelse(Temporal1_wt > 0, TRUE, FALSE),
+         
+         #Inarable_3100masl = ifelse(AGType == "Temporal" & DEM >= 3100, TRUE, FALSE),
+         #Inarable_water = ifelse(AGType == "Temporal" & LandUse == "Water", TRUE, FALSE),
+         #Inarable_wetland = ifelse(AGType == "Temporal" & LandUse == "Wetland", TRUE, FALSE),
+         #Inarable_settlement = ifelse(AGType == "Temporal" & LandUse == "Settlement", TRUE, FALSE),
+         #Inarable_glacial = ifelse(AGType == "Temporal" & LandUse == "Glacial", TRUE, FALSE),
+         
+         Inarable2_wt = 0,
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & DEM >= 2850 & DEM < 3100, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & Slope > 15, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(AGType == "Uncultivated" & Accum_fd8 > xxx, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & STI > 15, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & TRI > 15, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(AGType == "Uncultivated" & SPI > XXX, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(AGType == "Uncultivated" & TWI > XXX, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(AGType == "Uncultivated" & flood_order > XXX, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(AGType == "Uncultivated" & valleys_lq > XXX, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(AGType == "Uncultivated" & elev_watershed > XXX, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(AGType == "Uncultivated" & curv_vert_excess > XXX, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(AGType == "Uncultivated" & curv_horiz_excess > XXX, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & curv_min > 0.0024170212, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & curv_min < -0.002, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & curv_max > 0.0015, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & curv_max < -0.0015, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & curv_mean > 0.001, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & curv_mean < -0.001, (Inarable2_wt+1), Inarable2_wt),
+         
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & BDRLOG > 70, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & BDRICM < 62.87024, (Inarable2_wt+1), Inarable2_wt),
+         #Inarable2_wt = ifelse(AGType == "Uncultivated" & BDTICM <= 3.36, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & SOC > 350, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & BD < 108, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & OCD > 350, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & N > 300, (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & SOCS > 80, (Inarable2_wt+1), Inarable2_wt),
+         
+         
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & Geomorphons == "Summit", (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & Geomorphons == "Depression", (Inarable2_wt+1), Inarable2_wt),
+         Inarable2_wt = ifelse(AGType == "Uncultivated" & Geomorphons == "Valley", (Inarable2_wt+1), Inarable2_wt),
+         Inarable2 = ifelse(Inarable2_wt > 0, TRUE, FALSE),
+         Inarable2 = ifelse(Inarable1 == T & Inarable2 == T & Inarable2_wt <= Inarable1_wt, F, Inarable2),
+         Inarable1 = ifelse(Inarable1 == T & Inarable2 == T & Inarable2_wt > Inarable1_wt, F, Inarable1),
+         #|
+         Arable = ifelse(AGType == "Cultivated", TRUE, FALSE),
+         Arable_wt = ifelse(AGType == "Cultivated", 1, 0),
+         
+         wt = Inarable1_wt + Inarable2_wt + Arable_wt,
+
+         Stratum = case_when(
+                Arable == TRUE ~ "ArableSample",
+                Inarable1 == TRUE ~ "InarableSample1",
+                Inarable2 == TRUE ~ "InarableSample2",
+                .default = "Unsampled"),
+         SampSize = case_when(
+                Stratum == "ArableSample" ~ 225000,
+                Stratum == "InarableSample1" ~ 50000,
+                Stratum == "InarableSample2" ~ 125000,
+                .default = 0))
+
+
+dt = setDT(AGType_RF_df)
+
+a <- dt[Stratum == "ArableSample"][sample(.N, 225000, replace = FALSE)]
+
+i1 <- dt[Stratum == "InarableSample1"][sample(.N, 50000, replace = FALSE, prob = wt)]
+
+i2 <- dt[Stratum == "InarableSample2"][sample(.N, 125000, replace = FALSE, prob = wt)]
+
+dt <- rbindlist(list(a, i1, i2))
+
+rm(i1, i2, a)
+
+AGType_RF_Train_df <- as.data.frame(dt)
+
+rm(dt)
+
+write_csv(AGType_RF_Train_df, paste0(wd$data_p,"AGType_RFModel_TrainData.csv.gz"))
+rm(AGType_RF_Train_df)
+AGType_RF_Train_df <- read_csv(paste0(wd$data_p,"AGType_RFModel_TrainData.csv.gz"))
+
+tt = AGType_RF_Train_df %>% select(Cells) %>% mutate(TraningSample = TRUE, Cells = as.character(Cells))
+
+AGType_RF_df = AGType_RF_df %>% left_join(tt, by = "Cells") %>%
+  mutate(TraningSample = ifelse(is.na(TraningSample), F, TraningSample))
+
+rm(tt)
+
+#Arable_RF_df <- zzz
+
+#rm(zzz)
+
+AGType_RF_df %>%
+  mutate(part = case_when(
+    row_number() <= ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data1",
+    row_number() <= 2 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data2",
+    row_number() <= 3 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data3",
+    row_number() <= 4 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data4",
+    TRUE ~ "AGType_RFModel_Data5"
+  )) %>%
+  group_split(part) %>%
+  purrr::walk2(
+    .,
+    c("AGType_RFModel_Data1", "AGType_RFModel_Data2", "AGType_RFModel_Data3", "AGType_RFModel_Data4", "AGType_RFModel_Data5"),
+    ~ write_csv(.x, file = paste0(wd$data_p, .y, ".csv.gz"))
+  )
+
+rm(z, fgeo, fgeo_col_pc, fgeo_row_pc, fLU_row_pc, fLU_col_pc, fLU, CONABIO_2015_LandUse_30m, Geomorphons)
+
+```
+
+
+
+#### Shortcut Import #3
+
+
+```{r}
+
+x <- rast(paste0(wd$data_p,"AGType_Raster_Data.tif"))
+AGType <- x[[1]]
+
+x <- subset(x, c("SIAP_LU_Fields_AGType", "LandUseArchy", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "BDRICM", "BDRLOG", "BDTICM", "BD", "SOC", "OCD", "N", "SOCS", "WRB" ))
+
+l = 1:5
+file_paths <- paste0(wd$data_p, "AGType_RFModel_Data", l, ".csv.gz")
+AGType_RF_df <- file_paths %>%
+  map_dfr(~ read_csv(.x))
+
+AGType_RF_df <- Arable_RF_df %>% 
+  mutate(AGType = factor(AGType, levels = c("Uncultivated", "Cultivated")),
+         LandUseArchy = factor(LandUseArchy, levels = c("Unknown", "Wetland", "Settlement", "Water", "Glacial")),
+         Geomorphons = factor(Geomorphons, levels = c("Flat", "Summit", "Ridge", "Shoulder", "Spur", "Slope", "Hollow", "Footslope", "Valley", "Depression")),
+         WRB = factor(WRB, levels = c("NoData", "Andosols", "Arenosols", "Calcisols", "Cambisols", "Durisols", "Fluvisols", "Gleysols", "Leptosols", "Luvisols", "Phaeozems", "Regosols", "Solonchaks", "Solonetz", "Umbrisols", "Vertisols")))
+
+
+AGType_RF_Train_df <- read_csv(paste0(wd$data_p,"AGType_RFModel_TrainData.csv.gz"))
+
+
+#SIAP_LU_Fields <- mask(SIAP_LU_Fields, CMex_Mask)
+```
+
+## Random Forest Model
+
+### Variable Selection
+
+```{r}
+
+
+boruta <- Boruta(Cultiv ~ ., data = AGType_RF_Train_df, maxRuns = 1000)#, doTrace = 2
+print(boruta)
+boruta[["finalDecision"]]
+plot(boruta, las = 2, cex.axis = 0.7)
+#bor <- TentativeRoughFix(boruta)
+#bor[["finalDecision"]]
+attStats(boruta)
+form=getConfirmedFormula(boruta)
+
+
+```
+
+
+### Train the Model
+
+```{r}
+
+RF_model <- ranger(Arable ~ DEM + Slope + Accum_fd8 + TRI + TWI + STI + SPI + BDRICM + BDRLOG + BDTICM + Geomorphons + LandUseGroups, data = Train_df, importance = 'impurity')
+
+print(RF_model)
+
+```
+
+
+
+### Model Predictions
+
+```{r}
+RF_pred <- predict(RF_model, data=AGType_RF_Predict_df)
+RF_pred
+
+```
+
+
+```{r}
+
+
+
+AGType_RF_Predict_df$Predictions <- RF_pred$predictions
+  
+pred = AGType_RF_Predict_df %>% select(Cells, Predictions)
+  
+AGType_RF_df = AGType_RF_df %>% left_join(pred, by = "Cells") %>%
+  mutate(Predictions = ifelse(is.na(Predictions), Cultiv, Predictions))
+
+rm(pred)
+
+AGTypeArea = Cultiv
+AGTypeArea[AGType_RF_df$Cells] <- AGType_RF_df$Predictions
+names(AGTypeArea) <- "ArableArea"
+writeRaster(AGTypeArea, filename = paste0(wd$data_p, "AGTypeArea.tif"), overwrite=TRUE)
+rm(AGTypeArea)
+AGTypeArea <- rast(paste0(wd$data_r,"AGTypeArea.tif"))
+
+DEM_r <- rast(paste0(wd$data_r,"DEM_r.tif"))
+AGTypeArea_100m <- resample(ArableArea, DEM_r, method = "bilinear")
+writeRaster(AGTypeArea_100m, filename = paste0(wd$data_p, "AGTypeArea_100m.tif"), overwrite=TRUE)
+rm(DEM_r,AGTypeArea_100m)
+
+write_csv(AGType_RF_Predict_df, paste0(wd$data_p,"AGType_RFModel_PredictData.csv.gz"))
+write_csv(AGType_RF_df, paste0(wd$data_p,"AGType_RFModel_Data.csv.gz"))
+```
+
+  predicted_vals <- predict(model, pred)
+  pred$pred <- predicted_vals$predictions
+  
+  x = r_df %>% left_join(pred, by = f)
+  
+  r2 = r
+  raster_values <- values(r2)
+  missing_values <- is.na(raster_values)
+  df_values <- x$pred[missing_values]
+  r2[missing_values] <- df_values
+  names(r2) <- rnam
+  
+### Model Cross-Validation
+
+```{r}
+p.ra <- predict(m.lzn.ra, data=meuse)
+str(p.ra)
+
+summary(r.rap <- meuse$logZn - p.ra$predictions)
+
+(rmse.ra <- sqrt(sum(r.rap^2)/length(r.rap)))
+
+plot(meuse$logZn ~ p.ra$predictions, asp=1, pch=20, xlab="fitted", ylab="actual", xlim=c(2,3.3),          ylim=c(2,3.3), main="log10(Zn), Meuse topsoils, Ranger")
+grid(); abline(0,1)
+
+
+summary(m.lzn.ra$predictions)
+
+plot(meuse$logZn ~ m.lzn.ra$predictions, asp=1, pch=20,
+     ylab="actual", xlab="OOB X-validation estimates",
+    xlim=c(2,3.3), ylim=c(2,3.3),
+    main="ranger")
+abline(0,1); grid()
+
+
+```
+
+
+### Delete Objects
+
+```{r}
+
+rm(AGType_RF_Train_df, AGType_RF_df, RF_pred, AGType_RF_Predict_df, RF_model, boruta, Cultiv)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
