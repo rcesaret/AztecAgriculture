@@ -3930,7 +3930,7 @@ SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(sdYield_Total)
 SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(cvYield_Total)
 SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(cvYield_Total)
 hist(x$Yield)
-#hist(x$PctYieldLoss)
+hist(x$PctYieldLoss)
 
 ```{r, label='xxx', message=FALSE,warning=FALSE}
 nom = "Mixquiahuala de Juarez, Hidalgo"

@@ -1598,17 +1598,12 @@ Arable_RF_df = Arable_RF_df[complete.cases(Arable_RF_df), ]
 
 
 ### Sampling the Dataframe
-Arable_RF_df <- Arable_RF_df %>% mutate(zone = case_when(
-    Cultiv == 1 ~ "Uncultivated",
-    Cultiv == 2 ~ "Cultivated"))
 
-#zzz = Arable_RF_df[1:100000,]
-zzz <- zzz %>% mutate(Cultiv = ifelse(Cultiv == "Cultivated" & LandUseArchy == "Settlement", "Uncultivated", Cultiv))
 ```{r}
 
 #Arable_RF_df
 
-Arable_RF_df <- Arable_RF_df %>% 
+zzz <- Arable_RF_df %>% 
   mutate(Cultiv2 = case_when(
          Cultiv == "Uncultivated" ~ 1,
          Cultiv == "Cultivated" ~ 2),
@@ -1710,16 +1705,55 @@ Arable_RF_Train_df <- as.data.frame(dt)
 
 rm(dt)
 
-tt = Arable_RF_Train_df %>% select(Cells) %>% mutate(TraningSample = TRUE)
+write_csv(Arable_RF_Train_df, paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
+rm(Arable_RF_Train_df)
+Arable_RF_Train_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
+
+tt = Arable_RF_Train_df %>% select(Cells) %>% mutate(TraningSample = TRUE, Cells = as.character(Cells))
 
 zzz = zzz %>% left_join(tt, by = "Cells") %>%
-  mutate(TraningSample = ifelse(TraningSample == TRUE, TRUE, FALSE),
+  mutate(TraningSample = ifelse(is.na(TraningSample), F, TraningSample),
          PredictionData = ifelse(TraningSample == TRUE, FALSE, TRUE))
 
 rm(tt)
 
 Arable_RF_Predict_df = zzz %>% filter(PredictionData == T)#Arable_RF_df
 
+Arable_RF_Predict_df %>%
+  mutate(part = case_when(
+    row_number() <= ceiling(nrow(.) / 5) ~ "ArableArea_RFModel_PredictData1",
+    row_number() <= 2 * ceiling(nrow(.) / 5) ~ "ArableArea_RFModel_PredictData2",
+    row_number() <= 3 * ceiling(nrow(.) / 5) ~ "ArableArea_RFModel_PredictData3",
+    row_number() <= 4 * ceiling(nrow(.) / 5) ~ "ArableArea_RFModel_PredictData4",
+    TRUE ~ "ArableArea_RFModel_PredictData5"
+  )) %>%
+  group_split(part) %>%
+  purrr::walk2(
+    .,
+    c("ArableArea_RFModel_PredictData1", "ArableArea_RFModel_PredictData2", "ArableArea_RFModel_PredictData3", "ArableArea_RFModel_PredictData4", "ArableArea_RFModel_PredictData5"),
+    ~ write_csv(.x, file = paste0(wd$data_p, .y, ".csv.gz"))
+  )
+
+
+Arable_RF_df <- zzz
+
+rm(zzz)
+
+
+Arable_RF_df %>%
+  mutate(part = case_when(
+    row_number() <= ceiling(nrow(.) / 5) ~ "ArableArea_RFModel_Data1",
+    row_number() <= 2 * ceiling(nrow(.) / 5) ~ "ArableArea_RFModel_Data2",
+    row_number() <= 3 * ceiling(nrow(.) / 5) ~ "ArableArea_RFModel_Data3",
+    row_number() <= 4 * ceiling(nrow(.) / 5) ~ "ArableArea_RFModel_Data4",
+    TRUE ~ "ArableArea_RFModel_Data5"
+  )) %>%
+  group_split(part) %>%
+  purrr::walk2(
+    .,
+    c("ArableArea_RFModel_Data1", "ArableArea_RFModel_Data2", "ArableArea_RFModel_Data3", "ArableArea_RFModel_Data4", "ArableArea_RFModel_Data5"),
+    ~ write_csv(.x, file = paste0(wd$data_p, .y, ".csv.gz"))
+  )
 
 
 
@@ -1736,25 +1770,23 @@ Arable_RF_Predict_df = zzz %>% filter(PredictionData == T)#Arable_RF_df
 #Arable_RF_Train_df = Arable_RF_df %>% group_by(Stratum) %>%
   #slice_sample(n = SampSize[1], weight_by = wt, replace = FALSE) #prop, by = NULL, 
 
-#write_csv(Arable_RF_Train_df, paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
-#rm(Arable_RF_Train_df)
-#Arable_RF_Train_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
 
-tt = Arable_RF_Train_df %>% select(Cells) %>% mutate(TraningSample = TRUE)
 
-zzz = zzz %>% left_join(tt, by = "Cells") %>%
-  mutate(TraningSample = ifelse(TraningSample == TRUE, TRUE, FALSE),
-         PredictionData = ifelse(TraningSample == TRUE, FALSE, TRUE))
+#tt = Arable_RF_Train_df %>% select(Cells) %>% mutate(TraningSample = TRUE)
+
+#zzz = zzz %>% left_join(tt, by = "Cells") %>%
+#  mutate(TraningSample = ifelse(TraningSample == TRUE, TRUE, FALSE),
+#         PredictionData = ifelse(TraningSample == TRUE, FALSE, TRUE))
 #Arable_RF_df = Arable_RF_df %>% left_join(tt, by = "Cells") %>%
 #  mutate(TraningSample = ifelse(TraningSample == TRUE, TRUE, FALSE),
 #         PredictionData = ifelse(TraningSample == TRUE, FALSE, TRUE))
-rm(tt)
+#rm(tt)
 
 #write_csv(Arable_RF_df, paste0(wd$data_p,"ArableArea_RFModel_Data.csv.gz"))
 #rm(Arable_RF_df)
 #Arable_RF_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_Data.csv.gz"))
 
-Arable_RF_Predict_df = zzz %>% filter(PredictionData == T)#Arable_RF_df
+#Arable_RF_Predict_df = zzz %>% filter(PredictionData == T)#Arable_RF_df
   
 #write_csv(Arable_RF_Predict_df, paste0(wd$data_p,"ArableArea_RFModel_PredictData.csv.gz"))
 #rm(Arable_RF_Predict_df)
@@ -1771,7 +1803,26 @@ rm(z, fgeo, fgeo_col_pc, fgeo_row_pc, fLU_row_pc, fLU_col_pc, fLU, CONABIO_2015_
 
 ```{r}
 
+Arable_RF_Train_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
 
+
+l = 1:5
+file_paths <- paste0(wd$data_p, "ArableArea_RFModel_PredictData", l, ".csv.gz")
+
+Arable_RF_Predict_df <- file_paths %>%
+  map_dfr(~ read_csv(.x))
+
+
+l = 1:5
+file_paths <- paste0(wd$data_p, "ArableArea_RFModel_Data", l, ".csv.gz")
+
+Arable_RF_df <- file_paths %>%
+  map_dfr(~ read_csv(.x))
+
+
+x <- rast(paste0(wd$data_p,"Arable_Raster_Data.tif"))
+Cultiv <- x[[1]]
+x <- subset(x, c("SIAP_LU_Fields", "LandUseArchy", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "BDRICM", "BDRLOG", "BDTICM", "BD", "SOC", "OCD", "N", "SOCS", "WRB" ))
   
   
   
@@ -1781,6 +1832,11 @@ rm(z, fgeo, fgeo_col_pc, fgeo_row_pc, fLU_row_pc, fLU_col_pc, fLU, CONABIO_2015_
 #Arable_RF_Predict_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_PredictData.csv.gz"))
 #Arable_RF_Train_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
 
+Arable_RF_Train_df <- Arable_RF_Train_df %>% 
+  mutate(Cultiv = factor(Cultiv, levels = c("Uncultivated", "Cultivated")),
+         LandUseArchy = factor(LandUseArchy, levels = c("Unknown", "Wetland", "Settlement", "Water", "Glacial")),
+         Geomorphons = factor(Geomorphons, levels = c("Flat", "Summit", "Ridge", "Shoulder", "Spur", "Slope", "Hollow", "Footslope", "Valley", "Depression")),
+         WRB = factor(WRB, levels = c("NoData", "Andosols", "Arenosols", "Calcisols", "Cambisols", "Durisols", "Fluvisols", "Gleysols", "Leptosols", "Luvisols", "Phaeozems", "Regosols", "Solonchaks", "Solonetz", "Umbrisols", "Vertisols")))
 
 #SIAP_LU_Fields <- mask(SIAP_LU_Fields, CMex_Mask)
 ```
@@ -1794,7 +1850,7 @@ rm(z, fgeo, fgeo_col_pc, fgeo_row_pc, fLU_row_pc, fLU_col_pc, fLU, CONABIO_2015_
 ```{r}
 
 
-boruta <- Boruta(Cultiv ~ ., data = Arable_RF_Train_df, maxRuns = 1000)#, doTrace = 2
+boruta <- Boruta(Cultiv ~ ., data = Arable_RF_Train_df[,c(2:23)], maxRuns = 100)#, doTrace = 2
 print(boruta)
 boruta[["finalDecision"]]
 plot(boruta, las = 2, cex.axis = 0.7)
@@ -1807,13 +1863,20 @@ form=getConfirmedFormula(boruta)
 ```
 
 ```{r}
-x <- subset(x, c("SIAP_LU_Fields", "LandUseArchy", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "BDRICM", "BDRLOG", "BDTICM", "BD", "SOC", "OCD", "N", "SOCS", "WRB" ))
+#x <- subset(x, c("SIAP_LU_Fields", "LandUseArchy", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "BDRICM", "BDRLOG", "BDTICM", "BD", "SOC", "OCD", "N", "SOCS", "WRB" ))
 
-Arable_RF_df <- Arable_RF_df %>% select()
+#Arable_RF_df <- Arable_RF_df %>% select(-)
 
-Arable_RF_Train_df <- Arable_RF_df %>% select()
+#Arable_RF_Train_df <- Arable_RF_df %>% select(-)
 
-Arable_RF_Predict_df <- Arable_RF_df %>% select()
+#Arable_RF_Predict_df <- Arable_RF_df %>% select(-)
+
+# saving the model
+saveRDS(boruta, file = paste0(wd$data_p,"ArableArea_RFModel_boruta.rda"))
+
+#loading the model
+#boruta = readRDS(paste0(wd$data_p,"ArableArea_RFModel_boruta.rda"))
+
 ```
 
 
@@ -1823,19 +1886,36 @@ Arable_RF_Predict_df <- Arable_RF_df %>% select()
 
 ```{r}
 
-RF_model <- ranger(Arable ~ DEM + Slope + Accum_fd8 + TRI + TWI + STI + SPI + BDRICM + BDRLOG + BDTICM + Geomorphons + LandUseGroups, data = Train_df, importance = 'impurity')
+ArableArea_RF_model <- ranger(formula = form, data = Arable_RF_Train_df)
 
-print(RF_model)
+print(ArableArea_RF_model)
 
+
+# saving the model
+saveRDS(ArableArea_RF_model, file = paste0(wd$data_p,"ArableArea_RFModel_Ranger.rda"))
+
+#loading the model
+#RF_model = readRDS(paste0(wd$data_p,"ArableArea_RFModel_Ranger.rda"))
 ```
 
 
 
 ### Model Predictions
 
+rm()
+
+
+
+
 ```{r}
 RF_pred <- predict(RF_model, data=Arable_RF_Predict_df)
 RF_pred
+
+# saving the model
+saveRDS(RF_pred, file = paste0(wd$data_p,"ArableArea_RFModel_PredictObj.rda"))
+
+#loading the model
+#RF_pred = readRDS(paste0(wd$data_p,"ArableArea_RFModel_PredictObj.rda"))
 
 ```
 
