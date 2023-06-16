@@ -116,7 +116,7 @@ Dist from streams
 
 ### Predictor Variables
 
-```{r, label='Arable Area - Prepare Predictor Data', message=FALSE,warning=FALSE}
+```{r, label='Prepare Predictor Data', message=FALSE,warning=FALSE}
 
 ### DEM and Topographic Data ###
 
@@ -326,19 +326,12 @@ rm(CONABIO_2015_LandUse_30m)
 
 
 ```
-r.carve - Generates stream channels.
-Takes vector stream data, transforms it to raster and subtracts depth from the output DEM.
-r.watershed - Calculates hydrological parameters and RUSLE factors.
-r.terraflow - Performs flow computation for massive grids.
-r.stream.extract - Performs stream network extraction.
-SAGA Valley Depth
 
---Distance from streams
-r.grow.distance
+
 
 ### Dependent Variables
 
-```{r, label='Arable Area - Prepare Dependent Variable Data', message=FALSE,warning=FALSE}
+```{r, label='Prepare Dependent Variable Data', message=FALSE,warning=FALSE}
 #########################################################
 
 SIAP_2015_Mask <- vect(paste0(wd$data_r,"SIAP_2015_Mask.gpkg"))
@@ -427,9 +420,9 @@ rm(resample_30m)
 
 
 
-### Shortcut Import #1
+#### Shortcut Import #1
 
-```{r, label='Arable Area - Shortcut Import #1', message=FALSE,warning=FALSE}
+```{r, label='Shortcut Import #1', message=FALSE,warning=FALSE}
 
 DEM <- rast(paste0(wd$data_p, "DEM_30m.tif"))
 
@@ -476,7 +469,7 @@ SIAP_LU_Fields <- mask(SIAP_LU_Fields, CMex_Mask)
 
 ### Combine Data
 
-```{r, label='Arable Area - Combine Data', message=FALSE,warning=FALSE}
+```{r, label='Combine Data', message=FALSE,warning=FALSE}
 #dat = "SIAP_2015_Fields"
 dat = "SIAP_LU_Fields"
 
@@ -500,27 +493,12 @@ rm(x, dat, Geomorphons, Cultiv, CONABIO_2015_LandUse_30m)
 
 ```
 
-##### Shortcut Import #2
-
-
-```{r, label='Arable Area - Shortcut Import #2', message=FALSE,warning=FALSE}
-
-x <- rast(paste0(wd$data_p,"Arable_Raster_Data.tif"))
-Cultiv <- x[[1]]
-x <- subset(x, c("SIAP_LU_Fields", "LandUseArchy", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "BDRICM", "BDRLOG", "BDTICM", "BD", "SOC", "OCD", "N", "SOCS", "WRB" ))
-
-
-CONABIO_2015_LandUse_30m <- x[[2]]
-Geomorphons <- x[[3]]
-#SIAP_LU_Fields <- mask(SIAP_LU_Fields, CMex_Mask)
-```
-
 
 
 
 ### Convert Data from Raster Stack to Dataframe 
 
-```{r, label='Arable Area - Convert Data from Raster Stack to Dataframe ', message=FALSE,warning=FALSE}
+```{r, label='Convert Data from Raster Stack to Dataframe ', message=FALSE,warning=FALSE}
 
 x_df <- as.data.frame(x[[1]])
 names(x_df) <- "Cultiv"
@@ -567,6 +545,36 @@ Arable_RF_df %>%
 ```
 
 
+##### Shortcut Import #2
+
+
+```{r, label='Shortcut Import #2', message=FALSE,warning=FALSE}
+
+x <- rast(paste0(wd$data_p,"Arable_Raster_Data.tif"))
+Cultiv <- x[[1]]
+x <- subset(x, c("SIAP_LU_Fields", "LandUseArchy", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "BDRICM", "BDRLOG", "BDTICM", "BD", "SOC", "OCD", "N", "SOCS", "WRB" ))
+
+
+CONABIO_2015_LandUse_30m <- x[[2]]
+Geomorphons <- x[[3]]
+#SIAP_LU_Fields <- mask(SIAP_LU_Fields, CMex_Mask)
+
+
+l = 1:5
+file_paths <- paste0(wd$data_p, "ArableArea_RFModel_Data", l, ".csv.gz")
+
+Arable_RF_df <- file_paths %>%
+  map_dfr(~ read_csv(.x))
+
+Arable_RF_df <- Arable_RF_df %>% 
+  mutate(Cultiv = factor(Cultiv, levels = c("Uncultivated", "Cultivated")),
+         LandUseArchy = factor(LandUseArchy, levels = c("Unknown", "Wetland", "Settlement", "Water", "Glacial")),
+         Geomorphons = factor(Geomorphons, levels = c("Flat", "Summit", "Ridge", "Shoulder", "Spur", "Slope", "Hollow", "Footslope", "Valley", "Depression")),
+         WRB = factor(WRB, levels = c("NoData", "Andosols", "Arenosols", "Calcisols", "Cambisols", "Durisols", "Fluvisols", "Gleysols", "Leptosols", "Luvisols", "Phaeozems", "Regosols", "Solonchaks", "Solonetz", "Umbrisols", "Vertisols")))
+
+
+```
+
 
 
 
@@ -575,7 +583,7 @@ Arable_RF_df %>%
 
 #### Descriptive Statistics
 
-```{r, label='Arable Area - EDA Descriptive Statistics', message=FALSE,warning=FALSE}
+```{r, label='EDA Descriptive Statistics', message=FALSE,warning=FALSE}
 
 Cultiv2 <- as.numeric(Cultiv)
 
@@ -635,7 +643,7 @@ rm(z1, z2, z3, Cultiv2)
 
 #### Histograms
 
-```{r, label='Arable Area - EDA Histograms', message=FALSE,warning=FALSE}
+```{r, label='EDA Histograms', message=FALSE,warning=FALSE}
 
 #Hist_DEM <- 
 Arable_RF_df %>% ggplot() +
@@ -780,7 +788,7 @@ geom_histogram(aes(x = C, color = Cultiv, fill = Cultiv), alpha = 0.4, position 
 
 ### Subset Predictors
 
-```{r, label='Arable Area - Subset Predictors', message=FALSE,warning=FALSE}
+```{r, label='Subset Predictors', message=FALSE,warning=FALSE}
 #x <- subset(x, c("DEM", "Slope","Accum", "TRI", "TWI", "STI", "SPI"))
 
 
@@ -805,13 +813,17 @@ Arable_RF_df %>%
 #### Shortcut Import #3
 
 
-```{r, label='Arable Area - Shortcut Import #3', message=FALSE,warning=FALSE}
+```{r, label='Shortcut Import #3', message=FALSE,warning=FALSE}
 
 x <- rast(paste0(wd$data_p,"Arable_Raster_Data.tif"))
 Cultiv <- x[[1]]
 
 
+l = 1:5
+file_paths <- paste0(wd$data_p, "ArableArea_RFModel_Data", l, ".csv.gz")
 
+Arable_RF_df <- file_paths %>%
+  map_dfr(~ read_csv(.x))
 
 Arable_RF_df <- Arable_RF_df %>% 
   mutate(Cultiv = factor(Cultiv, levels = c("Uncultivated", "Cultivated")),
@@ -828,7 +840,7 @@ Arable_RF_df <- Arable_RF_df %>%
 
 ### Sampling the Dataframe
 
-```{r, label='Arable Area - Sampling the Dataframe', message=FALSE,warning=FALSE}
+```{r, label='Sampling the Dataframe', message=FALSE,warning=FALSE}
 
 #zzz
 
@@ -1011,7 +1023,7 @@ rm(z, fgeo, fgeo_col_pc, fgeo_row_pc, fLU_row_pc, fLU_col_pc, fLU, CONABIO_2015_
 #### Shortcut Import #4
 
 
-```{r, label='Arable Area - Shortcut Import #4', message=FALSE,warning=FALSE}
+```{r, label='Shortcut Import #4', message=FALSE,warning=FALSE}
 
 Arable_RF_Train_df <- read_csv(paste0(wd$data_p,"ArableArea_RFModel_TrainData.csv.gz"))
 
@@ -1059,7 +1071,7 @@ x <- subset(x, c("SIAP_LU_Fields", "LandUseArchy", "Geomorphons", "DEM", "Slope"
 
 ### Variable Selection
 
-```{r, label='Arable Area - RF Model Variable Selection', message=FALSE,warning=FALSE}
+```{r, label='RF Model Variable Selection', message=FALSE,warning=FALSE}
 #boruta = readRDS(paste0(wd$data_p,"ArableArea_RFModel_boruta.rda"))
 
 boruta <- Boruta(Cultiv ~ ., data = Arable_RF_Train_df[,c(2:23)], maxRuns = 100)#, doTrace = 2
@@ -1083,7 +1095,7 @@ rm(boruta)
 
 ### Train the Model
 
-```{r, label='Arable Area - RF Model Training', message=FALSE,warning=FALSE}
+```{r, label='RF Model Training', message=FALSE,warning=FALSE}
 
 #ArableArea_RF_model = readRDS(paste0(wd$data_p,"ArableArea_RFModel_Ranger.rda"))
 
@@ -1104,7 +1116,7 @@ saveRDS(ArableArea_RF_model, file = paste0(wd$data_p,"ArableArea_RFModel_Ranger.
 ### Model Predictions
 
 
-```{r, label='Arable Area - RF Model Predictions', message=FALSE,warning=FALSE}
+```{r, label='RF Model Predictions', message=FALSE,warning=FALSE}
 parts = c("ArableArea_RFModel_Data1", "ArableArea_RFModel_Data2", "ArableArea_RFModel_Data3", "ArableArea_RFModel_Data4", "ArableArea_RFModel_Data5")
 
 pred_list = list()
@@ -1216,7 +1228,7 @@ rm(Arable_RF_Train_df, Arable_RF_df, ArableArea_RF_model, x, form, i, l, parts)
   
 ### Model Cross-Validation
 
-```{r, label='Arable Area - Peripheral Cases Data Setup', message=FALSE,warning=FALSE}
+```{r, label='Peripheral Cases Data Setup', message=FALSE,warning=FALSE}
 p.ra <- predict(m.lzn.ra, data=meuse)
 str(p.ra)
 
@@ -1246,7 +1258,7 @@ abline(0,1); grid()
 
 ### Data Setup
 
-```{r, label='Arable Area - Peripheral Cases Data Setup', message=FALSE,warning=FALSE}
+```{r, label='Peripheral Cases Data Setup', message=FALSE,warning=FALSE}
 
 DEM <- rast(paste0(wd$data_p, "DEM_30m.tif"))
 
@@ -1317,7 +1329,7 @@ Arable_RF_df <- Arable_RF_df %>%
 
 ### Model Predictions
 
-```{r, label='Arable Area - Peripheral Cases Model Predictions', message=FALSE,warning=FALSE}
+```{r, label='Peripheral Cases Model Predictions', message=FALSE,warning=FALSE}
 ArableArea_RF_model = readRDS(paste0(wd$data_p,"ArableArea_RFModel_Ranger.rda"))
 
 parts = c("ArableArea_RFModel_Data6", "ArableArea_RFModel_Data7", "ArableArea_RFModel_Data8", "ArableArea_RFModel_Data9", "ArableArea_RFModel_Data10")
@@ -1407,7 +1419,7 @@ Arable_RF_df <- Arable_RF_df %>%
 ## Merge and Export Outputs
 
 
-```{r, label='Arable Area - Merge and Export Outputs', message=FALSE,warning=FALSE}
+```{r, label='Merge and Export Outputs', message=FALSE,warning=FALSE}
 ArableArea1 <- rast(paste0(wd$data_p,"ArableArea1.tif"))
 
 ArableArea <- merge(ArableArea1, ArableArea2)
