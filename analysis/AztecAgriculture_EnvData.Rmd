@@ -244,6 +244,103 @@ STI <- rast(paste0(wd$data_p, "temp_rasts/STI.tif"))
 
 
 
+wbt_d_inf_pointer(dem = paste0(wd$data_p,"DEM_r.tif"), output = paste0(wd$data_p,"temp_rasts/FlowDirect_inf_100m.tif"))
+FlowDirect_inf_30m <- rast(paste0(wd$data_p, "temp_rasts/FlowDirect_inf_100m.tif"))
+
+wbt_d8_pointer(dem = paste0(wd$data_p,"DEM_r.tif"), output = paste0(wd$data_p,"temp_rasts/FlowDirect_d8_100m.tif"))
+FlowDirect_d8_30m <- rast(paste0(wd$data_p, "temp_rasts/FlowDirect_d8_100m.tif"))
+
+wbt_extract_streams(flow_accum = paste0(wd$data_p,"temp_rasts/Accum_fd8.tif"), output = paste0(wd$data_p,"temp_rasts/Streams_100m.tif"), threshold =10000)
+Streams <- rast(paste0(wd$data_p, "temp_rasts/Streams_100m.tif"))
+
+######################################################
+
+BasinsPoly <- st_read(paste0(wd$data_r, "BasinsPoly.gpkg"))
+BasinsPoly <- rownames_to_column(BasinsPoly, var = "ID")
+BasinsPoly$n_cells <- NA
+for (i in 1:length(BasinsPoly$ID)){
+  elev <- DEM_r
+  bp <- BasinsPoly %>% filter(ID == i)
+  bp <- vect(bp)
+  elev <- mask(elev, bp)
+  writeRaster(elev,paste0(wd$data_p,"elev.tif"), overwrite=TRUE)
+  wbt_flood_order(dem = paste0(wd$data_p,"elev.tif"), output = paste0(wd$data_p,"BasinRasts_100m/flood_order_basin",i,".tif"))
+}
+raster_files <- list.files(path = paste0(wd$data_p,"BasinRasts_100m/"), pattern = ".tif$", full.names = TRUE)
+raster_list <- list()
+for (file in raster_files) {
+  raster <- rast(file)
+  raster_list[[file]] <- raster
+}
+rm(raster)
+z = sprc(raster_list)
+FloodOrder <- merge(z)
+
+writeRaster(FloodOrder,paste0(wd$data_p,"FloodOrder_100m.tif"), overwrite=TRUE)
+FloodOrder <- rast(paste0(wd$data_p, "FloodOrder_100m.tif"))
+BP = extract(DEM_r, BasinsPoly, fun=ncell)
+BasinsPoly$n_cells = BP$focal_mean
+rm(BP)
+bp <- terra::rasterize(BasinsPoly, DEM_r, field = "n_cells", background = NA)
+writeRaster(bp,paste0(wd$data_p,"Basin_ncells_100m.tif"), overwrite=TRUE)
+bp <- rast(paste0(wd$data_p, "Basin_ncells_100m.tif"))
+FloodOrder_Rel = FloodOrder / bp
+FloodOrder_Rel <- ifel(FloodOrder_Rel > 1, 1, FloodOrder_Rel)
+writeRaster(FloodOrder_Rel,paste0(wd$data_p,"FloodOrder_Rel_100m.tif"), overwrite=TRUE)
+FloodOrder_Rel <- rast(paste0(wd$data_p, "FloodOrder_Rel_100m.tif"))
+#rm(out, bp, elev, clipped, bplist)
+
+rm(BasinsPoly,i,bp, elev,BP,z,raster_list)
+
+########################################################
+
+streams_sf <- st_read(paste0(wd$data_r, "CMex_Hydro_Streams_All.gpkg"))
+streams_sf <- streams_sf %>% mutate(Order = case_when(
+  ORDER_1 == -1 ~ 1,
+  ORDER_1 == 1 ~ 1,
+  ORDER_1 == 2 ~ 1,
+  ORDER_1 == 3 ~ 1,
+  ORDER_1 == 4 ~ 2,
+  ORDER_1 == 5 ~ 2,
+  ORDER_1 == 6 ~ 2,
+  ORDER_1 == 7 ~ 3
+))
+Streams2 <- terra::rasterize(streams_sf, DEM_r, values = 1, background = NA)
+writeRaster(Streams2,paste0(wd$data_p,"Streams2_100m.tif"), overwrite=TRUE)
+
+#distance from streams
+DistStreams <- distance(Streams)
+writeRaster(DistStreams,paste0(wd$data_p,"DistStreams_100m.tif"), overwrite=TRUE)
+DistStreams2 <- distance(Streams2)
+writeRaster(DistStreams2,paste0(wd$data_p,"DistStreams2_100m.tif"), overwrite=TRUE)
+#raster <- lines(DEM[], streams_sf, attrib=streams_sf$Order, width=streams_sf$Order, alongLines=TRUE)
+
+wbt_elevation_above_stream(dem = paste0(wd$data_p,"DEM_r.tif"), streams = paste0(wd$data_p,"temp_rasts/Streams_100m.tif"), output = paste0(wd$data_p,"temp_rasts/ElevAboveStreams_100m.tif"))
+ElevAboveStreams <- rast(paste0(wd$data_p, "temp_rasts/ElevAboveStreams_100m.tif"))
+
+wbt_elevation_above_stream(dem = paste0(wd$data_p,"DEM_r.tif"), streams = paste0(wd$data_p,"Streams2_100m.tif"), output = paste0(wd$data_p,"ElevAboveStreams2_100m.tif"))
+ElevAboveStreams2 <- rast(paste0(wd$data_p, "ElevAboveStreams2_100m.tif"))
+
+wbt_extract_valleys(dem = paste0(wd$data_p,"DEM_r.tif"), variant = 'JandR', line_thin = F, output =  paste0(wd$data_p,"temp_rasts/valleys_JandR_100m.tif"))
+Valleys <- rast(paste0(wd$data_p, "temp_rasts/valleys_JandR_100m.tif"))
+
+BasinsPoly <- st_read(paste0(wd$data_r, "BasinsPoly.gpkg"))
+BasinsPoly <- rownames_to_column(BasinsPoly, var = "ID")
+#BasinsPoly <- vect(BasinsPoly)
+Basins <- terra::rasterize(BasinsPoly, DEM_r, field = "ID", background = NA)
+writeRaster(Basins,paste0(wd$data_p,"Basins_100m.tif"), overwrite=TRUE)
+Basins <- rast(paste0(wd$data_p, "Basins_100m.tif"))
+
+wbt_elev_relative_to_watershed_min_max(dem = paste0(wd$data_p,"DEM_r.tif"), watersheds = paste0(wd$data_p,"Basins_100m.tif"), output = paste0(wd$data_p,"temp_rasts/elev_watershed_100m.tif"))
+elev_watershed <- rast(paste0(wd$data_p, "temp_rasts/elev_watershed_100m.tif"))
+
+
+##################################################################
+
+
+
+
+
 TopoEnvData <- (c(DEM_r, slope, Accum, Accum_fd8, TRI, TWI, STI, SPI))
 
 rm(DEM_r, slope, Accum, Accum_fd8, TRI, TWI, STI, SPI)
@@ -703,9 +800,10 @@ fcf
 ```{r, label='Load and Resample Climate Rasters', message=FALSE,warning=FALSE}
 chwd = "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/"
 prj = "epsg:32614"
-t <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
-EXT <- project(t[[1]], crs="epsg:4326")
-rm(t)
+t <- raster(paste0(wd$data_r, "TopoEnvData.tif"))
+EXT <- rast(projectRaster(t[[1]], crs="epsg:4326"))
+t = rast(t[[1]])
+
 ###############################################
 resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
 resample_100m <- disagg(resample_30m, 3)
@@ -731,9 +829,8 @@ pet_11 = rast(paste0(chwd, "pet/CHELSA_pet_penman_11_1981-2010_V.2.1.tif"))
 pet_12 = rast(paste0(chwd, "pet/CHELSA_pet_penman_12_1981-2010_V.2.1.tif"))
 pet = c(pet_01, pet_02, pet_03, pet_04, pet_05, pet_06, pet_07, pet_08, pet_09, pet_10, pet_11, pet_12)
 pet <- crop(pet, EXT, snap = "out")
-pet <- project(pet, crs = prj)
-gain(pet) <- 0.01
-#offs(pet) <- value
+pet <- project(pet, t)
+scoff(pet) <- cbind(0.01, 0)
 names(pet) <- c("pet_01", "pet_02", "pet_03", "pet_04", "pet_05", "pet_06", "pet_07", "pet_08", "pet_09", "pet_10", "pet_11", "pet_12")
 rm(pet_01, pet_02, pet_03, pet_04, pet_05, pet_06, pet_07, pet_08, pet_09, pet_10, pet_11, pet_12)
 pet_r <- resample(pet, resample_100m, method = "bilinear")
@@ -756,9 +853,8 @@ tas_11 = rast(paste0(chwd, "tas/CHELSA_tas_11_1981-2010_V.2.1.tif"))
 tas_12 = rast(paste0(chwd, "tas/CHELSA_tas_12_1981-2010_V.2.1.tif"))
 tas = c(tas_01, tas_02, tas_03, tas_04, tas_05, tas_06, tas_07, tas_08, tas_09, tas_10, tas_11, tas_12)
 tas <- crop(tas, EXT, snap = "out")
-tas <- project(tas, crs = prj)
-gain(tas) <- 0.1
-offs(tas) <- -273.15 
+tas <- project(tas, t)
+scoff(tas) <- cbind(0.1, -273.15)
 names(tas) <- c("tas_01", "tas_02", "tas_03", "tas_04", "tas_05", "tas_06", "tas_07", "tas_08", "tas_09", "tas_10", "tas_11", "tas_12")
 rm(tas_01, tas_02, tas_03, tas_04, tas_05, tas_06, tas_07, tas_08, tas_09, tas_10, tas_11, tas_12)
 tas_r <- resample(tas, resample_100m, method = "bilinear")
@@ -779,9 +875,8 @@ tasmax_11 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_11_1981-2010_V.2.1.tif"))
 tasmax_12 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_12_1981-2010_V.2.1.tif"))
 tasmax = c(tasmax_01, tasmax_02, tasmax_03, tasmax_04, tasmax_05, tasmax_06, tasmax_07, tasmax_08, tasmax_09, tasmax_10, tasmax_11, tasmax_12)
 tasmax <- crop(tasmax, EXT, snap = "out")
-tasmax <- project(tasmax, crs = prj)
-gain(tasmax) <- 0.1
-offs(tasmax) <- -273.15 
+tasmax <- project(tasmax, t)
+scoff(tasmax) <- cbind(0.1, -273.15)
 names(tasmax) <- c("tasmax_01", "tasmax_02", "tasmax_03", "tasmax_04", "tasmax_05", "tasmax_06", "tasmax_07", "tasmax_08", "tasmax_09", "tasmax_10", "tasmax_11", "tasmax_12")
 rm(tasmax_01, tasmax_02, tasmax_03, tasmax_04, tasmax_05, tasmax_06, tasmax_07, tasmax_08, tasmax_09, tasmax_10, tasmax_11, tasmax_12)
 tasmax_r <- resample(tasmax, resample_100m, method = "bilinear")
@@ -802,9 +897,8 @@ tasmin_11 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_11_1981-2010_V.2.1.tif"))
 tasmin_12 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_12_1981-2010_V.2.1.tif"))
 tasmin = c(tasmin_01, tasmin_02, tasmin_03, tasmin_04, tasmin_05, tasmin_06, tasmin_07, tasmin_08, tasmin_09, tasmin_10, tasmin_11, tasmin_12)
 tasmin <- crop(tasmin, EXT, snap = "out")
-tasmin <- project(tasmin, crs = prj)
-gain(tasmin) <- 0.1
-offs(tasmin) <- -273.15 
+tasmin <- project(tasmin, t)
+scoff(tasmin) <- cbind(0.1, -273.15)
 names(tasmin) <- c("tasmin_01", "tasmin_02", "tasmin_03", "tasmin_04", "tasmin_05", "tasmin_06", "tasmin_07", "tasmin_08", "tasmin_09", "tasmin_10", "tasmin_11", "tasmin_12")
 rm(tasmin_01, tasmin_02, tasmin_03, tasmin_04, tasmin_05, tasmin_06, tasmin_07, tasmin_08, tasmin_09, tasmin_10, tasmin_11, tasmin_12)
 tasmin_r <- resample(tasmin, resample_100m, method = "bilinear")
@@ -827,12 +921,11 @@ pr_11 = rast(paste0(chwd, "pr/CHELSA_pr_11_1981-2010_V.2.1.tif"))
 pr_12 = rast(paste0(chwd, "pr/CHELSA_pr_12_1981-2010_V.2.1.tif"))
 pr = c(pr_01, pr_02, pr_03, pr_04, pr_05, pr_06, pr_07, pr_08, pr_09, pr_10, pr_11, pr_12)
 pr <- crop(pr, EXT, snap = "out")
-pr <- project(pr, crs = prj)
-gain(pr) <- 0.1
-#offs(pr) <- 0 
+pr <- project(pr, t)
+scoff(pr) <- cbind(0.1, 0)
 names(pr) <- c("pr_01", "pr_02", "pr_03", "pr_04", "pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", "pr_11", "pr_12")
 rm(pr_01, pr_02, pr_03, pr_04, pr_05, pr_06, pr_07, pr_08, pr_09, pr_10, pr_11, pr_12)
-pr_r <- resample(pr_r, resample_100m, method = "bilinear")
+pr_r <- resample(pr, resample_100m, method = "bilinear")
 ###rm(pr)
 
 # Total % cloud cover for each month
@@ -850,9 +943,8 @@ clt_11 = rast(paste0(chwd, "clt/CHELSA_clt_11_1981-2010_V.2.1.tif"))
 clt_12 = rast(paste0(chwd, "clt/CHELSA_clt_12_1981-2010_V.2.1.tif"))
 clt = c(clt_01, clt_02, clt_03, clt_04, clt_05, clt_06, clt_07, clt_08, clt_09, clt_10, clt_11, clt_12)
 clt <- crop(clt, EXT, snap = "out")
-clt <- project(clt, crs = prj)
-gain(clt) <- 0.01
-#offs(clt) <- 0
+clt <- project(clt, t)
+scoff(clt) <- cbind(0.01, 0)
 #r2 = raster(extent(pr), resolution = c(875, 922), crs = crs(pr))
 #clt <- resample(clt, r2, method = "bilinear")
 names(clt) <- c("clt_01", "clt_02", "clt_03", "clt_04", "clt_05", "clt_06", "clt_07", "clt_08", "clt_09", "clt_10", "clt_11", "clt_12")
@@ -875,9 +967,8 @@ rsds_11 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_11_V.2.1.tif"))
 rsds_12 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_12_V.2.1.tif"))
 rsds = c(rsds_01, rsds_02, rsds_03, rsds_04, rsds_05, rsds_06, rsds_07, rsds_08, rsds_09, rsds_10, rsds_11, rsds_12)
 rsds <- crop(rsds, EXT, snap = "out")
-rsds <- project(rsds, crs = prj, snap = "out")
-gain(rsds) <- 0.001
-#offs(rsds) <- 0
+rsds <- project(rsds, t, snap = "out")
+scoff(rsds) <- cbind(0.001, 0)
 names(rsds) <- c("rsds_01", "rsds_02", "rsds_03", "rsds_04", "rsds_05", "rsds_06", "rsds_07", "rsds_08", "rsds_09", "rsds_10", "rsds_11", "rsds_12")
 rm(rsds_01, rsds_02, rsds_03, rsds_04, rsds_05, rsds_06, rsds_07, rsds_08, rsds_09, rsds_10, rsds_11, rsds_12)
 rsds_r <- resample(rsds_r, resample_100m, method = "bilinear")
@@ -886,8 +977,8 @@ rm(rsds)
 #Net primary productivity Calculated based on the ‘Miami model’, Lieth, H., 1972. "Modelling the primary productivity of the earth. Nature and resources", UNESCO, VIII, 2:5-10.
 npp = rast(paste0(chwd, "bio/CHELSA_npp_1981-2010_V.2.1.tif"))
 npp <- crop(npp, EXT, snap = "out")
-npp <- project(npp, crs = prj, snap = "out")
-gain(npp) <- 0.1
+npp <- project(npp, t, snap = "out")
+scoff(npp) <- cbind(0.1, 0)
 names(npp) <- "npp"
 npp_r <- resample(npp_r, resample_100m, method = "bilinear")
 
@@ -895,7 +986,7 @@ npp_r <- resample(npp_r, resample_100m, method = "bilinear")
 #Köppen-Geiger climate classification
 kg0 = rast(paste0(chwd, "bio/CHELSA_kg0_1981-2010_V.2.1.tif"))
 kg0 <- crop(kg0, EXT, snap = "out")
-kg0 <- project(kg0, crs = prj, snap = "out")
+kg0 <- project(kg0, t, snap = "out")
 names(kg0) <- "kg0"
 kg0 <- as.factor(kg0)
 kg0_r <- resample(kg0_r, resample_100m, method = "near")
@@ -904,14 +995,14 @@ kg0_r <- resample(kg0_r, resample_100m, method = "near")
 #Frost change frequency; count; Number of events in which tmin or tmax go above, or below 0°C
 fcf = rast(paste0(chwd, "bio/CHELSA_fcf_1981-2010_V.2.1.tif"))
 fcf <- crop(fcf, EXT, snap = "out")
-fcf <- project(fcf, crs = prj, snap = "out")
+fcf <- project(fcf, t, snap = "out")
 names(fcf) <- "fcf"
 fcf_r <- resample(fcf_r, resample_100m, method = "bilinear")
 
 # PDSI
-pdsi_r = pdsi(pr[1], pet[1])
+pdsi_r = pdsi(pr_r[1], pet_r[1])
 for (i in 1:12) {
-  temp = pdsi(pr[i], pet[i])
+  temp = pdsi(pr_r[i], pet_r[i])
   q = ifelse(i < 10, "0", "")
   names(temp) <- paste0("pdsi_", q, i)
   pdsi_r = c(pdsi_r, temp)
