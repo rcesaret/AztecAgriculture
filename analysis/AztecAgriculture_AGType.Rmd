@@ -815,19 +815,22 @@ rm(z, fgeo, fgeo_col_pc, fgeo_row_pc, fWRB_row_pc, fWRB_col_pc, fWRB, Geomorphon
 
 x <- rast(paste0(wd$data_p,"AGType_Raster_Data.tif"))
 AGType <- x[[1]]
-
 x <- subset(x, c("SIAP_LU_Fields_AGType", "LandUseArchy", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "BDRICM", "BDRLOG", "BDTICM", "BD", "SOC", "OCD", "N", "SOCS", "WRB" ))
+
 
 l = 1:5
 file_paths <- paste0(wd$data_p, "AGType_RFModel_Data", l, ".csv.gz")
 AGType_RF_df <- file_paths %>%
   map_dfr(~ read_csv(.x))
 
-AGType_RF_df <- Arable_RF_df %>% 
+AGType_RF_df <- AGType_RF_df %>% 
   mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")),
          #LandUseArchy = factor(LandUseArchy, levels = c("Unknown", "Wetland", "Settlement", "Water", "Glacial")),
          Geomorphons = factor(Geomorphons, levels = c("Flat", "Summit", "Ridge", "Shoulder", "Spur", "Slope", "Hollow", "Footslope", "Valley", "Depression")),
          WRB = factor(WRB, levels = c("NoData", "Andosols", "Arenosols", "Calcisols", "Cambisols", "Durisols", "Fluvisols", "Gleysols", "Leptosols", "Luvisols", "Phaeozems", "Regosols", "Solonchaks", "Solonetz", "Umbrisols", "Vertisols")))
+
+zzz = AGType_RF_df[complete.cases(AGType_RF_df), ]
+
 
 
 AGType_RF_Train_df <- read_csv(paste0(wd$data_p,"AGType_RFModel_TrainData.csv.gz"))
@@ -847,7 +850,7 @@ AGType_RF_Train_df <- AGType_RF_Train_df %>%
 ```{r, label='RF Model Variable Selection', message=FALSE,warning=FALSE}
 #boruta = readRDS(paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
 
-boruta <- Boruta(AGType ~ ., data = AGType_RF_Train_df[,c(2:23)], maxRuns = 100)#, doTrace = 2
+boruta <- Boruta(AGType ~ ., data = AGType_RF_Train_df[,c(2:27)], maxRuns = 100)#, doTrace = 2
 print(boruta)
 boruta[["finalDecision"]]
 plot(boruta, las = 2, cex.axis = 0.7)
@@ -858,7 +861,7 @@ form=getConfirmedFormula(boruta)
 
 # saving the model
 saveRDS(boruta, file = paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
-rm(boruta)
+#rm(boruta)
 #loading the model
 #boruta = readRDS(paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
 ```
@@ -869,30 +872,45 @@ rm(boruta)
 ```{r, label='RF Model Training', message=FALSE,warning=FALSE}
 
 #AGType_RF_model = readRDS(paste0(wd$data_p,"AGType_RFModel_Ranger.rda"))
+#AGType_RF_model_prob = readRDS(paste0(wd$data_p,"AGType_RFModel_Ranger_Prob.rda"))
 
 AGType_RF_model <- ranger(formula = form, data = AGType_RF_Train_df)
 
 print(AGType_RF_model)
 
-
 # saving the model
 saveRDS(AGType_RF_model, file = paste0(wd$data_p,"AGType_RFModel_Ranger.rda"))
 
+### probability forest classification as in Malley et al. (2012)
+###https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3250568/
+### Malley JD, Kruppa J, Dasgupta A, Malley KG, Ziegler A. Probability machines: consistent probability estimation using nonparametric learning machines. Methods Inf Med. 2012;51(1):74-81. doi: 10.3414/ME00-01-0052. Epub 2011 Sep 14. PMID: 21915433; PMCID: PMC3250568.
+
+AGType_RF_model_prob <- ranger(formula = form, data = AGType_RF_Train_df, probability = T)
+
+print(AGType_RF_model_prob)
+
+# saving the model
+saveRDS(AGType_RF_model_prob, file = paste0(wd$data_p,"AGType_RFModel_Ranger_Prob.rda"))
+
+
 #loading the model
 #AGType_RF_model = readRDS(paste0(wd$data_p,"AGType_RFModel_Ranger.rda"))
+#AGType_RF_model_prob = readRDS(paste0(wd$data_p,"AGType_RFModel_Ranger_Prob.rda"))
+
 ```
 
 
 ### Model Predictions
 
+#### Binary Classification
 
-```{r, label='RF Model Predictions', message=FALSE,warning=FALSE}
+```{r, label='RF Model Predictions: Binary Classification', message=FALSE,warning=FALSE}
 parts = c("AGType_RFModel_Data1", "AGType_RFModel_Data2", "AGType_RFModel_Data3", "AGType_RFModel_Data4", "AGType_RFModel_Data5")
 
 pred_list = list()
 
 i=1
-pred_df = AGType_RF_df %>% filter(part == parts[i])
+pred_df = zzz %>% filter(part == parts[i])
 RFModel_predict <- predict(AGType_RF_model, data=pred_df)
 pred_df <- pred_df %>% select(Cells)
 pred_df$Predictions <- RFModel_predict$predictions
@@ -900,7 +918,7 @@ pred_list[[i]] <- pred_df
 rm(pred_df, RFModel_predict)
 
 i=2
-pred_df = AGType_RF_df %>% filter(part == parts[i])
+pred_df = zzz %>% filter(part == parts[i])
 RFModel_predict <- predict(AGType_RF_model, data=pred_df)
 pred_df <- pred_df %>% select(Cells)
 pred_df$Predictions <- RFModel_predict$predictions
@@ -908,7 +926,7 @@ pred_list[[i]] <- pred_df
 rm(pred_df, RFModel_predict)
 
 i=3
-pred_df = AGType_RF_df %>% filter(part == parts[i])
+pred_df = zzz %>% filter(part == parts[i])
 RFModel_predict <- predict(AGType_RF_model, data=pred_df)
 pred_df <- pred_df %>% select(Cells)
 pred_df$Predictions <- RFModel_predict$predictions
@@ -916,7 +934,7 @@ pred_list[[i]] <- pred_df
 rm(pred_df, RFModel_predict)
 
 i=4
-pred_df = AGType_RF_df %>% filter(part == parts[i])
+pred_df = zzz %>% filter(part == parts[i])
 RFModel_predict <- predict(AGType_RF_model, data=pred_df)
 pred_df <- pred_df %>% select(Cells)
 pred_df$Predictions <- RFModel_predict$predictions
@@ -924,7 +942,7 @@ pred_list[[i]] <- pred_df
 rm(pred_df, RFModel_predict)
 
 i=5
-pred_df = AGType_RF_df %>% filter(part == parts[i])
+pred_df = zzz %>% filter(part == parts[i])
 RFModel_predict <- predict(AGType_RF_model, data=pred_df)
 pred_df <- pred_df %>% select(Cells)
 pred_df$Predictions <- RFModel_predict$predictions
@@ -937,11 +955,77 @@ pred_df <- do.call(rbind, pred_list)
 rm(pred_list)
 
 AGType_RF_df = AGType_RF_df %>% left_join(pred_df, by = "Cells")
+zzz = zzz %>% left_join(pred_df, by = "Cells")
 
 rm(pred_df)
 
 ```
 
+
+
+#### Classification Probabilities
+
+```{r, label='RF Model Predictions: Classification Probabilities', message=FALSE,warning=FALSE}
+parts = c("AGType_RFModel_Data1", "AGType_RFModel_Data2", "AGType_RFModel_Data3", "AGType_RFModel_Data4", "AGType_RFModel_Data5")
+
+pred_list = list()
+
+i=1
+pred_df = zzz %>% filter(part == parts[i])
+RFModel_predict <- predict(AGType_RF_model_prob, data=pred_df)
+pred_df <- pred_df %>% select(Cells)
+pred_df$Prob_Temporal <- as.data.frame(RFModel_predict[["predictions"]])$Temporal
+pred_df$Prob_Irrigation <- as.data.frame(RFModel_predict[["predictions"]])$Irrigation
+pred_list[[i]] <- pred_df
+rm(pred_df, RFModel_predict)
+
+i=2
+pred_df = zzz %>% filter(part == parts[i])
+RFModel_predict <- predict(AGType_RF_model_prob, data=pred_df)
+pred_df <- pred_df %>% select(Cells)
+pred_df$Prob_Temporal <- as.data.frame(RFModel_predict[["predictions"]])$Temporal
+pred_df$Prob_Irrigation <- as.data.frame(RFModel_predict[["predictions"]])$Irrigation
+pred_list[[i]] <- pred_df
+rm(pred_df, RFModel_predict)
+
+i=3
+pred_df = zzz %>% filter(part == parts[i])
+RFModel_predict <- predict(AGType_RF_model_prob, data=pred_df)
+pred_df <- pred_df %>% select(Cells)
+pred_df$Prob_Temporal <- as.data.frame(RFModel_predict[["predictions"]])$Temporal
+pred_df$Prob_Irrigation <- as.data.frame(RFModel_predict[["predictions"]])$Irrigation
+pred_list[[i]] <- pred_df
+rm(pred_df, RFModel_predict)
+
+i=4
+pred_df = zzz %>% filter(part == parts[i])
+RFModel_predict <- predict(AGType_RF_model_prob, data=pred_df)
+pred_df <- pred_df %>% select(Cells)
+pred_df$Prob_Temporal <- as.data.frame(RFModel_predict[["predictions"]])$Temporal
+pred_df$Prob_Irrigation <- as.data.frame(RFModel_predict[["predictions"]])$Irrigation
+pred_list[[i]] <- pred_df
+rm(pred_df, RFModel_predict)
+
+i=5
+pred_df = zzz %>% filter(part == parts[i])
+RFModel_predict <- predict(AGType_RF_model_prob, data=pred_df)
+pred_df <- pred_df %>% select(Cells)
+pred_df$Prob_Temporal <- as.data.frame(RFModel_predict[["predictions"]])$Temporal
+pred_df$Prob_Irrigation <- as.data.frame(RFModel_predict[["predictions"]])$Irrigation
+pred_list[[i]] <- pred_df
+rm(pred_df, RFModel_predict)
+
+
+pred_df <- do.call(rbind, pred_list)
+
+rm(pred_list)
+
+AGType_RF_df = AGType_RF_df %>% left_join(pred_df, by = "Cells")
+zzz = zzz %>% left_join(pred_df, by = "Cells")
+
+rm(pred_df)
+
+```
 
 
 
@@ -950,23 +1034,43 @@ rm(pred_df)
 
 ```{r, label='Merge and Export Outputs', message=FALSE,warning=FALSE}
 
+AGType_RF_df$Cells <- as.numeric(AGType_RF_df$Cells)
 
 
-AGType <- x[[1]]
-AGType <- classify(AGType, matrix(c(-0.5, 0.5, 1,  0.5, 1.5, 2), ncol=3, byrow=TRUE))
-AGType <- as.factor(AGType)
-levels(AGType) = levels(AGType)[[1]] %>% select(-SIAP_LU_Fields) %>%
+
+
+
+#AGType <- x[[1]]
+values(AGType) <- NA
+AGType[AGType_RF_df$Cells] <- AGType_RF_df$Predictions
+AGType = as.factor(AGType)
+levels(AGType) = levels(AGType)[[1]] %>% 
   mutate(AGType = case_when(
     ID == 1 ~ "Temporal",
     ID == 2 ~ "Irrigated"))
 names(AGType) <- "AGType"
 
-AGType[AGType_RF_df$Cells] <- AGType_RF_df$Predictions
+AGType_Prob_Temp <- as.numeric(AGType)
+names(AGType_Prob_Temp) <- "AGType_Prob_Temp"
+AGType_Prob_Irrig <- as.numeric(AGType)
+names(AGType_Prob_Irrig) <- "AGType_Prob_Irrig"
 
-writeRaster(AGType, filename = paste0(wd$data_p, "AGType.tif"), overwrite=TRUE)
+values(AGType_Prob_Temp) <- NA
+AGType_Prob_Temp[AGType_RF_df$Cells] <- AGType_RF_df$Prob_Temporal
+values(AGType_Prob_Irrig) <- NA
+AGType_Prob_Irrig[AGType_RF_df$Cells] <- AGType_RF_df$Prob_Irrigation
+
+writeRaster(AGType, filename = paste0(wd$data_p, "AGType_Predict.tif"), overwrite=TRUE)
 rm(AGType)
-AGType <- rast(paste0(wd$data_p,"AGType.tif"))
+AGType <- rast(paste0(wd$data_p,"AGType_Predict.tif"))
 
+writeRaster(AGType_Prob_Temp, filename = paste0(wd$data_p, "AGType_Prob_Temp.tif"), overwrite=TRUE)
+rm(AGType_Prob_Temp)
+AGType_Prob_Temp <- rast(paste0(wd$data_p,"AGType_Prob_Temp.tif"))
+
+writeRaster(AGType_Prob_Irrig, filename = paste0(wd$data_p, "AGType_Prob_Irrig.tif"), overwrite=TRUE)
+rm(AGType_Prob_Irrig)
+AGType_Prob_Irrig <- rast(paste0(wd$data_p,"AGType_Prob_Irrig.tif"))
 
 
 AGType_RF_df %>%
@@ -984,20 +1088,24 @@ AGType_RF_df %>%
     ~ write_csv(.x, file = paste0(wd$data_p, .y, ".csv.gz"))
   )
 
-rm(AGType_RF_Train_df, AGType_RF_df, AGType_RF_model, x, form, i, l, parts)
+rm(AGType_RF_Train_df, AGType_RF_df, AGType_RF_model, x, form, i, l, parts, zzz, SIAP_LU_Fields_AGType, AGType_RF_model_prob, boruta, DEM, ArableAreaMask)
 
 
 DEM_r <- rast(paste0(wd$data_r,"DEM_r.tif"))
-ArableArea_100m <- resample(ArableArea, DEM_r, method = "near")
-writeRaster(ArableArea_100m, filename = paste0(wd$data_p, "ArableArea_100m.tif"), overwrite=TRUE)
-rm(DEM_r,ArableArea_100m)
+AGType_Predict_100m <- resample(AGType, DEM_r, method = "near")
+writeRaster(AGType_Predict_100m, filename = paste0(wd$data_p, "AGType_Predict_100m.tif"), overwrite=TRUE)
+AGType_Prob_Temp_100m <- resample(AGType_Prob_Temp, DEM_r, method = "bilinear")
+writeRaster(AGType_Prob_Temp_100m, filename = paste0(wd$data_p, "AGType_Prob_Temp_100m.tif"), overwrite=TRUE)
+AGType_Prob_Irrig_100m <- resample(AGType_Prob_Irrig, DEM_r, method = "bilinear")
+writeRaster(AGType_Prob_Irrig_100m, filename = paste0(wd$data_p, "AGType_Prob_Irrig_100m.tif"), overwrite=TRUE)
+
+#rm(DEM_r,AGType_Predict_100m,AGType_Prob_Temp_100m,AGType_Prob_Irrig_100m)
 
 
 #rm(Arable_RF_Train_df, Arable_RF_df, RF_pred, Arable_RF_Predict_df, RF_model, boruta, Cultiv)
 
 
 ```
-
 
 
 
