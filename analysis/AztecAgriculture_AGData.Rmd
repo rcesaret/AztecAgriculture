@@ -3896,13 +3896,8 @@ knitr::include_graphics(paste0(wd$figs,"Hist_vs_Modern_Yields.png"), FALSE)
 ```
 
 
-## CHINAMPAS SBOM
 
-```{r, label='xxx', message=FALSE,warning=FALSE}
-
-```
-
-## Rescale Yield Data
+# Rescale Yield Data
 nom = "Mixquiahuala de Juarez, Hidalgo"
 x = SIAP_4 %>% filter(EstadoMunicipio == nom)
 x$Yield
@@ -3923,6 +3918,21 @@ x$Yield
 "Atotonilco de Tula, Hidalgo", 
 "Francisco I. Madero, Hidalgo", 
 ```
+
+
+
+
+## CHINAMPAS SBOM
+
+```{r, label='xxx', message=FALSE,warning=FALSE}
+
+```
+
+
+
+
+
+# Drafts
 
 Entropy(x$Yield[complete.cases(x$Yield)])
 SIAP_6 %>% filter(EstadoMunicipio == nom) %>% pull(sdYield_Total)
@@ -3999,16 +4009,6 @@ Xochitlan Todos Santos, Puebla
 Molcaxac, Puebla
 Tecamachalco, Puebla
 Quecholac, Puebla
-
-
-
-
-
-
-
-
-
-# Drafts
 
 
 
