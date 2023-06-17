@@ -108,7 +108,8 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
               "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra", 
-              "Boruta", "mlbench", "caret", "readr")
+              "Boruta", "mlbench", "caret", "readr", "ClimDatDownloadR", 
+              "geoknife", "rnoaa", "ncdf4")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -122,7 +123,7 @@ invisible(lapply(packages, library, character.only = TRUE))
 rm(packages,installed_packages)
 
 #Read in custom R functions located in the wd$funcs directory folder
-FUNCS <- list("RescaleSpatRast.R", "Terra_df.R", "RF_ImputeRast.R")#"splitByAttributes.R", 
+FUNCS <- list("RescaleSpatRast.R", "Terra_df.R", "RF_ImputeRast.R", "pdsi.R", "C_pdsi.R")#"splitByAttributes.R", 
 invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
 rm(FUNCS)
 
@@ -678,215 +679,493 @@ writeRaster(r2,paste0(wd$data_r,"C_RF_interpolated.tif"), overwrite=TRUE)
 
 # Climate Data
 
+## CHELSA
+
+gain(x)
+
+offs(x)
+offs(x) <- value
+gain(x) <- value
+### Climatologies
+remove prec
+remove tmax
+remove tmin
+remove tmean
+
+pet
+tas
+tasmax
+tasmin
+npp
+kg0
+fcf
+
 ```{r, label='Load and Resample Climate Rasters', message=FALSE,warning=FALSE}
 chwd = "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/"
-prj = "+proj=utm +zone=14 +datum=WGS84 +units=m +no_defs"
-t <- raster(paste0(wd$data_r, "TopoEnvData.tif"))
-EXT <- projectRaster(t[[1]], crs = "+proj=longlat +datum=WGS84 +no_defs")
+prj = "epsg:32614"
+t <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
+EXT <- project(t[[1]], crs="epsg:4326")
+rm(t)
 ###############################################
-#resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
-#resample_100m <- disagg(resample_30m, 3)
-#resample_100m <- aggregate(resample_100m, 10)
+resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
+resample_100m <- disagg(resample_30m, 3)
+resample_100m <- aggregate(resample_100m, 10)
 ###############################################
-mo = c(31,28,31,30,31,30,31,31,30,31,30,31)
+#mo = c(31,28,31,30,31,30,31,31,30,31,30,31)
 #divide_layer <- function(x, y) {
 #  x / y
 #}
 
-# precipitation amount; amount refeers to means mass per unit area. precipitation in the earth's
-# atmosphere means precipitation of water in all phases.
-
-prec_01 = raster(paste0(chwd, "prec/CHELSA_prec_01_V1.2_land.tif"))
-prec_02 = raster(paste0(chwd, "prec/CHELSA_prec_02_V1.2_land.tif"))
-prec_03 = raster(paste0(chwd, "prec/CHELSA_prec_03_V1.2_land.tif"))
-prec_04 = raster(paste0(chwd, "prec/CHELSA_prec_04_V1.2_land.tif"))
-prec_05 = raster(paste0(chwd, "prec/CHELSA_prec_05_V1.2_land.tif"))
-prec_06 = raster(paste0(chwd, "prec/CHELSA_prec_06_V1.2_land.tif"))
-prec_07 = raster(paste0(chwd, "prec/CHELSA_prec_07_V1.2_land.tif"))
-prec_08 = raster(paste0(chwd, "prec/CHELSA_prec_08_V1.2_land.tif"))
-prec_09 = raster(paste0(chwd, "prec/CHELSA_prec_09_V1.2_land.tif"))
-prec_10 = raster(paste0(chwd, "prec/CHELSA_prec_10_V1.2_land.tif"))
-prec_11 = raster(paste0(chwd, "prec/CHELSA_prec_11_V1.2_land.tif"))
-prec_12 = raster(paste0(chwd, "prec/CHELSA_prec_12_V1.2_land.tif"))
-prec = stack(prec_01, prec_02, prec_03, prec_04, prec_05, prec_06, prec_07, prec_08, prec_09, prec_10, prec_11, prec_12)
-prec <- crop(prec, EXT)
-prec <- projectRaster(prec, crs = prj)
-for (i in 1:nlayers(prec)) {
-  prec[[i]] = prec[[i]]/mo[i]
-}
-names(prec) <- c("prec_01", "prec_02", "prec_03", "prec_04", "prec_05", "prec_06", "prec_07", "prec_08", "prec_09", "prec_10", "prec_11", "prec_12")
-rm(prec_01, prec_02, prec_03, prec_04, prec_05, prec_06, prec_07, prec_08, prec_09, prec_10, prec_11, prec_12)
-prec <- rast(prec)
-prec_r <- resample(prec, resample_100m, method = "bilinear")
-rm(prec)
+# Potential evapotranspiration for each month; calculated with the Penman-Monteith equation
+pet_01 = rast(paste0(chwd, "pet/CHELSA_pet_penman_01_1981-2010_V.2.1.tif"))
+pet_02 = rast(paste0(chwd, "pet/CHELSA_pet_penman_02_1981-2010_V.2.1.tif"))
+pet_03 = rast(paste0(chwd, "pet/CHELSA_pet_penman_03_1981-2010_V.2.1.tif"))
+pet_04 = rast(paste0(chwd, "pet/CHELSA_pet_penman_04_1981-2010_V.2.1.tif"))
+pet_05 = rast(paste0(chwd, "pet/CHELSA_pet_penman_05_1981-2010_V.2.1.tif"))
+pet_06 = rast(paste0(chwd, "pet/CHELSA_pet_penman_06_1981-2010_V.2.1.tif"))
+pet_07 = rast(paste0(chwd, "pet/CHELSA_pet_penman_07_1981-2010_V.2.1.tif"))
+pet_08 = rast(paste0(chwd, "pet/CHELSA_pet_penman_08_1981-2010_V.2.1.tif"))
+pet_09 = rast(paste0(chwd, "pet/CHELSA_pet_penman_09_1981-2010_V.2.1.tif"))
+pet_10 = rast(paste0(chwd, "pet/CHELSA_pet_penman_10_1981-2010_V.2.1.tif"))
+pet_11 = rast(paste0(chwd, "pet/CHELSA_pet_penman_11_1981-2010_V.2.1.tif"))
+pet_12 = rast(paste0(chwd, "pet/CHELSA_pet_penman_12_1981-2010_V.2.1.tif"))
+pet = c(pet_01, pet_02, pet_03, pet_04, pet_05, pet_06, pet_07, pet_08, pet_09, pet_10, pet_11, pet_12)
+pet <- crop(pet, EXT, snap = "out")
+pet <- project(pet, crs = prj)
+gain(pet) <- 0.01
+#offs(pet) <- value
+names(pet) <- c("pet_01", "pet_02", "pet_03", "pet_04", "pet_05", "pet_06", "pet_07", "pet_08", "pet_09", "pet_10", "pet_11", "pet_12")
+rm(pet_01, pet_02, pet_03, pet_04, pet_05, pet_06, pet_07, pet_08, pet_09, pet_10, pet_11, pet_12)
+pet_r <- resample(pet, resample_100m, method = "bilinear")
+rm(pet)
 #writeRaster(prec_r, filename = paste0(wd$data_r, "prec_r.tif"))
 
 
-# daily mean air temperatures at 2 metres averaged over 1 month
-tmean_01 = raster(paste0(chwd, "temp/CHELSA_temp10_01_1979-2013_V1.2_land.tif"))
-tmean_02 = raster(paste0(chwd, "temp/CHELSA_temp10_02_1979-2013_V1.2_land.tif"))
-tmean_03 = raster(paste0(chwd, "temp/CHELSA_temp10_03_1979-2013_V1.2_land.tif"))
-tmean_04 = raster(paste0(chwd, "temp/CHELSA_temp10_04_1979-2013_V1.2_land.tif"))
-tmean_05 = raster(paste0(chwd, "temp/CHELSA_temp10_05_1979-2013_V1.2_land.tif"))
-tmean_06 = raster(paste0(chwd, "temp/CHELSA_temp10_06_1979-2013_V1.2_land.tif"))
-tmean_07 = raster(paste0(chwd, "temp/CHELSA_temp10_07_1979-2013_V1.2_land.tif"))
-tmean_08 = raster(paste0(chwd, "temp/CHELSA_temp10_08_1979-2013_V1.2_land.tif"))
-tmean_09 = raster(paste0(chwd, "temp/CHELSA_temp10_09_1979-2013_V1.2_land.tif"))
-tmean_10 = raster(paste0(chwd, "temp/CHELSA_temp10_10_1979-2013_V1.2_land.tif"))
-tmean_11 = raster(paste0(chwd, "temp/CHELSA_temp10_11_1979-2013_V1.2_land.tif"))
-tmean_12 = raster(paste0(chwd, "temp/CHELSA_temp10_12_1979-2013_V1.2_land.tif"))
-tmean = stack(tmean_01, tmean_02, tmean_03, tmean_04, tmean_05, tmean_06, tmean_07, tmean_08, tmean_09, tmean_10, tmean_11, tmean_12)
-tmean <- crop(tmean, EXT)
-tmean <- projectRaster(tmean, crs = prj)
-names(tmean) <- c("tmean_01", "tmean_02", "tmean_03", "tmean_04", "tmean_05", "tmean_06", "tmean_07", "tmean_08", "tmean_09", "tmean_10", "tmean_11", "tmean_12")
-rm(tmean_01, tmean_02, tmean_03, tmean_04, tmean_05, tmean_06, tmean_07, tmean_08, tmean_09, tmean_10, tmean_11, tmean_12)
-tmean_r <- rast(tmean)
-tmean_r <- resample(tmean_r, resample_100m, method = "bilinear")
-rm(tmean)
+# Daily mean air temperature at 2 metres from hourly ERA5 data for each month
+tas_01 = rast(paste0(chwd, "tas/CHELSA_tas_01_1981-2010_V.2.1.tif"))
+tas_02 = rast(paste0(chwd, "tas/CHELSA_tas_02_1981-2010_V.2.1.tif"))
+tas_03 = rast(paste0(chwd, "tas/CHELSA_tas_03_1981-2010_V.2.1.tif"))
+tas_04 = rast(paste0(chwd, "tas/CHELSA_tas_04_1981-2010_V.2.1.tif"))
+tas_05 = rast(paste0(chwd, "tas/CHELSA_tas_05_1981-2010_V.2.1.tif"))
+tas_06 = rast(paste0(chwd, "tas/CHELSA_tas_06_1981-2010_V.2.1.tif"))
+tas_07 = rast(paste0(chwd, "tas/CHELSA_tas_07_1981-2010_V.2.1.tif"))
+tas_08 = rast(paste0(chwd, "tas/CHELSA_tas_08_1981-2010_V.2.1.tif"))
+tas_09 = rast(paste0(chwd, "tas/CHELSA_tas_09_1981-2010_V.2.1.tif"))
+tas_10 = rast(paste0(chwd, "tas/CHELSA_tas_10_1981-2010_V.2.1.tif"))
+tas_11 = rast(paste0(chwd, "tas/CHELSA_tas_11_1981-2010_V.2.1.tif"))
+tas_12 = rast(paste0(chwd, "tas/CHELSA_tas_12_1981-2010_V.2.1.tif"))
+tas = c(tas_01, tas_02, tas_03, tas_04, tas_05, tas_06, tas_07, tas_08, tas_09, tas_10, tas_11, tas_12)
+tas <- crop(tas, EXT, snap = "out")
+tas <- project(tas, crs = prj)
+gain(tas) <- 0.1
+offs(tas) <- -273.15 
+names(tas) <- c("tas_01", "tas_02", "tas_03", "tas_04", "tas_05", "tas_06", "tas_07", "tas_08", "tas_09", "tas_10", "tas_11", "tas_12")
+rm(tas_01, tas_02, tas_03, tas_04, tas_05, tas_06, tas_07, tas_08, tas_09, tas_10, tas_11, tas_12)
+tas_r <- resample(tas, resample_100m, method = "bilinear")
+rm(tas)
 
-# daily maximum air temperatures at 2 metres averaged over 1 month
-tmax_01 = raster(paste0(chwd, "tmax/CHELSA_tmax10_01_1979-2013_V1.2_land.tif"))
-tmax_02 = raster(paste0(chwd, "tmax/CHELSA_tmax10_02_1979-2013_V1.2_land.tif"))
-tmax_03 = raster(paste0(chwd, "tmax/CHELSA_tmax10_03_1979-2013_V1.2_land.tif"))
-tmax_04 = raster(paste0(chwd, "tmax/CHELSA_tmax10_04_1979-2013_V1.2_land.tif"))
-tmax_05 = raster(paste0(chwd, "tmax/CHELSA_tmax10_05_1979-2013_V1.2_land.tif"))
-tmax_06 = raster(paste0(chwd, "tmax/CHELSA_tmax10_06_1979-2013_V1.2_land.tif"))
-tmax_07 = raster(paste0(chwd, "tmax/CHELSA_tmax10_07_1979-2013_V1.2_land.tif"))
-tmax_08 = raster(paste0(chwd, "tmax/CHELSA_tmax10_08_1979-2013_V1.2_land.tif"))
-tmax_09 = raster(paste0(chwd, "tmax/CHELSA_tmax10_09_1979-2013_V1.2_land.tif"))
-tmax_10 = raster(paste0(chwd, "tmax/CHELSA_tmax10_10_1979-2013_V1.2_land.tif"))
-tmax_11 = raster(paste0(chwd, "tmax/CHELSA_tmax10_11_1979-2013_V1.2_land.tif"))
-tmax_12 = raster(paste0(chwd, "tmax/CHELSA_tmax10_12_1979-2013_V1.2_land.tif"))
-tmax = stack(tmax_01, tmax_02, tmax_03, tmax_04, tmax_05, tmax_06, tmax_07, tmax_08, tmax_09, tmax_10, tmax_11, tmax_12)
-tmax <- crop(tmax, EXT)
-tmax <- projectRaster(tmax, crs = prj)
-names(tmax) <- c("tmax_01", "tmax_02", "tmax_03", "tmax_04", "tmax_05", "tmax_06", "tmax_07", "tmax_08", "tmax_09", "tmax_10", "tmax_11", "tmax_12")
-rm(tmax_01, tmax_02, tmax_03, tmax_04, tmax_05, tmax_06, tmax_07, tmax_08, tmax_09, tmax_10, tmax_11, tmax_12)
-tmax_r <- rast(tmax)
-tmax_r <- resample(tmax_r, resample_100m, method = "bilinear")
-rm(tmax)
+# Daily maximum air temperature at 2 metres from hourly ERA5 data for each month
+tasmax_01 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_01_1981-2010_V.2.1.tif"))
+tasmax_02 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_02_1981-2010_V.2.1.tif"))
+tasmax_03 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_03_1981-2010_V.2.1.tif"))
+tasmax_04 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_04_1981-2010_V.2.1.tif"))
+tasmax_05 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_05_1981-2010_V.2.1.tif"))
+tasmax_06 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_06_1981-2010_V.2.1.tif"))
+tasmax_07 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_07_1981-2010_V.2.1.tif"))
+tasmax_08 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_08_1981-2010_V.2.1.tif"))
+tasmax_09 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_09_1981-2010_V.2.1.tif"))
+tasmax_10 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_10_1981-2010_V.2.1.tif"))
+tasmax_11 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_11_1981-2010_V.2.1.tif"))
+tasmax_12 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_12_1981-2010_V.2.1.tif"))
+tasmax = c(tasmax_01, tasmax_02, tasmax_03, tasmax_04, tasmax_05, tasmax_06, tasmax_07, tasmax_08, tasmax_09, tasmax_10, tasmax_11, tasmax_12)
+tasmax <- crop(tasmax, EXT, snap = "out")
+tasmax <- project(tasmax, crs = prj)
+gain(tasmax) <- 0.1
+offs(tasmax) <- -273.15 
+names(tasmax) <- c("tasmax_01", "tasmax_02", "tasmax_03", "tasmax_04", "tasmax_05", "tasmax_06", "tasmax_07", "tasmax_08", "tasmax_09", "tasmax_10", "tasmax_11", "tasmax_12")
+rm(tasmax_01, tasmax_02, tasmax_03, tasmax_04, tasmax_05, tasmax_06, tasmax_07, tasmax_08, tasmax_09, tasmax_10, tasmax_11, tasmax_12)
+tasmax_r <- resample(tasmax, resample_100m, method = "bilinear")
+rm(tasmax)
 
-# daily minimum air temperatures at 2 metres averaged over 1 month
-tmin_01 = raster(paste0(chwd, "tmin/CHELSA_tmin10_01_1979-2013_V1.2_land.tif"))
-tmin_02 = raster(paste0(chwd, "tmin/CHELSA_tmin10_02_1979-2013_V1.2_land.tif"))
-tmin_03 = raster(paste0(chwd, "tmin/CHELSA_tmin10_03_1979-2013_V1.2_land.tif"))
-tmin_04 = raster(paste0(chwd, "tmin/CHELSA_tmin10_04_1979-2013_V1.2_land.tif"))
-tmin_05 = raster(paste0(chwd, "tmin/CHELSA_tmin10_05_1979-2013_V1.2_land.tif"))
-tmin_06 = raster(paste0(chwd, "tmin/CHELSA_tmin10_06_1979-2013_V1.2_land.tif"))
-tmin_07 = raster(paste0(chwd, "tmin/CHELSA_tmin10_07_1979-2013_V1.2_land.tif"))
-tmin_08 = raster(paste0(chwd, "tmin/CHELSA_tmin10_08_1979-2013_V1.2_land.tif"))
-tmin_09 = raster(paste0(chwd, "tmin/CHELSA_tmin10_09_1979-2013_V1.2_land.tif"))
-tmin_10 = raster(paste0(chwd, "tmin/CHELSA_tmin10_10_1979-2013_V1.2_land.tif"))
-tmin_11 = raster(paste0(chwd, "tmin/CHELSA_tmin10_11_1979-2013_V1.2_land.tif"))
-tmin_12 = raster(paste0(chwd, "tmin/CHELSA_tmin10_12_1979-2013_V1.2_land.tif"))
-tmin = stack(tmin_01, tmin_02, tmin_03, tmin_04, tmin_05, tmin_06, tmin_07, tmin_08, tmin_09, tmin_10, tmin_11, tmin_12)
-tmin <- crop(tmin, EXT)
-tmin <- projectRaster(tmin, crs = prj)
-names(tmin) <- c("tmin_01", "tmin_02", "tmin_03", "tmin_04", "tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10", "tmin_11", "tmin_12")
-rm(tmin_01, tmin_02, tmin_03, tmin_04, tmin_05, tmin_06, tmin_07, tmin_08, tmin_09, tmin_10, tmin_11, tmin_12)
-tmin_r <- rast(tmin)
-tmin_r <- resample(tmin_r, resample_100m, method = "bilinear")
-rm(tmin)
+# Daily minimum air temperature at 2 metres from hourly ERA5 data for each month
+tasmin_01 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_01_1981-2010_V.2.1.tif"))
+tasmin_02 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_02_1981-2010_V.2.1.tif"))
+tasmin_03 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_03_1981-2010_V.2.1.tif"))
+tasmin_04 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_04_1981-2010_V.2.1.tif"))
+tasmin_05 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_05_1981-2010_V.2.1.tif"))
+tasmin_06 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_06_1981-2010_V.2.1.tif"))
+tasmin_07 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_07_1981-2010_V.2.1.tif"))
+tasmin_08 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_08_1981-2010_V.2.1.tif"))
+tasmin_09 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_09_1981-2010_V.2.1.tif"))
+tasmin_10 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_10_1981-2010_V.2.1.tif"))
+tasmin_11 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_11_1981-2010_V.2.1.tif"))
+tasmin_12 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_12_1981-2010_V.2.1.tif"))
+tasmin = c(tasmin_01, tasmin_02, tasmin_03, tasmin_04, tasmin_05, tasmin_06, tasmin_07, tasmin_08, tasmin_09, tasmin_10, tasmin_11, tasmin_12)
+tasmin <- crop(tasmin, EXT, snap = "out")
+tasmin <- project(tasmin, crs = prj)
+gain(tasmin) <- 0.1
+offs(tasmin) <- -273.15 
+names(tasmin) <- c("tasmin_01", "tasmin_02", "tasmin_03", "tasmin_04", "tasmin_05", "tasmin_06", "tasmin_07", "tasmin_08", "tasmin_09", "tasmin_10", "tasmin_11", "tasmin_12")
+rm(tasmin_01, tasmin_02, tasmin_03, tasmin_04, tasmin_05, tasmin_06, tasmin_07, tasmin_08, tasmin_09, tasmin_10, tasmin_11, tasmin_12)
+tasmin_r <- resample(tasmin, resample_100m, method = "bilinear")
+rm(tasmin)
 
 # Precipitation amount"Amount" means mass per unit area. "Precipitation" in the
 # earth's atmosphere means precipitation of water in all phases.
 
-pr_01 = raster(paste0(chwd, "pr/CHELSA_pr_01_1981-2010_V.2.1.tif"))
-pr_02 = raster(paste0(chwd, "pr/CHELSA_pr_02_1981-2010_V.2.1.tif"))
-pr_03 = raster(paste0(chwd, "pr/CHELSA_pr_03_1981-2010_V.2.1.tif"))
-pr_04 = raster(paste0(chwd, "pr/CHELSA_pr_04_1981-2010_V.2.1.tif"))
-pr_05 = raster(paste0(chwd, "pr/CHELSA_pr_05_1981-2010_V.2.1.tif"))
-pr_06 = raster(paste0(chwd, "pr/CHELSA_pr_06_1981-2010_V.2.1.tif"))
-pr_07 = raster(paste0(chwd, "pr/CHELSA_pr_07_1981-2010_V.2.1.tif"))
-pr_08 = raster(paste0(chwd, "pr/CHELSA_pr_08_1981-2010_V.2.1.tif"))
-pr_09 = raster(paste0(chwd, "pr/CHELSA_pr_09_1981-2010_V.2.1.tif"))
-pr_10 = raster(paste0(chwd, "pr/CHELSA_pr_10_1981-2010_V.2.1.tif"))
-pr_11 = raster(paste0(chwd, "pr/CHELSA_pr_11_1981-2010_V.2.1.tif"))
-pr_12 = raster(paste0(chwd, "pr/CHELSA_pr_12_1981-2010_V.2.1.tif"))
-pr = stack(pr_01, pr_02, pr_03, pr_04, pr_05, pr_06, pr_07, pr_08, pr_09, pr_10, pr_11, pr_12)
-pr <- crop(pr, EXT)
-pr <- projectRaster(pr, crs = prj)
-for (i in 1:nlayers(pr)) {
-  pr[[i]] = pr[[i]]/mo[i]
-}
+pr_01 = rast(paste0(chwd, "pr/CHELSA_pr_01_1981-2010_V.2.1.tif"))
+pr_02 = rast(paste0(chwd, "pr/CHELSA_pr_02_1981-2010_V.2.1.tif"))
+pr_03 = rast(paste0(chwd, "pr/CHELSA_pr_03_1981-2010_V.2.1.tif"))
+pr_04 = rast(paste0(chwd, "pr/CHELSA_pr_04_1981-2010_V.2.1.tif"))
+pr_05 = rast(paste0(chwd, "pr/CHELSA_pr_05_1981-2010_V.2.1.tif"))
+pr_06 = rast(paste0(chwd, "pr/CHELSA_pr_06_1981-2010_V.2.1.tif"))
+pr_07 = rast(paste0(chwd, "pr/CHELSA_pr_07_1981-2010_V.2.1.tif"))
+pr_08 = rast(paste0(chwd, "pr/CHELSA_pr_08_1981-2010_V.2.1.tif"))
+pr_09 = rast(paste0(chwd, "pr/CHELSA_pr_09_1981-2010_V.2.1.tif"))
+pr_10 = rast(paste0(chwd, "pr/CHELSA_pr_10_1981-2010_V.2.1.tif"))
+pr_11 = rast(paste0(chwd, "pr/CHELSA_pr_11_1981-2010_V.2.1.tif"))
+pr_12 = rast(paste0(chwd, "pr/CHELSA_pr_12_1981-2010_V.2.1.tif"))
+pr = c(pr_01, pr_02, pr_03, pr_04, pr_05, pr_06, pr_07, pr_08, pr_09, pr_10, pr_11, pr_12)
+pr <- crop(pr, EXT, snap = "out")
+pr <- project(pr, crs = prj)
+gain(pr) <- 0.1
+#offs(pr) <- 0 
 names(pr) <- c("pr_01", "pr_02", "pr_03", "pr_04", "pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", "pr_11", "pr_12")
 rm(pr_01, pr_02, pr_03, pr_04, pr_05, pr_06, pr_07, pr_08, pr_09, pr_10, pr_11, pr_12)
-pr_r <- rast(pr)
 pr_r <- resample(pr_r, resample_100m, method = "bilinear")
 ###rm(pr)
 
 # Total % cloud cover for each month
-clt_01 = raster(paste0(chwd, "clt/CHELSA_clt_01_1981-2010_V.2.1.tif"))
-clt_02 = raster(paste0(chwd, "clt/CHELSA_clt_02_1981-2010_V.2.1.tif"))
-clt_03 = raster(paste0(chwd, "clt/CHELSA_clt_03_1981-2010_V.2.1.tif"))
-clt_04 = raster(paste0(chwd, "clt/CHELSA_clt_04_1981-2010_V.2.1.tif"))
-clt_05 = raster(paste0(chwd, "clt/CHELSA_clt_05_1981-2010_V.2.1.tif"))
-clt_06 = raster(paste0(chwd, "clt/CHELSA_clt_06_1981-2010_V.2.1.tif"))
-clt_07 = raster(paste0(chwd, "clt/CHELSA_clt_07_1981-2010_V.2.1.tif"))
-clt_08 = raster(paste0(chwd, "clt/CHELSA_clt_08_1981-2010_V.2.1.tif"))
-clt_09 = raster(paste0(chwd, "clt/CHELSA_clt_09_1981-2010_V.2.1.tif"))
-clt_10 = raster(paste0(chwd, "clt/CHELSA_clt_10_1981-2010_V.2.1.tif"))
-clt_11 = raster(paste0(chwd, "clt/CHELSA_clt_11_1981-2010_V.2.1.tif"))
-clt_12 = raster(paste0(chwd, "clt/CHELSA_clt_12_1981-2010_V.2.1.tif"))
-clt = stack(clt_01, clt_02, clt_03, clt_04, clt_05, clt_06, clt_07, clt_08, clt_09, clt_10, clt_11, clt_12)
-clt <- crop(clt, EXT)
-clt <- projectRaster(clt, crs = prj)
-# Resample to new resolution
-r2 = raster(extent(pr), resolution = c(875, 922), crs = crs(pr))
-clt <- resample(clt, r2, method = "bilinear")
+clt_01 = rast(paste0(chwd, "clt/CHELSA_clt_01_1981-2010_V.2.1.tif"))
+clt_02 = rast(paste0(chwd, "clt/CHELSA_clt_02_1981-2010_V.2.1.tif"))
+clt_03 = rast(paste0(chwd, "clt/CHELSA_clt_03_1981-2010_V.2.1.tif"))
+clt_04 = rast(paste0(chwd, "clt/CHELSA_clt_04_1981-2010_V.2.1.tif"))
+clt_05 = rast(paste0(chwd, "clt/CHELSA_clt_05_1981-2010_V.2.1.tif"))
+clt_06 = rast(paste0(chwd, "clt/CHELSA_clt_06_1981-2010_V.2.1.tif"))
+clt_07 = rast(paste0(chwd, "clt/CHELSA_clt_07_1981-2010_V.2.1.tif"))
+clt_08 = rast(paste0(chwd, "clt/CHELSA_clt_08_1981-2010_V.2.1.tif"))
+clt_09 = rast(paste0(chwd, "clt/CHELSA_clt_09_1981-2010_V.2.1.tif"))
+clt_10 = rast(paste0(chwd, "clt/CHELSA_clt_10_1981-2010_V.2.1.tif"))
+clt_11 = rast(paste0(chwd, "clt/CHELSA_clt_11_1981-2010_V.2.1.tif"))
+clt_12 = rast(paste0(chwd, "clt/CHELSA_clt_12_1981-2010_V.2.1.tif"))
+clt = c(clt_01, clt_02, clt_03, clt_04, clt_05, clt_06, clt_07, clt_08, clt_09, clt_10, clt_11, clt_12)
+clt <- crop(clt, EXT, snap = "out")
+clt <- project(clt, crs = prj)
+gain(clt) <- 0.01
+#offs(clt) <- 0
+#r2 = raster(extent(pr), resolution = c(875, 922), crs = crs(pr))
+#clt <- resample(clt, r2, method = "bilinear")
 names(clt) <- c("clt_01", "clt_02", "clt_03", "clt_04", "clt_05", "clt_06", "clt_07", "clt_08", "clt_09", "clt_10", "clt_11", "clt_12")
 rm(clt_01, clt_02, clt_03, clt_04, clt_05, clt_06, clt_07, clt_08, clt_09, clt_10, clt_11, clt_12, r2)
-clt_r <- rast(clt)
 clt_r <- resample(clt_r, resample_100m, method = "bilinear")
 rm(clt, pr)
 
 # Surface downwelling shortwave flux in air
-rsds_01 = raster(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_01_V.2.1.tif"))
-rsds_02 = raster(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_02_V.2.1.tif"))
-rsds_03 = raster(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_03_V.2.1.tif"))
-rsds_04 = raster(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_04_V.2.1.tif"))
-rsds_05 = raster(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_05_V.2.1.tif"))
-rsds_06 = raster(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_06_V.2.1.tif"))
-rsds_07 = raster(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_07_V.2.1.tif"))
-rsds_08 = raster(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_08_V.2.1.tif"))
-rsds_09 = raster(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_09_V.2.1.tif"))
-rsds_10 = raster(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_10_V.2.1.tif"))
-rsds_11 = raster(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_11_V.2.1.tif"))
-rsds_12 = raster(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_12_V.2.1.tif"))
-rsds = stack(rsds_01, rsds_02, rsds_03, rsds_04, rsds_05, rsds_06, rsds_07, rsds_08, rsds_09, rsds_10, rsds_11, rsds_12)
-rsds <- crop(rsds, EXT)
-rsds <- projectRaster(rsds, crs = prj)
+rsds_01 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_01_V.2.1.tif"))
+rsds_02 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_02_V.2.1.tif"))
+rsds_03 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_03_V.2.1.tif"))
+rsds_04 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_04_V.2.1.tif"))
+rsds_05 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_05_V.2.1.tif"))
+rsds_06 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_06_V.2.1.tif"))
+rsds_07 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_07_V.2.1.tif"))
+rsds_08 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_08_V.2.1.tif"))
+rsds_09 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_09_V.2.1.tif"))
+rsds_10 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_10_V.2.1.tif"))
+rsds_11 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_11_V.2.1.tif"))
+rsds_12 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_12_V.2.1.tif"))
+rsds = c(rsds_01, rsds_02, rsds_03, rsds_04, rsds_05, rsds_06, rsds_07, rsds_08, rsds_09, rsds_10, rsds_11, rsds_12)
+rsds <- crop(rsds, EXT, snap = "out")
+rsds <- project(rsds, crs = prj, snap = "out")
+gain(rsds) <- 0.001
+#offs(rsds) <- 0
 names(rsds) <- c("rsds_01", "rsds_02", "rsds_03", "rsds_04", "rsds_05", "rsds_06", "rsds_07", "rsds_08", "rsds_09", "rsds_10", "rsds_11", "rsds_12")
 rm(rsds_01, rsds_02, rsds_03, rsds_04, rsds_05, rsds_06, rsds_07, rsds_08, rsds_09, rsds_10, rsds_11, rsds_12)
-rsds_r <- rast(rsds)
 rsds_r <- resample(rsds_r, resample_100m, method = "bilinear")
 rm(rsds)
 
+#Net primary productivity Calculated based on the ‘Miami model’, Lieth, H., 1972. "Modelling the primary productivity of the earth. Nature and resources", UNESCO, VIII, 2:5-10.
+npp = rast(paste0(chwd, "bio/CHELSA_npp_1981-2010_V.2.1.tif"))
+npp <- crop(npp, EXT, snap = "out")
+npp <- project(npp, crs = prj, snap = "out")
+gain(npp) <- 0.1
+names(npp) <- "npp"
+npp_r <- resample(npp_r, resample_100m, method = "bilinear")
 
-Clim_r <- c(prec_r,pr_r,tmean_r,tmax_r,tmin_r,clt_r,rsds_r)
+
+#Köppen-Geiger climate classification
+kg0 = rast(paste0(chwd, "bio/CHELSA_kg0_1981-2010_V.2.1.tif"))
+kg0 <- crop(kg0, EXT, snap = "out")
+kg0 <- project(kg0, crs = prj, snap = "out")
+names(kg0) <- "kg0"
+kg0 <- as.factor(kg0)
+kg0_r <- resample(kg0_r, resample_100m, method = "near")
+
+
+#Frost change frequency; count; Number of events in which tmin or tmax go above, or below 0°C
+fcf = rast(paste0(chwd, "bio/CHELSA_fcf_1981-2010_V.2.1.tif"))
+fcf <- crop(fcf, EXT, snap = "out")
+fcf <- project(fcf, crs = prj, snap = "out")
+names(fcf) <- "fcf"
+fcf_r <- resample(fcf_r, resample_100m, method = "bilinear")
+
+# PDSI
+pdsi_r = pdsi(pr[1], pet[1])
+for (i in 1:12) {
+  temp = pdsi(pr[i], pet[i])
+  q = ifelse(i < 10, "0", "")
+  names(temp) <- paste0("pdsi_", q, i)
+  pdsi_r = c(pdsi_r, temp)
+}
+rm(temp, q)
+
+
+Clim_r <- c(pet_r,pr_r,tas_r,tasmax_r,tasmin_r,clt_r,rsds_r,npp_r, kg0_r, fcf_r)
 #names(Clim_r)
 writeRaster(Clim_r, filename = paste0(wd$data_p, "Clim_r_resampled.tif"), overwrite=TRUE, append=FALSE)
 
+rm(pet_r,pr_r,tas_r,tasmax_r,tasmin_r,clt_r,rsds_r,npp_r, kg0_r, fcf_r)
+rm(pet,pr,tas,tasmax,tasmin,clt,rsds,npp, kg0, fcf)
+```
+
+### CHELSA-TraCE21k – 1km climate timeseries since the LGM
+
+https://chelsa-climate.org/chelsa-trace21k/
+
+CHELSA-TraCE21k data provides monthly climate data for temperature and precipitation at 30 arcsec spatial resolution in 100-yeartime steps for the last 21,000 years. Paleo orography at high spatial resolution and at each timestep is created by combining high resolution information on glacial cover from current and Last Glacial Maximum (LGM) glacier databases with the interpolation of a dynamic ice sheet model (ICE6G) and a coupling to mean annual temperatures from CCSM3-TraCE21k. Based on the reconstructed paleo orography, mean annual temperature and precipitation was downscaled using the CHELSA V1.2 algorithm.
+
+
+Time ID == 12-20
+
+Variables:
+* tasmax
+* tasmin
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+* 
+
+
+### 2003-2019 Timeseries
+
+
+
+```{r}
+HTTP <- "https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/monthly/"
+var <- c("pet")
+var2 <- c("pet_penman")
+month <- c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12")
+year <- as.character(c(2003:2019))
+URLs <- vector("character", length = 0)
+
+for (i in 1:length(var)) {
+  for (j in 1:length(year)) {
+    temp <- paste0(HTTP, var[i], "/CHELSA_", var2[i], "_", month, "_", year[j], "_V.2.1.tif")
+    URLs <- c(URLs, temp)
+  }
+}
+options(timeout=10000)
+files <- gsub(HTTP, "", URLs)
+#files <- paste0(files)
+#curl_download(URLs[1],destfile=paste0(wd$data_r, "CHELSA/",files[1]))
+for (i in 1:length(URLs)){#length(URLs)
+  source_url <- file.path(URLs[i])
+  destination <- paste0(wd$data_r, "CHELSA/",files[i])
+  download.file(source_url, destination, mode="wb")
+}
+
+
+
+
 
 ```
 
-#NetCDF
+
+
+
+## Mexican Drought Atlas
+
+Mexican Drought Atlas (MXDA) 600 Year scPDSI Reconstructions
+
+Stahle, D.W., E.R. Cook, D.J. Burnette, J. Villanueva, J. Cerano, J.N. Burns, D. Griffin, B.I. Cook, R. Acuña, M.C.A. Torbenson, P. Szejner, and I.M. Howard, 2016:  The Mexican Drought Atlas:  Tree-ring reconstructions of the soil moisture balance during the late pre-Hispanic, colonial, and modern eras.  Quaternary Science Reviews, 149, 34-60.
+
+ summer (June-August) reconstructions of the self-calibrating Palmer Drought Severity Index (PDSI) on a 0.5° latitude/longitude grid centered over Mexico from AD 1400-2012.  The reconstructions are derived from 252 tree-ring chronologies over subtropical North America.
+
+
+Central Mexico included from AD 1400-2005
+
+http://drought.memphis.edu/MXDA/
+https://www.sciencedirect.com/science/article/pii/S0277379116302244
+https://www.ncei.noaa.gov/access/paleo-search/study/20353
+
+### Import Data from NOAA
 
 ```{r}
-# Specify the path to the NetCDF file
-nc_file <- "path/to/your/netcdf/file.nc"
+MXDA_Reconstructed_JJA_PDSI <- rast("C:/Users/rcesaret/Downloads/MXDA_Reconstructed_JJA_PDSI.tif")
+MXDA_Instrumental_PDSI <- rast("C:/Users/rcesaret/Downloads/MXDA_Instrumental_PDSI.tif")
+#MXDA_Reconstructed_JJA_PDSI <- ifel(MXDA_Reconstructed_JJA_PDSI < 1000, NA, MXDA_Reconstructed_JJA_PDSI)
+
+recon_data_url <- "http://www1.ncdc.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-recon-jja-scpdsi-1400-2012.txt"
+grid_points_url <- "http://www1.ncdc.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-grid-points.txt"
+instr_data_url <- "https://www.ncei.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-inst-jja-scpdsi-1901-2012.txt"
+
+recon_data <- read.table(recon_data_url, header = TRUE, sep = "\t")
+recon_data <- data.frame(do.call(rbind, strsplit(recon_data[,1], "\\s+")))
+z <- paste0("scPDSI_", as.character(recon_data[,2]))
+recon_data <- as.data.frame(t(as.matrix(recon_data[,-c(1:2)])))
+colnames(recon_data) <- z
+row.names(recon_data) <- NULL
+rownames(recon_data) <- 1:nrow(recon_data)
+
+grid_points <- read.table(grid_points_url, header = F)
+names(grid_points) <- c("Lon", "Lat", "UNK_1", "UNK_2", "Variable")
+
+instr_data <- read.table(instr_data_url, header = TRUE, sep = "\t")
+instr_data <- as.data.frame(instr_data[-c(1:3),])
+instr_data <- data.frame(do.call(rbind, strsplit(instr_data[,1], "\\s+")))
+z <- paste0("scPDSI_", as.character(instr_data[,2]))
+instr_data <- as.data.frame(t(as.matrix(instr_data[,-c(1:2)])))
+colnames(instr_data) <- z
+row.names(instr_data) <- NULL
+rownames(instr_data) <- 1:nrow(instr_data)
+
+instr_data <- cbind(grid_points[,c(1:2)], instr_data)
+recon_data <- cbind(grid_points[,c(1:2)], recon_data)
+
+instr_scPDSI <- rast(instr_data, type="xyz", extent = ext(MXDA_Instrumental_PDSI), crs="epsg:4326")
+recon_scPDSI <- rast(recon_data, type="xyz", extent = ext(MXDA_Reconstructed_JJA_PDSI), crs="epsg:4326")
+
+writeRaster(instr_scPDSI, filename = paste0(wd$data_r, "MXDA_instr_scPDSI.tif"), overwrite=TRUE)
+writeRaster(recon_scPDSI, filename = paste0(wd$data_r, "MXDA_recon_scPDSI.tif"), overwrite=TRUE)
+
+rm(recon_data, instr_data, z, grid_points, recon_data_url, grid_points_url, instr_data_url, MXDA_Reconstructed_JJA_PDSI, MXDA_Instrumental_PDSI)
+
+```
+
+
+### Downscale
+
+```{r}
+instr_scPDSI <- rast(paste0(wd$data_r, "MXDA_instr_scPDSI.tif"))
+recon_scPDSI <- rast(paste0(wd$data_r, "MXDA_recon_scPDSI.tif"))
+
+spatialEco::raster.downscale(
+  x,
+  y,
+  scatter = FALSE,
+  full.res = FALSE,
+  residuals = FALSE,
+  se = FALSE,
+  p = 0.95,
+  uncertainty = c("none", "prediction", "confidence")
+)
+
+```
+
+https://rdrr.io/cran/spatialEco/man/raster.downscale.html
+
+
+
+
+
+#Unused
+
+```{r}
+Clim_r <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
+target_CRS = crs(Clim_r)
+t <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
+EXT <- project(t[[1]],"epsg:4326")
+
 
 # Read the NetCDF file as a RasterBrick object using the raster package
-NADApdsi04 <- raster::brick(paste0(wd$data_p, "NADApdsi04.nc"))
+NADApdsi04 <- raster::brick(paste0(wd$data_r, "NADApdsi04.nc"))
 # Convert the RasterBrick to a SpatRasterStack object using terra
 NADApdsi04 <- terra::rast(NADApdsi04)
 
+years = rev(-1:2003)
+time(NADApdsi04, tstep="years")<-years
+varnames(NADApdsi04)<-"scPDSI"
+names(NADApdsi04) <- paste0("scPDSI_", years)
+NADApdsi04 <- subset(NADApdsi04, names(NADApdsi04)[1:604])
+q <- subset(NADApdsi04, names(NADApdsi04)[1:3])
+q <- crop(q, EXT, snap = "out")
+NADApdsi04 <- crop(NADApdsi04, EXT, snap = "out")
+
+NADApdsi04 <- app(NADApdsi04, FUN = function(x) project(x, crs = target_CRS))
+
 
 # Read the NetCDF file as a RasterBrick object using the raster package
-NADAv2_2008 <- raster::brick(paste0(wd$data_p, "NADAv2-2008.nc"))
+MADApdsiz <- raster::brick(paste0(wd$data_r, "MADApdsi-z.nc"))
 # Convert the RasterBrick to a SpatRasterStack object using terra
-NADAv2_2008 <- terra::rast(NADAv2_2008)
+MADApdsiz <- terra::rast(MADApdsiz)
+MADApdsiz
+plot(MADApdsiz[[1]])
+
+# Read the NetCDF file as a RasterBrick object using the raster package
+nada_hd2_cl <- raster::brick(paste0(wd$data_r, "nada_hd2_cl.nc"))
+# Convert the RasterBrick to a SpatRasterStack object using terra
+nada_hd2_cl <- terra::rast(nada_hd2_cl)
+recon_data_url <- "http://www1.ncdc.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-recon-jja-scpdsi-1400-2012.txt"
+grid_points_url <- "http://www1.ncdc.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-grid-points.txt"
+instr_data_url <- "https://www.ncei.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-inst-jja-scpdsi-1901-2012.txt"
+
+recon_data <- read.table(recon_data_url, header = TRUE, sep = "\t")
+recon_data <- data.frame(do.call(rbind, strsplit(recon_data[,1], "\\s+")))
+z <- paste0("scPDSI_", as.character(recon_data[,2]))
+recon_data <- as.data.frame(t(as.matrix(recon_data[,-c(1:2)])))
+colnames(recon_data) <- z
+row.names(recon_data) <- NULL
+rownames(recon_data) <- 1:nrow(recon_data)
+
+grid_points <- read.table(grid_points_url, header = F)
+names(grid_points) <- c("Lon", "Lat", "UNK_1", "UNK_2", "Variable")
+
+instr_data <- read.table(instr_data_url, header = TRUE, sep = "\t")
+instr_data <- as.data.frame(instr_data[-c(1:3),])
+instr_data <- data.frame(do.call(rbind, strsplit(instr_data[,1], "\\s+")))
+z <- paste0("scPDSI_", as.character(instr_data[,2]))
+instr_data <- as.data.frame(t(as.matrix(instr_data[,-c(1:2)])))
+colnames(instr_data) <- z
+row.names(instr_data) <- NULL
+rownames(instr_data) <- 1:nrow(instr_data)
+
+instr_data <- cbind(grid_points[,c(1:2)], instr_data)
+recon_data <- cbind(grid_points[,c(1:2)], recon_data)
+
+instr_scPDSI <- rast(instr_data, type="xyz", extent = ext(MXDA_Reconstructed_JJA_PDSI), crs="epsg:4326")
+instr_scPDSI <- rast(instr_data, type="xyz", extent = ext(MXDA_Reconstructed_JJA_PDSI), crs="epsg:4326")
+
+MXDA_Reconstructed_JJA_PDSI.tif
+
+instr_data[, c(1:2,3)]
+nclimgrid_pmdi2017 <- raster::brick("C:/Users/rcesaret/Downloads/nclimgrid_pmdi-2017.nc")
+nclimgrid_pmdi2017 <- terra::rast(nclimgrid_pmdi2017)
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ```{r}
@@ -909,29 +1188,41 @@ for (year in years) {
 
 
 
+The "Living Blended Drought Atlas (LBDA)" North American Drought Reconstruction for the last 2000 years
+
+Cook, E.R., Seager, R., Heim, R.R., Vose, R.S., Herweijer, C., and Woodhouse, C. 2010. Megadroughts in North America: Placing IPCC projections of hydroclimatic change in a long-term paleoclimate context. Journal of Quaternary Science, 25(1), 48-61. doi: 10.1002/jqs.1303
+
+
+NOAA Study Page:
+https://www.ncei.noaa.gov/access/paleo-search/study/19119
 
 
 
+```{r}
+# Instrumental PMDI metadata - one line per grid point data set
+#CC	GRDBX	LON	LAT	AV.ELEV	%LAND	IBYR	CO	AWC	B	H	TLA
+LBDA_metadata <- read.csv(paste0(wd$data_r,"LBDA_PMDI_Instrumental_metadata.csv"))
 
 
 
+URL = "https://www.ncei.noaa.gov/pub/data/paleo/drought/LBDA2010/LBDA_PMDI_Instrumental_metadata.txt"
+LBDA_metadata <- read.table(URL, header = TRUE, sep = "", skip = 1)
 
+# 	Reconstructed PMDI - one column per grid point
+"https://www.ncei.noaa.gov/pub/data/paleo/drought/LBDA2010/LBDA_PMDI_JJA_Recons.txt"
+```
 
+	Reconstructed PMDI calibration/verification statistics
+https://www.ncei.noaa.gov/pub/data/paleo/drought/LBDA2010/LBDA_PMDI_JJA_Recons_cal-ver_stats.txt
 
+	Instrumental PMDI data used for calibration/verification
+https://www.ncei.noaa.gov/pub/data/paleo/drought/LBDA2010/LBDA_PMDI_Instrumental_data.txt
 
+recon_data_url <- "http://www1.ncdc.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-recon-jja-scpdsi-1400-2012.txt"
+grid_points_url <- "http://www1.ncdc.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-grid-points.txt"
 
-
-
-
-
-
-
-
-
-
-
-
-
+recon_data <- read.table(recon_data_url, header = TRUE, sep = "\t")
+grid_points <- read.table(grid_points_url, header = F)
 
 
 
