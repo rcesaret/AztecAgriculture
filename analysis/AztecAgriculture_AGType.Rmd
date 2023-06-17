@@ -220,8 +220,8 @@ elev_watershed <- rast(paste0(wd$data_p, "temp_rasts/elev_watershed_30m.tif"))
 
 Topo_r_30m = subset(Topo_r_30m, c(names(Topo_r_30m)[1:7], names(Topo_r_30m)[9:11]))
 
-Topo_r_30m = c(Topo_r_30m, Streams, Streams2, DistStreams, DistStreams2, ElevAboveStreams, ElevAboveStreams2, Valleys, elev_watershed, FloodOrder_Rel, FloodOrder, FlowDirect_d8_30m, FlowDirect_inf_30m)
-names(Topo_r_30m) = c(names(Topo_r_30m), "Streams", "Streams2", "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "Valleys", "elev_watershed", "FloodOrder_Rel", "FloodOrder", "FlowDirect_d8_30m", "FlowDirect_inf_30m")
+Topo_r_30m = c(Topo_r_30m, DistStreams, DistStreams2, ElevAboveStreams, ElevAboveStreams2, Valleys, elev_watershed, FloodOrder_Rel, FloodOrder, FlowDirect_d8_30m, FlowDirect_inf_30m)#Streams, Streams2, 
+names(Topo_r_30m) = c(names(Topo_r_30m), "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "Valleys", "elev_watershed", "FloodOrder_Rel", "FloodOrder", "FlowDirect_d8_30m", "FlowDirect_inf_30m")#, "Streams", "Streams2"
 writeRaster(Topo_r_30m, paste0(wd$data_p,"Topo_r_30m_2.tif"))
 Topo_r_30m <- rast(paste0(wd$data_p, "Topo_r_30m_2.tif"))
 
@@ -300,7 +300,7 @@ SIAP_LU_Fields_AGType <- rast(paste0(wd$data_p,"SIAP_LU_Fields_AGType.tif"))
 ```{r, label='Combine Data', message=FALSE,warning=FALSE}
 AGType <- SIAP_LU_Fields_AGType
 x = c(AGType, Geomorphons, Topo_r_30m, Soil_30m)
-names(x) = c("AGType", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "Streams", "Streams2", "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "Valleys", "elev_watershed", "FloodOrder_Rel", "FloodOrder", "FlowDirect_d8_30m", "FlowDirect_inf_30m", "BDRICM", "BDRLOG", "BDTICM", "BD", "S", "Z", "C", "SOC", "CEC", "OCD", "N", "SOCS", "WRB")
+names(x) = c("AGType", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "Valleys", "elev_watershed", "FloodOrder_Rel", "FloodOrder", "FlowDirect_d8_30m", "FlowDirect_inf_30m", "BDRICM", "BDRLOG", "BDTICM", "BD", "S", "Z", "C", "SOC", "CEC", "OCD", "N", "SOCS", "WRB")#"Streams", "Streams2", 
 x = mask(x, ArableAreaMask)
 #x = mask(x, SIAP_LU_Fields_AGType)
 writeRaster(x, filename = paste0(wd$data_p, "AGType_Raster_Data.tif"), overwrite=TRUE)
@@ -329,8 +329,9 @@ for (i in 2:nlyr(x)) {
   x_df <- x_df %>% left_join(t, by="Cells")
 
 }
-#x_df = x_df[complete.cases(x_df), ]
-x_df <- x_df[complete.cases(x_df[, -which(names(x_df) == "AGType")]), ]
+#x_df = x_df %>% select(-Streams, -Streams2)
+#d = x_df[complete.cases(x_df), ]
+#d <- x_df[complete.cases(x_df[, -which(names(x_df) == "AGType")]), ]
 
 AGType_RF_df <- x_df %>% 
   mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")),
@@ -419,7 +420,7 @@ fgeo = freq(Geomorphons, usenames=T, zones=AGType2, wide=T)
 fgeo = fgeo %>% mutate(zone = case_when(
     zone == 1 ~ "Temporal",
     zone == 2 ~ "Irrigation")) %>% rowwise() %>% 
-  mutate(Total = sum(c_across(Forest_Coniferous_Temperate:Water))) %>% ungroup()
+  mutate(Total = sum(c_across(Flat:Depression))) %>% ungroup()
 column_sums <- as.numeric(colSums(fgeo[, -c(1:2)]))
 y = as.matrix(fgeo[, -c(1, 2)])
 d = fgeo[, c(1:2)]
@@ -657,6 +658,26 @@ geom_histogram(aes(x = FlowDirect_inf_30m, color = AGType, fill = AGType), alpha
 ```{r, label='Sampling the Dataframe', message=FALSE,warning=FALSE}
 #TopoEnv_r_sub <- subset(x, c("DEM", "Slope","Accum", "TRI", "TWI", "STI", "SPI"))
 
+x <- subset(x, c("AGType", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "elev_watershed", "FloodOrder_Rel", "BDRICM", "BDRLOG", "BDTICM", "SOC", "N", "SOCS", "WRB"))
+writeRaster(x, filename = paste0(wd$data_p, "AGType_Raster_Data.tif"), overwrite=TRUE)
+
+AGType_RF_df = AGType_RF_df %>% select(-CEC, -OCD, -BD, -S, -Z, -FlowDirect_inf_30m, -FlowDirect_d8_30m, -FloodOrder, -Valleys)
+
+AGType_RF_df %>%
+  mutate(part = case_when(
+    row_number() <= ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data1",
+    row_number() <= 2 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data2",
+    row_number() <= 3 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data3",
+    row_number() <= 4 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data4",
+    TRUE ~ "AGType_RFModel_Data5"
+  )) %>%
+  group_split(part) %>%
+  purrr::walk2(
+    .,
+    c("AGType_RFModel_Data1", "AGType_RFModel_Data2", "AGType_RFModel_Data3", "AGType_RFModel_Data4", "AGType_RFModel_Data5"),
+    ~ write_csv(.x, file = paste0(wd$data_p, .y, ".csv.gz"))
+  )
+
 ```
 
 
@@ -665,11 +686,10 @@ geom_histogram(aes(x = FlowDirect_inf_30m, color = AGType, fill = AGType), alpha
 
 ```{r, label='Shortcut Import #2', message=FALSE,warning=FALSE}
 x <- rast(paste0(wd$data_p,"AGType_Raster_Data.tif"))
-names(x) = c("AGType", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "Streams", "Streams2", "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "Valleys", "elev_watershed", "FloodOrder_Rel", "FloodOrder", "FlowDirect_d8_30m", "FlowDirect_inf_30m", "BDRICM", "BDRLOG", "BDTICM", "BD", "S", "Z", "C", "SOC", "CEC", "OCD", "N", "SOCS", "WRB")
+names(x) = c("AGType", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "elev_watershed", "FloodOrder_Rel", "BDRICM", "BDRLOG", "BDTICM", "SOC", "N", "SOCS", "WRB")
 
 AGType <- x[[1]]
 
-x <- subset(x, c("AGType", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "Streams", "Streams2", "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "Valleys", "elev_watershed", "FloodOrder_Rel", "FloodOrder", "FlowDirect_d8_30m", "FlowDirect_inf_30m", "BDRICM", "BDRLOG", "BDTICM", "BD", "S", "Z", "C", "SOC", "CEC", "OCD", "N", "SOCS", "WRB"))
 
 l = 1:5
 file_paths <- paste0(wd$data_p, "AGType_RFModel_Data", l, ".csv.gz")
@@ -690,103 +710,60 @@ AGType_RF_df <- AGType_RF_df %>%
 ```{r, label='Sampling the Dataframe', message=FALSE,warning=FALSE}
 
 AGType_RF_df <- AGType_RF_df %>% 
-  mutate(Cultiv2 = case_when(
-         AGType == "Temporal" ~ 1,
-         AGType == "Irrigation" ~ 2),
-    #Problem = FALSE,
-         #Cultiv_3100masl = ifelse(AGType == "Irrigation" & DEM >= 3100, TRUE, FALSE),
-         #Problem = ifelse(AGType == "Irrigation" & LandUse == "Water", TRUE, Problem),
-         #Problem = ifelse(AGType == "Irrigation" & LandUse == "Wetland", TRUE, Problem),
-         #Problem = ifelse(AGType == "Irrigation" & LandUse == "Settlement", TRUE, Problem),
-         #Problem_3100masl = ifelse(AGType == "Irrigation" & DEM >= 3100, TRUE, Problem),
-         
-         #Cultiv_3100masl = ifelse(AGType == "Irrigation" & DEM >= 3100, TRUE, FALSE),
-         AGType2 = ifelse(AGType == "Cultivated" & LandUseArchy == "Water", 1, AGType2),
-         AGType2 = ifelse(AGType == "Cultivated" & LandUseArchy == "Wetland", 1, AGType2),
-         AGType2 = ifelse(AGType == "Cultivated" & LandUseArchy == "Settlement", 1, AGType2),
-         #AGType = ifelse(AGType == "Cultivated" & DEM >= 3100, "Temporal", AGType),
-
-         AGType = factor(AGType2, levels = c(1, 2), labels = c("Temporal", "Irrigation"))) %>%
-  select(-AGType2) %>% 
-  mutate(Temporal1_wt = 0,
-         Temporal1_wt = ifelse(AGType == "Temporal" & DEM >= 3100, (Temporal1_wt+1), Temporal1_wt),
-         Temporal1_wt = ifelse(AGType == "Temporal" & LandUseArchy == "Water", (Temporal1_wt+1), Temporal1_wt),
-         Temporal1_wt = ifelse(AGType == "Temporal" & LandUseArchy == "Wetland", (Temporal1_wt+1), Temporal1_wt),
-         Temporal1_wt = ifelse(AGType == "Temporal" & LandUseArchy == "Settlement", (Temporal1_wt+1), Temporal1_wt),
-         Temporal1_wt = ifelse(AGType == "Temporal" & LandUseArchy == "Glacial", (Temporal1_wt+1), Temporal1_wt),
-         Temporal1 = ifelse(Temporal1_wt > 0, TRUE, FALSE),
-         
-         #Inarable_3100masl = ifelse(AGType == "Temporal" & DEM >= 3100, TRUE, FALSE),
-         #Inarable_water = ifelse(AGType == "Temporal" & LandUse == "Water", TRUE, FALSE),
-         #Inarable_wetland = ifelse(AGType == "Temporal" & LandUse == "Wetland", TRUE, FALSE),
-         #Inarable_settlement = ifelse(AGType == "Temporal" & LandUse == "Settlement", TRUE, FALSE),
-         #Inarable_glacial = ifelse(AGType == "Temporal" & LandUse == "Glacial", TRUE, FALSE),
-         
-         Temporal2_wt = 0,
-         Temporal2_wt = ifelse(AGType == "Temporal" & DEM >= 2850 & DEM < 3100, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & Slope > 15, (Temporal2_wt+1), Temporal2_wt),
-         #Temporal2_wt = ifelse(AGType == "Temporal" & Accum_fd8 > xxx, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & STI > 15, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & TRI > 15, (Temporal2_wt+1), Temporal2_wt),
-         #Temporal2_wt = ifelse(AGType == "Temporal" & SPI > XXX, (Temporal2_wt+1), Temporal2_wt),
-         #Temporal2_wt = ifelse(AGType == "Temporal" & TWI > XXX, (Temporal2_wt+1), Temporal2_wt),
-         #Temporal2_wt = ifelse(AGType == "Temporal" & flood_order > XXX, (Temporal2_wt+1), Temporal2_wt),
-         #Temporal2_wt = ifelse(AGType == "Temporal" & valleys_lq > XXX, (Temporal2_wt+1), Temporal2_wt),
-         #Temporal2_wt = ifelse(AGType == "Temporal" & elev_watershed > XXX, (Temporal2_wt+1), Temporal2_wt),
-         #Temporal2_wt = ifelse(AGType == "Temporal" & curv_vert_excess > XXX, (Temporal2_wt+1), Temporal2_wt),
-         #Temporal2_wt = ifelse(AGType == "Temporal" & curv_horiz_excess > XXX, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & curv_min > 0.0024170212, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & curv_min < -0.002, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & curv_max > 0.0015, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & curv_max < -0.0015, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & curv_mean > 0.001, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & curv_mean < -0.001, (Temporal2_wt+1), Temporal2_wt),
-         
-         Temporal2_wt = ifelse(AGType == "Temporal" & BDRLOG > 70, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & BDRICM < 62.87024, (Temporal2_wt+1), Temporal2_wt),
-         #Temporal2_wt = ifelse(AGType == "Temporal" & BDTICM <= 3.36, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & SOC > 350, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & BD < 108, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & OCD > 350, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & N > 300, (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & SOCS > 80, (Temporal2_wt+1), Temporal2_wt),
-         
-         
-         Temporal2_wt = ifelse(AGType == "Temporal" & Geomorphons == "Summit", (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & Geomorphons == "Depression", (Temporal2_wt+1), Temporal2_wt),
-         Temporal2_wt = ifelse(AGType == "Temporal" & Geomorphons == "Valley", (Temporal2_wt+1), Temporal2_wt),
-         Temporal2 = ifelse(Temporal2_wt > 0, TRUE, FALSE),
-         Temporal2 = ifelse(Temporal1 == T & Temporal2 == T & Temporal2_wt <= Temporal1_wt, F, Temporal2),
-         Temporal1 = ifelse(Temporal1 == T & Temporal2 == T & Temporal2_wt > Temporal1_wt, F, Temporal1),
-         #|
+  mutate(Temporal_wt = 0,
+         Temporal_wt = ifelse(AGType == "Temporal" & DEM > 2700, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & Slope > 5, (Temporal_wt+1), Temporal_wt),
+         #Temporal_wt = ifelse(AGType == "Temporal" & Accum_fd8 > xxx, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & STI > 15, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & TRI > 2, (Temporal_wt+1), Temporal_wt),
+         #Temporal_wt = ifelse(AGType == "Temporal" & SPI > XXX, (Temporal_wt+1), Temporal_wt),
+         #Temporal_wt = ifelse(AGType == "Temporal" & TWI > XXX, (Temporal_wt+1), Temporal_wt),
+         #Temporal_wt = ifelse(AGType == "Temporal" & flood_order > XXX, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & FloodOrder_Rel > 0.75, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & elev_watershed > 30, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & ElevAboveStreams2 > 100, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & ElevAboveStreams > 100, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & curv_min > 0.001, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & curv_min < -0.001, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & curv_max > 0.0005, (Temporal_wt+1), Temporal_wt),
+         #Temporal_wt = ifelse(AGType == "Temporal" & curv_max < -0.0015, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & curv_mean > 0.0005, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & curv_mean < -0.0005, (Temporal_wt+1), Temporal_wt),
+         #Temporal_wt = ifelse(AGType == "Temporal" & BDRLOG > 70, (Temporal_wt+1), Temporal_wt),
+         #Temporal_wt = ifelse(AGType == "Temporal" & BDRICM < 62.87024, (Temporal_wt+1), Temporal_wt),
+         #Temporal_wt = ifelse(AGType == "Temporal" & BDTICM <= 3.36, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & SOC > 250, (Temporal_wt+1), Temporal_wt),
+         #Temporal_wt = ifelse(AGType == "Temporal" & BD < 108, (Temporal_wt+1), Temporal_wt),
+         #Temporal_wt = ifelse(AGType == "Temporal" & OCD > 350, (Temporal_wt+1), Temporal_wt),
+         #Temporal_wt = ifelse(AGType == "Temporal" & N > 300, (Temporal_wt+1), Temporal_wt),
+         #Temporal_wt = ifelse(AGType == "Temporal" & SOCS > 80, (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & Geomorphons == "Slope", (Temporal_wt+1), Temporal_wt),
+         Temporal_wt = ifelse(AGType == "Temporal" & Geomorphons == "Spur", (Temporal_wt+1), Temporal_wt),
+         #Temporal_wt = ifelse(AGType == "Temporal" & Geomorphons == "Valley", (Temporal_wt+1), Temporal_wt),
+         Temporal = ifelse(Temporal_wt > 0, TRUE, FALSE),
          Irrigation = ifelse(AGType == "Irrigation", TRUE, FALSE),
          Irrigation_wt = ifelse(AGType == "Irrigation", 1, 0),
-         
-         wt = Temporal1_wt + Temporal2_wt + Irrigation_wt,
-
+         wt = Temporal_wt + Irrigation_wt,
          Stratum = case_when(
-                Arable == TRUE ~ "IrrigationSample",
-                Inarable1 == TRUE ~ "TemporalSample1",
-                Inarable2 == TRUE ~ "TemporalSample2",
+                Irrigation == TRUE ~ "IrrigationSample",
+                Temporal == TRUE ~ "TemporalSample",
                 .default = "Unsampled"),
          SampSize = case_when(
-                Stratum == "IrrigationSample" ~ 225000,
-                Stratum == "TemporalSample1" ~ 50000,
-                Stratum == "TemporalSample2" ~ 125000,
+                Stratum == "IrrigationSample" ~ 300000,
+                Stratum == "TemporalSample" ~ 300000,
                 .default = 0))
+zzz <- AGType_RF_df[complete.cases(AGType_RF_df[, -which(names(AGType_RF_df) == "AGType")]), ]
+zzz = zzz[complete.cases(zzz), ]
 
+dt = setDT(zzz)
 
-dt = setDT(AGType_RF_df)
+ir <- dt[Stratum == "IrrigationSample"][sample(.N, 300000, replace = FALSE)]
 
-a <- dt[Stratum == "IrrigationSample"][sample(.N, 225000, replace = FALSE)]
+te <- dt[Stratum == "TemporalSample"][sample(.N, 300000, replace = FALSE, prob = wt)]
 
-i1 <- dt[Stratum == "TemporalSample1"][sample(.N, 50000, replace = FALSE, prob = wt)]
+dt <- rbindlist(list(ir, te))
 
-i2 <- dt[Stratum == "TemporalSample2"][sample(.N, 125000, replace = FALSE, prob = wt)]
-
-dt <- rbindlist(list(a, i1, i2))
-
-rm(i1, i2, a)
+rm(ir, te)
 
 AGType_RF_Train_df <- as.data.frame(dt)
 
@@ -798,8 +775,11 @@ AGType_RF_Train_df <- read_csv(paste0(wd$data_p,"AGType_RFModel_TrainData.csv.gz
 
 tt = AGType_RF_Train_df %>% select(Cells) %>% mutate(TraningSample = TRUE, Cells = as.character(Cells))
 
-AGType_RF_df = AGType_RF_df %>% left_join(tt, by = "Cells") %>%
-  mutate(TraningSample = ifelse(is.na(TraningSample), F, TraningSample))
+tt = AGType_RF_Train_df %>% select(Cells) %>% mutate(Cells = as.character(Cells))
+
+
+AGType_RF_df = AGType_RF_df %>% left_join(tt, by = "Cells")
+AGType_RF_df = AGType_RF_df %>% mutate(TraningSample = ifelse(is.na(TraningSample), F, TraningSample))
 
 rm(tt)
 
@@ -822,7 +802,7 @@ AGType_RF_df %>%
     ~ write_csv(.x, file = paste0(wd$data_p, .y, ".csv.gz"))
   )
 
-rm(z, fgeo, fgeo_col_pc, fgeo_row_pc, fWRB_row_pc, fWRB_col_pc, fWRB, Geomorphons)
+rm(z, fgeo, fgeo_col_pc, fgeo_row_pc, fWRB_row_pc, fWRB_col_pc, fWRB, Geomorphons, z1, z2, z3, t, Soil_30m, Topo_r_30m, AGType2)
 
 ```
 
@@ -852,7 +832,11 @@ AGType_RF_df <- Arable_RF_df %>%
 
 AGType_RF_Train_df <- read_csv(paste0(wd$data_p,"AGType_RFModel_TrainData.csv.gz"))
 
-
+AGType_RF_Train_df <- AGType_RF_Train_df %>% 
+  mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")),
+         #LandUseArchy = factor(LandUseArchy, levels = c("Unknown", "Wetland", "Settlement", "Water", "Glacial")),
+         Geomorphons = factor(Geomorphons, levels = c("Flat", "Summit", "Ridge", "Shoulder", "Spur", "Slope", "Hollow", "Footslope", "Valley", "Depression")),
+         WRB = factor(WRB, levels = c("NoData", "Andosols", "Arenosols", "Calcisols", "Cambisols", "Durisols", "Fluvisols", "Gleysols", "Leptosols", "Luvisols", "Phaeozems", "Regosols", "Solonchaks", "Solonetz", "Umbrisols", "Vertisols")))
 #SIAP_LU_Fields <- mask(SIAP_LU_Fields, CMex_Mask)
 ```
 
@@ -863,7 +847,7 @@ AGType_RF_Train_df <- read_csv(paste0(wd$data_p,"AGType_RFModel_TrainData.csv.gz
 ```{r, label='RF Model Variable Selection', message=FALSE,warning=FALSE}
 #boruta = readRDS(paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
 
-boruta <- Boruta(Cultiv ~ ., data = AGType_RF_Train_df[,c(2:23)], maxRuns = 100)#, doTrace = 2
+boruta <- Boruta(AGType ~ ., data = AGType_RF_Train_df[,c(2:23)], maxRuns = 100)#, doTrace = 2
 print(boruta)
 boruta[["finalDecision"]]
 plot(boruta, las = 2, cex.axis = 0.7)

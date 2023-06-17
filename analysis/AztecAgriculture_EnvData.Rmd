@@ -870,6 +870,67 @@ writeRaster(Clim_r, filename = paste0(wd$data_p, "Clim_r_resampled.tif"), overwr
 
 ```
 
+#NetCDF
+
+```{r}
+# Specify the path to the NetCDF file
+nc_file <- "path/to/your/netcdf/file.nc"
+
+# Read the NetCDF file as a RasterBrick object using the raster package
+NADApdsi04 <- raster::brick(paste0(wd$data_p, "NADApdsi04.nc"))
+# Convert the RasterBrick to a SpatRasterStack object using terra
+NADApdsi04 <- terra::rast(NADApdsi04)
+
+
+# Read the NetCDF file as a RasterBrick object using the raster package
+NADAv2_2008 <- raster::brick(paste0(wd$data_p, "NADAv2-2008.nc"))
+# Convert the RasterBrick to a SpatRasterStack object using terra
+NADAv2_2008 <- terra::rast(NADAv2_2008)
+```
+
+
+```{r}
+install.packages("rnoaa")
+library(rnoaa)
+
+data <- ncdc(datasetid = "paleo", stationid = "GHCND:USW00023129", 
+             startdate = "1850-01-01", enddate = "2010-12-31")
+
+data_list <- list()
+for (year in years) {
+  for (variable in variables) {
+    data <- ncdc(datasetid = "GHCND", stationid = "GHCND:USW00023272", datatypeid = variable,
+                 startdate = paste0(year, "-01-01"), enddate = paste0(year, "-12-31"),
+                 limit = 1000, token = "YOUR_TOKEN")
+    data_list[[paste(variable, year, sep = "_")]] <- data
+  }
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
