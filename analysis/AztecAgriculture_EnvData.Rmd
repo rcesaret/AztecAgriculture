@@ -778,26 +778,57 @@ writeRaster(r2,paste0(wd$data_r,"C_RF_interpolated.tif"), overwrite=TRUE)
 
 ## CHELSA
 
-gain(x)
+### Climatologies 1981-2010
 
-offs(x)
-offs(x) <- value
-gain(x) <- value
-### Climatologies
-remove prec
-remove tmax
-remove tmin
-remove tmean
 
-pet
-tas
-tasmax
-tasmin
-npp
-kg0
-fcf
+#### Download Rasters
+https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_fcf_1981-2010_V.2.1.tif
+```{r, label='Download Climatologies', message=FALSE,warning=FALSE}
+HTTP <- "https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/"
+var <- c("pr", "pet", "tas", "tasmax", "tasmin", "cmi", "clt", "rsds")
+var2 <- c("pr", "pet_penman", "tas", "tasmax", "tasmin", "cmi", "clt", "rsds")
+month <- c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12")
+#year <- as.character(c(2003:2019))
+URLs <- vector("character", length = 0)
 
-```{r, label='Load and Resample Climate Rasters', message=FALSE,warning=FALSE}
+for (i in 1:length(var)) {
+
+    temp <- paste0(HTTP, var[i], "/CHELSA_", var2[i], "_", month, "_1981-2010_V.2.1.tif")
+    URLs <- c(URLs, temp)
+
+}
+
+var <- "bio"
+var2 <- c("fcf", "gdd10", "gdd0", "kg2", "kg3", "kg4", "ngd10", "ngd0", "npp", "swb")
+
+for (i in 1:length(var)) {
+
+    temp <- paste0(HTTP, var[i], "/CHELSA_", var2[i], "_1981-2010_V.2.1.tif")
+    URLs <- c(URLs, temp)
+
+}
+
+
+options(timeout=10000)
+files <- gsub(HTTP, "", URLs)
+
+#files <- paste0(files)
+#curl_download(URLs[1],destfile=paste0(wd$data_r, "CHELSA/",files[1]))
+for (i in 1:length(URLs)){#
+  source_url <- file.path(URLs[i])
+  destination <- paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/", files[i])
+  download.file(source_url, destination, mode="wb")
+}
+
+rm(source_url, destination, URLs, files, temp, var, var2, month, HTTP, URLs)
+
+```
+
+
+#### Process Rasters
+
+
+```{r, label='Process Climatologies', message=FALSE,warning=FALSE}
 chwd = "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/"
 prj = "epsg:32614"
 t <- raster(paste0(wd$data_r, "TopoEnvData.tif"))
@@ -809,10 +840,8 @@ resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
 resample_100m <- disagg(resample_30m, 3)
 resample_100m <- aggregate(resample_100m, 10)
 ###############################################
-#mo = c(31,28,31,30,31,30,31,31,30,31,30,31)
-#divide_layer <- function(x, y) {
-#  x / y
-#}
+
+##############################################################
 
 # Potential evapotranspiration for each month; calculated with the Penman-Monteith equation
 pet_01 = rast(paste0(chwd, "pet/CHELSA_pet_penman_01_1981-2010_V.2.1.tif"))
@@ -828,15 +857,16 @@ pet_10 = rast(paste0(chwd, "pet/CHELSA_pet_penman_10_1981-2010_V.2.1.tif"))
 pet_11 = rast(paste0(chwd, "pet/CHELSA_pet_penman_11_1981-2010_V.2.1.tif"))
 pet_12 = rast(paste0(chwd, "pet/CHELSA_pet_penman_12_1981-2010_V.2.1.tif"))
 pet = c(pet_01, pet_02, pet_03, pet_04, pet_05, pet_06, pet_07, pet_08, pet_09, pet_10, pet_11, pet_12)
-pet <- crop(pet, EXT, snap = "out")
-pet <- project(pet, t)
-scoff(pet) <- cbind(0.01, 0)
 names(pet) <- c("pet_01", "pet_02", "pet_03", "pet_04", "pet_05", "pet_06", "pet_07", "pet_08", "pet_09", "pet_10", "pet_11", "pet_12")
+pet <- crop(pet, EXT, snap = "out")
+pet_temp <- pet
+pet <- project(pet, t)
+#scoff(pet) <- cbind(0.01, 0)
 rm(pet_01, pet_02, pet_03, pet_04, pet_05, pet_06, pet_07, pet_08, pet_09, pet_10, pet_11, pet_12)
 pet_r <- resample(pet, resample_100m, method = "bilinear")
-rm(pet)
-#writeRaster(prec_r, filename = paste0(wd$data_r, "prec_r.tif"))
+#rm(pet)
 
+##############################################################
 
 # Daily mean air temperature at 2 metres from hourly ERA5 data for each month
 tas_01 = rast(paste0(chwd, "tas/CHELSA_tas_01_1981-2010_V.2.1.tif"))
@@ -854,11 +884,13 @@ tas_12 = rast(paste0(chwd, "tas/CHELSA_tas_12_1981-2010_V.2.1.tif"))
 tas = c(tas_01, tas_02, tas_03, tas_04, tas_05, tas_06, tas_07, tas_08, tas_09, tas_10, tas_11, tas_12)
 tas <- crop(tas, EXT, snap = "out")
 tas <- project(tas, t)
-scoff(tas) <- cbind(0.1, -273.15)
+#scoff(tas) <- cbind(0.1, -273.15)
 names(tas) <- c("tas_01", "tas_02", "tas_03", "tas_04", "tas_05", "tas_06", "tas_07", "tas_08", "tas_09", "tas_10", "tas_11", "tas_12")
 rm(tas_01, tas_02, tas_03, tas_04, tas_05, tas_06, tas_07, tas_08, tas_09, tas_10, tas_11, tas_12)
 tas_r <- resample(tas, resample_100m, method = "bilinear")
 rm(tas)
+
+##############################################################
 
 # Daily maximum air temperature at 2 metres from hourly ERA5 data for each month
 tasmax_01 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_01_1981-2010_V.2.1.tif"))
@@ -876,11 +908,13 @@ tasmax_12 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_12_1981-2010_V.2.1.tif"))
 tasmax = c(tasmax_01, tasmax_02, tasmax_03, tasmax_04, tasmax_05, tasmax_06, tasmax_07, tasmax_08, tasmax_09, tasmax_10, tasmax_11, tasmax_12)
 tasmax <- crop(tasmax, EXT, snap = "out")
 tasmax <- project(tasmax, t)
-scoff(tasmax) <- cbind(0.1, -273.15)
+#scoff(tasmax) <- cbind(0.1, -273.15)
 names(tasmax) <- c("tasmax_01", "tasmax_02", "tasmax_03", "tasmax_04", "tasmax_05", "tasmax_06", "tasmax_07", "tasmax_08", "tasmax_09", "tasmax_10", "tasmax_11", "tasmax_12")
 rm(tasmax_01, tasmax_02, tasmax_03, tasmax_04, tasmax_05, tasmax_06, tasmax_07, tasmax_08, tasmax_09, tasmax_10, tasmax_11, tasmax_12)
 tasmax_r <- resample(tasmax, resample_100m, method = "bilinear")
 rm(tasmax)
+
+##############################################################
 
 # Daily minimum air temperature at 2 metres from hourly ERA5 data for each month
 tasmin_01 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_01_1981-2010_V.2.1.tif"))
@@ -898,15 +932,15 @@ tasmin_12 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_12_1981-2010_V.2.1.tif"))
 tasmin = c(tasmin_01, tasmin_02, tasmin_03, tasmin_04, tasmin_05, tasmin_06, tasmin_07, tasmin_08, tasmin_09, tasmin_10, tasmin_11, tasmin_12)
 tasmin <- crop(tasmin, EXT, snap = "out")
 tasmin <- project(tasmin, t)
-scoff(tasmin) <- cbind(0.1, -273.15)
+#scoff(tasmin) <- cbind(0.1, -273.15)
 names(tasmin) <- c("tasmin_01", "tasmin_02", "tasmin_03", "tasmin_04", "tasmin_05", "tasmin_06", "tasmin_07", "tasmin_08", "tasmin_09", "tasmin_10", "tasmin_11", "tasmin_12")
 rm(tasmin_01, tasmin_02, tasmin_03, tasmin_04, tasmin_05, tasmin_06, tasmin_07, tasmin_08, tasmin_09, tasmin_10, tasmin_11, tasmin_12)
 tasmin_r <- resample(tasmin, resample_100m, method = "bilinear")
 rm(tasmin)
 
-# Precipitation amount"Amount" means mass per unit area. "Precipitation" in the
-# earth's atmosphere means precipitation of water in all phases.
+##############################################################
 
+# Precipitation Amount (mass per unit area; kg/m^2). 
 pr_01 = rast(paste0(chwd, "pr/CHELSA_pr_01_1981-2010_V.2.1.tif"))
 pr_02 = rast(paste0(chwd, "pr/CHELSA_pr_02_1981-2010_V.2.1.tif"))
 pr_03 = rast(paste0(chwd, "pr/CHELSA_pr_03_1981-2010_V.2.1.tif"))
@@ -920,13 +954,16 @@ pr_10 = rast(paste0(chwd, "pr/CHELSA_pr_10_1981-2010_V.2.1.tif"))
 pr_11 = rast(paste0(chwd, "pr/CHELSA_pr_11_1981-2010_V.2.1.tif"))
 pr_12 = rast(paste0(chwd, "pr/CHELSA_pr_12_1981-2010_V.2.1.tif"))
 pr = c(pr_01, pr_02, pr_03, pr_04, pr_05, pr_06, pr_07, pr_08, pr_09, pr_10, pr_11, pr_12)
-pr <- crop(pr, EXT, snap = "out")
-pr <- project(pr, t)
-scoff(pr) <- cbind(0.1, 0)
 names(pr) <- c("pr_01", "pr_02", "pr_03", "pr_04", "pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", "pr_11", "pr_12")
+pr <- crop(pr, EXT, snap = "out")
+pr_temp = pr
+pr <- project(pr, t)
+#scoff(pr) <- cbind(0.1, 0)
 rm(pr_01, pr_02, pr_03, pr_04, pr_05, pr_06, pr_07, pr_08, pr_09, pr_10, pr_11, pr_12)
 pr_r <- resample(pr, resample_100m, method = "bilinear")
-###rm(pr)
+rm(pr)
+
+##############################################################
 
 # Total % cloud cover for each month
 clt_01 = rast(paste0(chwd, "clt/CHELSA_clt_01_1981-2010_V.2.1.tif"))
@@ -944,13 +981,15 @@ clt_12 = rast(paste0(chwd, "clt/CHELSA_clt_12_1981-2010_V.2.1.tif"))
 clt = c(clt_01, clt_02, clt_03, clt_04, clt_05, clt_06, clt_07, clt_08, clt_09, clt_10, clt_11, clt_12)
 clt <- crop(clt, EXT, snap = "out")
 clt <- project(clt, t)
-scoff(clt) <- cbind(0.01, 0)
+#scoff(clt) <- cbind(0.01, 0)
 #r2 = raster(extent(pr), resolution = c(875, 922), crs = crs(pr))
 #clt <- resample(clt, r2, method = "bilinear")
 names(clt) <- c("clt_01", "clt_02", "clt_03", "clt_04", "clt_05", "clt_06", "clt_07", "clt_08", "clt_09", "clt_10", "clt_11", "clt_12")
 rm(clt_01, clt_02, clt_03, clt_04, clt_05, clt_06, clt_07, clt_08, clt_09, clt_10, clt_11, clt_12, r2)
-clt_r <- resample(clt_r, resample_100m, method = "bilinear")
-rm(clt, pr)
+clt_r <- resample(clt, resample_100m, method = "bilinear")
+rm(clt)
+
+##############################################################
 
 # Surface downwelling shortwave flux in air
 rsds_01 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_01_V.2.1.tif"))
@@ -967,56 +1006,243 @@ rsds_11 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_11_V.2.1.tif"))
 rsds_12 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_12_V.2.1.tif"))
 rsds = c(rsds_01, rsds_02, rsds_03, rsds_04, rsds_05, rsds_06, rsds_07, rsds_08, rsds_09, rsds_10, rsds_11, rsds_12)
 rsds <- crop(rsds, EXT, snap = "out")
-rsds <- project(rsds, t, snap = "out")
-scoff(rsds) <- cbind(0.001, 0)
+rsds <- project(rsds, t)
+#scoff(rsds) <- cbind(0.001, 0)
 names(rsds) <- c("rsds_01", "rsds_02", "rsds_03", "rsds_04", "rsds_05", "rsds_06", "rsds_07", "rsds_08", "rsds_09", "rsds_10", "rsds_11", "rsds_12")
 rm(rsds_01, rsds_02, rsds_03, rsds_04, rsds_05, rsds_06, rsds_07, rsds_08, rsds_09, rsds_10, rsds_11, rsds_12)
-rsds_r <- resample(rsds_r, resample_100m, method = "bilinear")
+rsds_r <- resample(rsds, resample_100m, method = "bilinear")
 rm(rsds)
+
+##############################################################
+
+# Climate moisture index (CMI) for each month
+
+cmi_01 = rast(paste0(chwd, "cmi/CHELSA_cmi_01_1981-2010_V.2.1.tif"))
+cmi_02 = rast(paste0(chwd, "cmi/CHELSA_cmi_02_1981-2010_V.2.1.tif"))
+cmi_03 = rast(paste0(chwd, "cmi/CHELSA_cmi_03_1981-2010_V.2.1.tif"))
+cmi_04 = rast(paste0(chwd, "cmi/CHELSA_cmi_04_1981-2010_V.2.1.tif"))
+cmi_05 = rast(paste0(chwd, "cmi/CHELSA_cmi_05_1981-2010_V.2.1.tif"))
+cmi_06 = rast(paste0(chwd, "cmi/CHELSA_cmi_06_1981-2010_V.2.1.tif"))
+cmi_07 = rast(paste0(chwd, "cmi/CHELSA_cmi_07_1981-2010_V.2.1.tif"))
+cmi_08 = rast(paste0(chwd, "cmi/CHELSA_cmi_08_1981-2010_V.2.1.tif"))
+cmi_09 = rast(paste0(chwd, "cmi/CHELSA_cmi_09_1981-2010_V.2.1.tif"))
+cmi_10 = rast(paste0(chwd, "cmi/CHELSA_cmi_10_1981-2010_V.2.1.tif"))
+cmi_11 = rast(paste0(chwd, "cmi/CHELSA_cmi_11_1981-2010_V.2.1.tif"))
+cmi_12 = rast(paste0(chwd, "cmi/CHELSA_cmi_12_1981-2010_V.2.1.tif"))
+cmi = c(cmi_01, cmi_02, cmi_03, cmi_04, cmi_05, cmi_06, cmi_07, cmi_08, cmi_09, cmi_10, cmi_11, cmi_12)
+cmi <- crop(cmi, EXT, snap = "out")
+cmi <- project(cmi, t)
+#scoff(cmi) <- cbind(0.1, 0)
+names(cmi) <- c("cmi_01", "cmi_02", "cmi_03", "cmi_04", "cmi_05", "cmi_06", "cmi_07", "cmi_08", "cmi_09", "cmi_10", "cmi_11", "cmi_12")
+rm(cmi_01, cmi_02, cmi_03, cmi_04, cmi_05, cmi_06, cmi_07, cmi_08, cmi_09, cmi_10, cmi_11, cmi_12, r2)
+cmi_r <- resample(cmi, resample_100m, method = "bilinear")
+rm(cmi)
+
+##############################################################
 
 #Net primary productivity Calculated based on the ‘Miami model’, Lieth, H., 1972. "Modelling the primary productivity of the earth. Nature and resources", UNESCO, VIII, 2:5-10.
 npp = rast(paste0(chwd, "bio/CHELSA_npp_1981-2010_V.2.1.tif"))
 npp <- crop(npp, EXT, snap = "out")
-npp <- project(npp, t, snap = "out")
-scoff(npp) <- cbind(0.1, 0)
+npp <- project(npp, t)
+#scoff(npp) <- cbind(0.1, 0)
 names(npp) <- "npp"
-npp_r <- resample(npp_r, resample_100m, method = "bilinear")
+npp_r <- resample(npp, resample_100m, method = "bilinear")
+rm(npp)
 
+##############################################################
 
 #Köppen-Geiger climate classification
-kg0 = rast(paste0(chwd, "bio/CHELSA_kg0_1981-2010_V.2.1.tif"))
-kg0 <- crop(kg0, EXT, snap = "out")
-kg0 <- project(kg0, t, snap = "out")
-names(kg0) <- "kg0"
-kg0 <- as.factor(kg0)
-kg0_r <- resample(kg0_r, resample_100m, method = "near")
+#kg0 = rast(paste0(chwd, "bio/CHELSA_kg0_1981-2010_V.2.1.tif"))
+#kg0 <- crop(kg0, EXT, snap = "out")
+#kg0 <- project(kg0, t)
+#names(kg0) <- "kg0"
+#kg0 <- as.factor(kg0)
+#kg0_classes <- read.csv(paste0(chwd,"bio/kg0_classes.csv"))
+#levels(kg0) <- kg0_classes
+#kg0_r <- resample(kg0, resample_100m, method = "near")
+#rm(kg0, kg0_classes)
 
+#Köppen-Geiger climate classification r after Peel et al. 2007 Peel, M. C., Finlayson, B. L., McMahon, T. A. (2007): Updated world map of the Koeppen-Geiger climate classification. Hydrology and earth system sciences discussions, 4(2), 439-473. Free Access.
+kg2 = rast(paste0(chwd, "bio/CHELSA_kg2_1981-2010_V.2.1.tif"))
+kg2 <- crop(kg2, EXT, snap = "out")
+kg2 <- project(kg2, t)
+kg2 <- as.factor(kg2)
+kg2_classes <- read.csv(paste0(chwd,"bio/kg2_classes.csv"))
+levels(kg2) <- kg2_classes
+names(kg2) <- "KoppenGeiger"
+kg2_r <- resample(kg2, resample_100m, method = "near")
+rm(kg2, kg2_classes)
+
+##############################################################
+
+#Wissmann 1939 climate classification
+kg3 = rast(paste0(chwd, "bio/CHELSA_kg3_1981-2010_V.2.1.tif"))
+kg3 <- crop(kg3, EXT, snap = "out")
+kg3 <- project(kg3, t)
+kg3 <- as.factor(kg3)
+kg3_classes <- read.csv(paste0(chwd,"bio/kg3_classes.csv"))
+levels(kg3) <- kg3_classes
+names(kg3) <- "Wissmann"
+kg3_r <- resample(kg3, resample_100m, method = "near")
+rm(kg3, kg3_classes)
+
+##############################################################
+
+#Thornthwaite 1931 
+kg4 = rast(paste0(chwd, "bio/CHELSA_kg4_1981-2010_V.2.1.tif"))
+kg4 <- crop(kg4, EXT, snap = "out")
+kg4 <- project(kg4, t)
+kg4 <- as.factor(kg4)
+kg4_classes <- read.csv(paste0(chwd,"bio/kg4_classes.csv"))
+levels(kg4) <- kg4_classes
+names(kg4) <- "Thornthwaite"
+kg4_r <- resample(kg4, resample_100m, method = "near")
+rm(kg4, kg4_classes)
+
+##############################################################
+
+#Troll-Pfaffen climate classification
+#kg5 = rast(paste0(chwd, "bio/CHELSA_kg5_1981-2010_V.2.1.tif"))
+#kg5 <- crop(kg5, EXT, snap = "out")
+#kg5 <- project(kg5, t)
+#names(kg5) <- "kg5"
+#kg5 <- as.factor(kg5)
+#kg5_classes <- read.csv(paste0(chwd,"bio/kg5_classes.csv"))
+#levels(kg5) <- kg5_classes
+#kg5_r <- resample(kg5, resample_100m, method = "near")
+#rm(kg5, kg5_classes)
 
 #Frost change frequency; count; Number of events in which tmin or tmax go above, or below 0°C
 fcf = rast(paste0(chwd, "bio/CHELSA_fcf_1981-2010_V.2.1.tif"))
 fcf <- crop(fcf, EXT, snap = "out")
-fcf <- project(fcf, t, snap = "out")
+fcf <- project(fcf, t)
 names(fcf) <- "fcf"
-fcf_r <- resample(fcf_r, resample_100m, method = "bilinear")
+fcf_r <- resample(fcf, resample_100m, method = "bilinear")
+rm(fcf)
 
-# PDSI
-pdsi_r = pdsi(pr_r[1], pet_r[1])
-for (i in 1:12) {
-  temp = pdsi(pr_r[i], pet_r[i])
-  q = ifelse(i < 10, "0", "")
-  names(temp) <- paste0("pdsi_", q, i)
-  pdsi_r = c(pdsi_r, temp)
+# Number of growing degree days Number of days at which tas > 10°C
+ngd10 = rast(paste0(chwd, "bio/CHELSA_ngd10_1981-2010_V.2.1.tif"))
+ngd10 <- crop(ngd10, EXT, snap = "out")
+ngd10 <- project(ngd10, t)
+names(ngd10) <- "ngd10"
+ngd10_r <- resample(ngd10, resample_100m, method = "bilinear")
+rm(ngd10)
+
+# Number of growing degree days Number of days at which tas > 0°C
+ngd0 = rast(paste0(chwd, "bio/CHELSA_ngd0_1981-2010_V.2.1.tif"))
+ngd0 <- crop(ngd0, EXT, snap = "out")
+ngd0 <- project(ngd0, t)
+names(ngd0) <- "ngd0"
+ngd0_r <- resample(ngd0, resample_100m, method = "bilinear")
+rm(ngd0)
+
+# Growing degree days heat sum above 10°C heat sum of all days above the 10°C temperature accumulated over 1 year
+gdd10 = rast(paste0(chwd, "bio/CHELSA_gdd10_1981-2010_V.2.1.tif"))
+gdd10 <- crop(gdd10, EXT, snap = "out")
+gdd10 <- project(gdd10, t)
+names(gdd10) <- "gdd10"
+gdd10_r <- resample(gdd10, resample_100m, method = "bilinear")
+rm(gdd10)
+
+# Growing degree days heat sum above 0°C heat sum of all days above the 0°C temperature accumulated over 1 year
+gdd0 = rast(paste0(chwd, "bio/CHELSA_gdd0_1981-2010_V.2.1.tif"))
+gdd0 <- crop(gdd0, EXT, snap = "out")
+gdd0 <- project(gdd0, t)
+names(gdd0) <- "gdd0"
+gdd0_r <- resample(gdd0, resample_100m, method = "bilinear")
+rm(gdd0)
+
+# Soil water balance
+swb = rast(paste0(chwd, "bio/CHELSA_swb_1981-2010_V.2.1.tif"))
+swb <- crop(swb, EXT, snap = "out")
+swb <- project(swb, t)
+names(swb) <- "swb"
+swb_r <- resample(swb, resample_100m, method = "bilinear")
+rm(swb)
+
+#########################################################
+# Self Calibrating Palmer Drought Severity Index (scPDSI)
+# and Palmer Hydrological Drought Index (PHDI)
+#########################################################
+
+pr_df = as.data.frame(pr_temp[[1]])
+pr_df <- rownames_to_column(pr_df, var = "Cells")
+pet_df = as.data.frame(pet_temp[[1]])
+pet_df <- rownames_to_column(pet_df, var = "Cells")
+
+for (i in 2:12) {
+  p = as.data.frame(pr_temp[[i]])
+  pr_df <- cbind(pr_df, p)
+  pe = as.data.frame(pet_temp[[i]])
+  pet_df <- cbind(pet_df, pe)
 }
-rm(temp, q)
+rm(p, pe)
 
+pdsi_df = as.data.frame(as.numeric(pet_df[,1]))
+names(pdsi_df) = c("Cells")
+nr = nrow(pdsi_df)
+#pdsi_temp = pdsi(pr_df[,j], pet_df[,j])
+phdi_df = as.data.frame(as.numeric(pet_df[,1]))
+names(phdi_df) = c("Cells")
 
-Clim_r <- c(pet_r,pr_r,tas_r,tasmax_r,tasmin_r,clt_r,rsds_r,npp_r, kg0_r, fcf_r)
-#names(Clim_r)
-writeRaster(Clim_r, filename = paste0(wd$data_p, "Clim_r_resampled.tif"), overwrite=TRUE, append=FALSE)
+for (i in 1:12) {
+  j=i+1
+  pdsi_temp = pdsi(pr_df[,j], pet_df[,j])
+  x = as.data.frame(pdsi_temp[["X"]])
+  y = as.data.frame(pdsi_temp[["PHDI"]])
+  x <- as.data.frame(x[1:nr, ])
+  y <- as.data.frame(y[1:nr, ])
+  q = ifelse(i < 10, "0", "")
+  names(x) <- paste0("pdsi_", q, i)
+  names(y) <- paste0("phdi_", q, i)
+  pdsi_df = cbind(pdsi_df, x)
+  phdi_df = cbind(phdi_df, x)
+}
+rm(pdsi_temp, x, y, q, n, nr, i, j)
 
-rm(pet_r,pr_r,tas_r,tasmax_r,tasmin_r,clt_r,rsds_r,npp_r, kg0_r, fcf_r)
-rm(pet,pr,tas,tasmax,tasmin,clt,rsds,npp, kg0, fcf)
+pdsi_temp = pet_temp[[1]]
+phdi_temp = pet_temp[[1]]
+
+pdsi_temp[pdsi_df$Cells] <- pdsi_df[,2]
+pdsi_rast <- pdsi_temp
+phdi_temp[phdi_df$Cells] <- phdi_df[,2]
+phdi_rast <- phdi_temp
+
+for (i in 2:12) {
+  j=i+1
+  pdsi_temp[pdsi_df$Cells] <- pdsi_df[,j]
+  pdsi_rast <- c(pdsi_rast, pdsi_temp)
+  phdi_temp[phdi_df$Cells] <- phdi_df[,j]
+  phdi_rast <- c(phdi_rast, phdi_temp)
+}
+names(pdsi_rast) <- c("pdsi_01", "pdsi_02", "pdsi_03", "pdsi_04", "pdsi_05", "pdsi_06", "pdsi_07", "pdsi_08", "pdsi_09", "pdsi_10", "pdsi_11", "pdsi_12")
+names(phdi_rast) <- c("phdi_01", "phdi_02", "phdi_03", "phdi_04", "phdi_05", "phdi_06", "phdi_07", "phdi_08", "phdi_09", "phdi_10", "phdi_11", "phdi_12")
+pdsi_rast <- project(pdsi_rast, t)
+phdi_rast <- project(phdi_rast, t)
+pdsi_r <- resample(pdsi_rast, resample_100m, method = "bilinear")
+phdi_r <- resample(phdi_rast, resample_100m, method = "bilinear")
+
+rm(z, pdsi_rast, pdsi_list, pdsi_temp, pdsi_df, a, phdi_rast, phdi_list, phdi_temp, phdi_df, pet_df, pr_df, pet_temp, pr_temp)
+#########################################################
+#########################################################
+
 ```
+
+#### Stack and Save Rasters
+
+```{r, label='Stack and Save Climatologies', message=FALSE,warning=FALSE}
+
+Clim_r <- c(pr_r, tas_r, tasmax_r, tasmin_r, pet_r, cmi_r, pdsi_r, clt_r, rsds_r, npp_r, kg2_r, kg3_r, kg4_r, fcf_r, swb_r, gdd10_r, ngd10_r)
+
+writeRaster(Clim_r, filename = paste0(wd$data_p, "Clim_r_resampled.tif"), overwrite=TRUE)
+
+rm(pr_r, tas_r, tasmax_r, tasmin_r, pet_r, cmi_r, pdsi_r, clt_r, rsds_r, npp_r, kg2_r, kg3_r, kg4_r, fcf_r, swb_r, gdd0_r, gdd10_r, ngd0_r, ngd10_r, phdi_r)
+rm(pet,pr,tas,tasmax,tasmin,clt,rsds,npp, kg0, fcf)
+
+CHELSA_Clim_PDSI_JunAug = mosaic(pdsi_r[[6]], pdsi_r[[7]], pdsi_r[[8]])
+```
+
+
 
 ### CHELSA-TraCE21k – 1km climate timeseries since the LGM
 
@@ -1027,38 +1253,21 @@ CHELSA-TraCE21k data provides monthly climate data for temperature and precipita
 
 Time ID == 12-20
 
-Variables:
-* tasmax
-* tasmin
-* 
-* 
-* 
-* 
-* 
-* 
-* 
-* 
-* 
-* 
-* 
-* 
-* 
-* 
-* 
-* 
-* 
 
 
-### 2003-2019 Timeseries
+### Monthy Timeseries - June-August Precip and PE 2003-2018 
 
 
+#### Download Rasters
 
-```{r}
+```{r, label='Download Timeseries', message=FALSE,warning=FALSE}
 HTTP <- "https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/monthly/"
-var <- c("pet")
-var2 <- c("pet_penman")
-month <- c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12")
-year <- as.character(c(2003:2019))
+var <- c("pet", "pr")
+var2 <- c("pet_penman", "pr")
+#month <- c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12")
+month <- c("06", "07", "08")
+year <- as.character(c(2003:2018))
+year <- as.character(c(2016:2018))
 URLs <- vector("character", length = 0)
 
 for (i in 1:length(var)) {
@@ -1069,16 +1278,43 @@ for (i in 1:length(var)) {
 }
 options(timeout=10000)
 files <- gsub(HTTP, "", URLs)
-#files <- paste0(files)
-#curl_download(URLs[1],destfile=paste0(wd$data_r, "CHELSA/",files[1]))
-for (i in 1:length(URLs)){#length(URLs)
+
+for (i in 1:length(URLs)){#
   source_url <- file.path(URLs[i])
   destination <- paste0(wd$data_r, "CHELSA/",files[i])
   download.file(source_url, destination, mode="wb")
 }
 
+```
 
 
+#### Process Rasters
+
+
+```{r, label='Process Timeseries', message=FALSE,warning=FALSE}
+
+Clim_r <- c(pr_r, tas_r, tasmax_r, tasmin_r, pet_r, cmi_r, pdsi_r, clt_r, rsds_r, npp_r, kg2_r, kg3_r, kg4_r, fcf_r, swb_r, gdd10_r, ngd10_r)
+
+writeRaster(Clim_r, filename = paste0(wd$data_p, "Clim_r_resampled.tif"), overwrite=TRUE)
+
+rm(pr_r, tas_r, tasmax_r, tasmin_r, pet_r, cmi_r, pdsi_r, clt_r, rsds_r, npp_r, kg2_r, kg3_r, kg4_r, fcf_r, swb_r, gdd0_r, gdd10_r, ngd0_r, ngd10_r, phdi_r)
+rm(pet,pr,tas,tasmax,tasmin,clt,rsds,npp, kg0, fcf)
+
+
+```
+
+
+
+#### Stack and Save Rasters
+
+```{r, label='Stack and Save Timeseries', message=FALSE,warning=FALSE}
+
+Clim_r <- c(pr_r, tas_r, tasmax_r, tasmin_r, pet_r, cmi_r, pdsi_r, clt_r, rsds_r, npp_r, kg2_r, kg3_r, kg4_r, fcf_r, swb_r, gdd10_r, ngd10_r)
+
+writeRaster(Clim_r, filename = paste0(wd$data_p, "Clim_r_resampled.tif"), overwrite=TRUE)
+
+rm(pr_r, tas_r, tasmax_r, tasmin_r, pet_r, cmi_r, pdsi_r, clt_r, rsds_r, npp_r, kg2_r, kg3_r, kg4_r, fcf_r, swb_r, gdd0_r, gdd10_r, ngd0_r, ngd10_r, phdi_r)
+rm(pet,pr,tas,tasmax,tasmin,clt,rsds,npp, kg0, fcf)
 
 
 ```
@@ -1144,7 +1380,12 @@ writeRaster(recon_scPDSI, filename = paste0(wd$data_r, "MXDA_recon_scPDSI.tif"),
 rm(recon_data, instr_data, z, grid_points, recon_data_url, grid_points_url, instr_data_url, MXDA_Reconstructed_JJA_PDSI, MXDA_Instrumental_PDSI)
 
 ```
+zzz = instr_scPDSI[[81:110]]
 
+zzzm = mosaic(zzz[[1]], zzz[[2]], zzz[[3]], zzz[[4]], zzz[[5]], zzz[[6]], zzz[[7]], zzz[[8]], zzz[[9]], 
+zzz[[10]], zzz[[11]], zzz[[12]], zzz[[13]], zzz[[14]], zzz[[15]], zzz[[16]], zzz[[17]], zzz[[18]], zzz[[19]], 
+zzz[[20]], zzz[[21]], zzz[[22]], zzz[[23]], zzz[[24]], zzz[[25]], zzz[[26]], zzz[[27]], zzz[[28]], zzz[[29]], zzz[[30]])
+zzzm2 <- crop(zzzm, EXT, snap = "out")
 
 ### Downscale
 
