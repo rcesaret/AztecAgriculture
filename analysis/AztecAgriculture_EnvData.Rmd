@@ -109,7 +109,7 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
               "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra", 
               "Boruta", "mlbench", "caret", "readr", "ClimDatDownloadR", "scPDSI",
-              "geoknife", "rnoaa", "ncdf4", "gdalUtils")
+              "geoknife", "rnoaa", "ncdf4", "gdalUtils", "zoo")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -381,9 +381,9 @@ https://www.isric.org/sites/default/files/soilgrids250m_global_gridded_preprint.
 ```{r SoilGrids250Vars, echo = FALSE, warning = FALSE, message = FALSE, results = 'asis', fig.pos='!h'}
 library(kableExtra)
 
-Variable <- c("AWCtS", "BDRICM", "BDRLOG", "BDTICM", "BD", "S", "Z", "C", "SOC", "CEC", "OCD", "N", "SOCS", "WRB")
-Description <- c("Available soil water capacity for saturated water content (volumetric fraction) for tS", "Depth to bedrock (R horizon) up to 200 cm", "Probability of occurrence of R horizon", "Absolute depth to bedrock", "Bulk density (fine earth fraction)", "Weight percentage of the sand particles (0.05–2 mm)", "Weight percentage of the silt particles (0.0002–0.05 mm)", "Weight percentage of the clay particles (<0.0002 mm)", "Soil organic carbon content", "Cation exchange capacity at ph 7", "Soil organic carbon density", "Nitrogen content", "Soil organic carbon stock", "World Reference Base (2006) Soil Groups")
-Units <- c("percentage", "cm", "percentage", "cm", "kg/m^3", "percentage", "percentage", "percentage", "permille", "	cmolc/kg", "kg/m^3", "cg/kg", "ton/ha", "type (factor)")
+Variable <- c("AWCtS", "AWCh1", "BDRICM", "BDRLOG", "BDTICM", "BD", "S", "Z", "C", "SOC", "CEC", "OCD", "N", "SOCS", "WRB")
+Description <- c("Available soil water capacity for saturated water content (volumetric fraction) for tS", "	Available soil water capacity (volumetric fraction) with FC = pF 2.0", "Depth to bedrock (R horizon) up to 200 cm", "Probability of occurrence of R horizon", "Absolute depth to bedrock", "Bulk density (fine earth fraction)", "Weight percentage of the sand particles (0.05–2 mm)", "Weight percentage of the silt particles (0.0002–0.05 mm)", "Weight percentage of the clay particles (<0.0002 mm)", "Soil organic carbon content", "Cation exchange capacity at ph 7", "Soil organic carbon density", "Nitrogen content", "Soil organic carbon stock", "World Reference Base (2006) Soil Groups")
+Units <- c("percentage", "percentage", "cm", "percentage", "cm", "kg/m^3", "percentage", "percentage", "percentage", "permille", "	cmolc/kg", "kg/m^3", "cg/kg", "ton/ha", "type (factor)")
 
 data.frame(Variable, Description, Units) %>% 
     kbl(format = 'html',
@@ -410,11 +410,13 @@ depths = c(0,5,15,30,60,100,200)
 URLs <- paste0("/vsicurl/https://files.isric.org/soilgrids/former/2017-03-10/data/AWCtS_M_sl",layers,"_250m_ll.tif")
 URLs <- c(URLs, "/vsicurl/https://files.isric.org/soilgrids/former/2017-03-10/data/BDRICM_M_250m_ll.tif", "/vsicurl/https://files.isric.org/soilgrids/former/2017-03-10/data/BDRLOG_M_250m_ll.tif", "/vsicurl/https://files.isric.org/soilgrids/former/2017-03-10/data/BDTICM_M_250m_ll.tif")
 URLs <- c(URLs, "/vsicurl/https://files.isric.org/soilgrids/latest/data/wrb/MostProbable.vrt")
+URLs <- c(URLs, paste0("/vsicurl/https://files.isric.org/soilgrids/former/2017-03-10/data/AWCh1_M_sl",layers,"_250m_ll.tif"))
 
 files <- paste0("AWCtS_",depths,"cm.tif")
 files <- paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/AWCtS/", files)
 files <- c(files, "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/BDRICM/BDRICM.tif", "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/BDRLOG/BDRLOG.tif", "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/BDTICM/BDTICM.tif")
 files <- c(files, "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/WRB/WRB.vrt")
+files <- c(files, paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/AWCh1/AWCh1_",depths,"cm.tif"))
 
 raster("https://files.isric.org/soilgrids/former/2017-03-10/data/AWCtS_M_sl1_250m_ll.tif")
 
@@ -425,7 +427,7 @@ lrx= bbox$xmax
 lry = bbox$ymin
 (bb <- c(ulx, uly, lrx, lry))
 
-for (i in 1:11) {
+for (i in 12:18) {
   gdal_translate(URLs[i], files[i],
                tr=c(0.002083333, 0.002083333),
                projwin=bb,
@@ -594,7 +596,31 @@ AWCtS <- project(AWCtS, resample_100m)
 AWCtS <- resample(AWCtS, resample_100m, method = "bilinear")
 AWCtS_2m <- project(AWCtS_2m, resample_100m)
 AWCtS_2m <- resample(AWCtS_2m, resample_100m, method = "bilinear")
-rm(AWCtS_0,AWCtS_5,AWCtS_15,AWCtS_30,AWCtS_60,AWCtS_100,AWCtS_200, AWCtS_2mi, AWCtSi)
+rm(AWCtS_0,AWCtS_5,AWCtS_15,AWCtS_30,AWCtS_60,AWCtS_100,AWCtS_200)
+
+# Available soil water capacity (volumetric fraction) with FC = pF 2.0
+AWCh1_0 <- rast(paste0(sgwd, "AWCh1/AWCh1_0cm.tif"))
+AWCh1_5 <- rast(paste0(sgwd, "AWCh1/AWCh1_5cm.tif"))
+AWCh1_15 <- rast(paste0(sgwd, "AWCh1/AWCh1_15cm.tif"))
+AWCh1_30 <- rast(paste0(sgwd, "AWCh1/AWCh1_30cm.tif"))
+AWCh1_60 <- rast(paste0(sgwd, "AWCh1/AWCh1_60cm.tif"))
+AWCh1_100 <- rast(paste0(sgwd, "AWCh1/AWCh1_100cm.tif"))
+AWCh1_200 <- rast(paste0(sgwd, "AWCh1/AWCh1_200cm.tif"))
+AWCh1 = ((DepthWeights[1]*(AWCh1_0 + AWCh1_5))+(DepthWeights[2]*(AWCh1_5 + AWCh1_15))+(DepthWeights[3]*(AWCh1_15 + AWCh1_30))+(DepthWeights[4]*(AWCh1_30 + AWCh1_60))+(DepthWeights[5]*(AWCh1_60 + AWCh1_100)))*0.5*0.01
+names(AWCh1) = "AWCh1"
+AWCh1_2m = ((DepthWeights[1]*(AWCh1_0 + AWCh1_5))+(DepthWeights[2]*(AWCh1_5 + AWCh1_15))+(DepthWeights[3]*(AWCh1_15 + AWCh1_30))+(DepthWeights[4]*(AWCh1_30 + AWCh1_60))+(DepthWeights[5]*(AWCh1_60 + AWCh1_100))+(100*(AWCh1_100 + AWCh1_200)))*0.5*0.005
+names(AWCh1_2m) = "AWCh1_2m"
+AWCh1i <- RF_ImputeRast(r = AWCh1, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+AWCh1_2mi <- RF_ImputeRast(r = AWCh1_2m, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+AWCh1 <- AWCh1i[[1]]
+AWCh1_2m <- AWCh1_2mi[[1]]
+AWCh1_temp <- AWCh1
+AWCh1_2m_temp <- AWCh1_2m
+AWCh1 <- project(AWCh1, resample_100m)
+AWCh1 <- resample(AWCh1, resample_100m, method = "bilinear")
+AWCh1_2m <- project(AWCh1_2m, resample_100m)
+AWCh1_2m <- resample(AWCh1_2m, resample_100m, method = "bilinear")
+rm(AWCh1_0,AWCh1_5,AWCh1_15,AWCh1_30,AWCh1_60,AWCh1_100,AWCh1_200)
 
 # World Reference Base (2006) Soil Groups
 WRB <- rast(paste0(sgwd, "WRB/WRB.vrt"))
@@ -794,7 +820,7 @@ SOCS <- resample(SOCS, resample_100m, method = "bilinear")
 
 rm(DepthWeights, m2, m, resample_250m, resample_igh, SGigh, DEM_igh, Slope_igh, DEM_250, Slope_250, SG250, DEM_100m, sgwd)
 
-rm(Zi, Si, CFi, SOCi, CECi, OCDi, Ni, SOCSi, Ci, BDi, AWCtS_2mi, AWCtSi, BDTICMi, BDRLOGi, BDRICMi)
+rm(Zi, Si, CFi, SOCi, CECi, OCDi, Ni, SOCSi, Ci, BDi, AWCtS_2mi, AWCtSi, AWCh1_2mi, AWCh1i, AWCh1i, AWCh1_2mi, BDTICMi, BDRLOGi, BDRICMi)
 ```
 
 
@@ -803,13 +829,13 @@ rm(Zi, Si, CFi, SOCi, CECi, OCDi, Ni, SOCSi, Ci, BDi, AWCtS_2mi, AWCtSi, BDTICMi
 ```{r, label='Stack and Save Soil Rasters', message=FALSE,warning=FALSE}
 
 #Stack Rasters
-Soil = c(BDRICM, BDRLOG, BDTICM, AWCtS, AWCtS_2m, BD, S, Z, C, CF, SOC, CEC, OCD, N, SOCS, WRB)
+Soil = c(BDRICM, BDRLOG, BDTICM, AWCtS, AWCtS_2m, AWCh1, AWCh1_2m, BD, S, Z, C, CF, SOC, CEC, OCD, N, SOCS, WRB)
 
 # Export Soil Raster Stack
 writeRaster(Soil, filename = paste0(wd$data_p, "Soil_r_resampled.tif"), overwrite=TRUE)
 
 #Remove unnecessary variables
-rm(BDRICM, BDRLOG, BDTICM, AWCtS, AWCtS_2m, BD, S, Z, C, CF, SOC, CEC, OCD, N, SOCS, WRB)
+rm(BDRICM, BDRLOG, BDTICM, AWCtS, AWCtS_2m, AWCh1, AWCh1_2m, BD, S, Z, C, CF, SOC, CEC, OCD, N, SOCS, WRB)
 
 ```
 
@@ -1428,36 +1454,7 @@ for (i in 1:length(URLs)) {
                verbose=TRUE)
 }
 
-rm(bb,ulx, uly, lrx, lry, files, URLs, month, year, var, var2, o, EXT, nom, bbox, chwd)
-
-
-
-################################################################
-
-
-
-raster_files <- list.files(path = paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/timeseries_pet/"), pattern = ".tif$", full.names = TRUE)
-pet_list <- list()
-for (file in raster_files) {
-  raster <- rast(file)
-  pet_list[[file]] <- raster
-}
-
-names(pet_list) <- nom[1:204]
-
-
-
-
-raster_files <- list.files(path = paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/timeseries_pr/"), pattern = ".tif$", full.names = TRUE)
-
-pr_list <- list()
-
-for (file in raster_files) {
-  raster <- rast(file)
-  pr_list[[file]] <- raster
-}
-names(pr_list) <- nom[205:408]
-
+rm(bb,ulx, uly, lrx, lry, files, URLs, month, year, var, var2, o, EXT, bbox, chwd)
 
 
 ```
@@ -1465,7 +1462,7 @@ names(pr_list) <- nom[205:408]
 
 
 
-#### !!! Process Rasters
+#### Process Rasters
 
 
 Potential Soil Moisture Storage Capacity... what are the units?? see Palmer
@@ -1473,10 +1470,10 @@ Palmer 1965 Paper
 https://www.droughtmanagement.info/literature/USWB_Meteorological_Drought_1965.pdf
 The term volumetric water content (VWC) refers to a given volume of water contained in given volume of substrate (soil or any other soiless media that can soak water). this makes the term have a unit of measurement m3/m3. that means a given m3 of water contained in a given m3 of soil or other media. In short the units (m3/m3) cancels out virtually. So if your device measure for instance 20 % VWC in a soil depth of say 40 cm, it means, of the 40 cm depth in the soil there contains 20 % water. Hence the water content in terms of depth (cm),i.e. 40 cm soil depth is 20% of 40 cm=20/100 * 40 cm= 8 cm. if you wanted to have your final answer in mm then you convert 8 cm to mm which you multiply by 10 as the conversion factor from cm to mm. Your final answer therefore = 80 mm. this 80 mm you have as your final answer means, when you dig 40 cm deep in the earth of soil you will have 80 mm of water in that soil. I hope it is clear.
 https://www.researchgate.net/post/How-can-I-convert-Satellite-Soil-Moisture-data-m3-m3-into-mm
-
+https://gsif.r-forge.r-project.org/AWCPTF.html
 https://www.sciencedirect.com/science/article/pii/S0277379116302244#bib120
 https://agupubs.onlinelibrary.wiley.com/doi/epdf/10.1002/jgrd.50355?src=getftr
-
+https://en.wikipedia.org/wiki/Available_water_capacity
 convert [Potential Soil Moisture Storage Capacity] to correct units
  
 Inputs: pet, pr, [soil water capacity]
@@ -1489,7 +1486,7 @@ output matrix of PDSI
 
 loop over these inputs rows for pr, pet, and 1st element for soil moisture
 
-
+file:///C:/Users/rcesaret/Downloads/chelsa_file_specification_bioclim_plus%20(2).pdf
 Do I take the MEAN of June-July-August???
 
 CHELSA_Clim_PDSI_JunAug = mosaic(pdsi_r[[6]], pdsi_r[[7]], pdsi_r[[8]])
@@ -1497,99 +1494,143 @@ CHELSA_Clim_PDSI_JunAug = mosaic(pdsi_r[[6]], pdsi_r[[7]], pdsi_r[[8]])
 ```{r, label='Process Timeseries', message=FALSE,warning=FALSE}
 
 
-# upload orig [Potential Soil Moisture Storage Capacity] raster
-# convert AWC to mm == AWC*1000 for 100cm, or 2000 for 200cm
-# file:///C:/Users/rcesaret/Downloads/chelsa_file_specification_bioclim_plus%20(2).pdf
-# states that monthly pr units are kg m-2 month-1 /100
-# may need to multiply pr by 100 
+raster_files <- list.files(path = paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/timeseries_pet/"), pattern = ".tif$", full.names = TRUE)
+pet_ts <- rast(raster_files[[1]])
 
+for (i in 2:length(raster_files)) {
+  raster <- rast(raster_files[[i]])
+  pet_ts <- c(pet_ts, raster)
+}
+
+npet = gsub("pet/", "", nom[1:204])
+npet = gsub(".tif", "", npet)
+names(pet_ts) <- npet
+
+npet = gsub("pet_", "", npet)
+npet = gsub("_", "-", npet)
+npet = as.yearmon(npet)
+terra::time(pet_ts)<-npet
+
+rm(raster, npet, raster_files)
+
+
+raster_files <- list.files(path = paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/timeseries_pr/"), pattern = ".tif$", full.names = TRUE)
+pr_ts <- rast(raster_files[[1]])
+
+for (i in 2:length(raster_files)) {
+  raster <- rast(raster_files[[i]])
+  pr_ts <- c(pr_ts, raster)
+}
+
+npr = gsub("pr/", "", nom[205:408])
+npr = gsub(".tif", "", npr)
+names(pr_ts) <- npr
+
+npr = gsub("pr_", "", npr)
+npr = gsub("_", "-", npr)
+npr = as.yearmon(npr)
+terra::time(pr_ts)<-npr
+pr_ts = pr_ts/100 # CHELSA documentation states that we need to divide monthly pr by 100 
+
+rm(raster, npr, raster_files)
+
+# upload orig AWC raster
+# convert AWC to mm == (AWC/100)*1000 to convert from m^3/m^3 to mm/m 100cm.......... or 2000 for 200cm
+AWCh1_temp = AWCh1_temp*10
+AWCh1_2m_temp = AWCh1_2m_temp*10
 # Downsample pr and pet to SoilGrids250 resolution
+AWC = resample(AWCh1_temp, pr_ts[[1]])
+AWC2 = resample(AWCh1_2m_temp, pr_ts[[1]])
+names(AWC) = "AWC"
+
+```
+
+
+
+#### Calculate scPDSI
+
+loop over these inputs rows for pr, pet, and 1st element for soil moisture
+
+```{r, label='Calculate scPDSI', message=FALSE,warning=FALSE}
 
 #########################################################
 # Self Calibrating Palmer Drought Severity Index (scPDSI)
-# and Palmer Hydrological Drought Index (PHDI)
 #########################################################
 
-pr_df = as.data.frame(pr_temp[[1]])
-pr_df <- rownames_to_column(pr_df, var = "Cells")
-pet_df = as.data.frame(pet_temp[[1]])
-pet_df <- rownames_to_column(pet_df, var = "Cells")
+AWC_df = as.data.frame(terra::values(AWC))
+AWC_df <- rownames_to_column(AWC_df, var = "Cells")
+AWC_df$Cells <- as.numeric(AWC_df$Cells)
+pr_df = as.data.frame(pr_ts[[1]])
+#pr_df <- rownames_to_column(pr_df, var = "Cells")
+pet_df = as.data.frame(pet_ts[[1]])
+#pet_df <- rownames_to_column(pet_df, var = "Cells")
 
-for (i in 2:12) {
-  p = as.data.frame(pr_temp[[i]])
+for (i in 2:204) {
+  p = as.data.frame(pr_ts[[i]])
   pr_df <- cbind(pr_df, p)
-  pe = as.data.frame(pet_temp[[i]])
+  pe = as.data.frame(pet_ts[[i]])
   pet_df <- cbind(pet_df, pe)
 }
 rm(p, pe)
+pr_mat <- as.matrix(pr_df)
+pet_mat <- as.matrix(pet_df)
 
-pdsi_df = as.data.frame(as.numeric(pet_df[,1]))
-names(pdsi_df) = c("Cells")
-nr = nrow(pdsi_df)
-#pdsi_temp = pdsi(pr_df[,j], pet_df[,j])
-phdi_df = as.data.frame(as.numeric(pet_df[,1]))
-names(phdi_df) = c("Cells")
+pdsi_mat = pet_mat 
+pdsi_mat[!is.na(pdsi_mat)] <- NA
 
-for (i in 1:12) {
-  j=i+1
-  pdsi_temp = pdsi(pr_df[,j], pet_df[,j])
-  x = as.data.frame(pdsi_temp[["X"]])
-  y = as.data.frame(pdsi_temp[["PHDI"]])
-  x <- as.data.frame(x[1:nr, ])
-  y <- as.data.frame(y[1:nr, ])
-  q = ifelse(i < 10, "0", "")
-  names(x) <- paste0("pdsi_", q, i)
-  names(y) <- paste0("phdi_", q, i)
-  pdsi_df = cbind(pdsi_df, x)
-  phdi_df = cbind(phdi_df, x)
+for (i in 1:nrow(AWC_df)) {
+  a = ifelse(is.nan(AWC_df$AWC[i]), AWC_df$AWC[i-1], AWC_df$AWC[i])
+  pdsi_temp = pdsi(pr_mat[i,], pet_mat[i,], AWC = a, start=2002, end=2018)
+  pdsi_mat[i,] <- as.numeric(pdsi_temp[["X"]])
 }
-rm(pdsi_temp, x, y, q, n, nr, i, j)
 
-pdsi_temp = pet_temp[[1]]
-phdi_temp = pet_temp[[1]]
+pdsi_temp = pr_ts[[1]]
 
-pdsi_temp[pdsi_df$Cells] <- pdsi_df[,2]
-pdsi_rast <- pdsi_temp
-phdi_temp[phdi_df$Cells] <- phdi_df[,2]
-phdi_rast <- phdi_temp
+terra::values(pdsi_temp) <- pdsi_mat[,1]
+pdsi_ts <- pdsi_temp
 
-for (i in 2:12) {
-  j=i+1
-  pdsi_temp[pdsi_df$Cells] <- pdsi_df[,j]
-  pdsi_rast <- c(pdsi_rast, pdsi_temp)
-  phdi_temp[phdi_df$Cells] <- phdi_df[,j]
-  phdi_rast <- c(phdi_rast, phdi_temp)
+for (i in 2:204) {
+  terra::values(pdsi_temp) <- pdsi_mat[,i]
+  pdsi_ts <- c(pdsi_ts, pdsi_temp)
 }
-names(pdsi_rast) <- c("pdsi_01", "pdsi_02", "pdsi_03", "pdsi_04", "pdsi_05", "pdsi_06", "pdsi_07", "pdsi_08", "pdsi_09", "pdsi_10", "pdsi_11", "pdsi_12")
-names(phdi_rast) <- c("phdi_01", "phdi_02", "phdi_03", "phdi_04", "phdi_05", "phdi_06", "phdi_07", "phdi_08", "phdi_09", "phdi_10", "phdi_11", "phdi_12")
-pdsi_rast <- project(pdsi_rast, t)
-phdi_rast <- project(phdi_rast, t)
-pdsi_r <- resample(pdsi_rast, resample_100m, method = "bilinear")
-phdi_r <- resample(phdi_rast, resample_100m, method = "bilinear")
 
-rm(z, pdsi_rast, pdsi_list, pdsi_temp, pdsi_df, a, phdi_rast, phdi_list, phdi_temp, phdi_df, pet_df, pr_df, pet_temp, pr_temp)
-#########################################################
-#########################################################
+np = gsub("pr/", "", nom[205:408])
+np = gsub(".tif", "", np)
+np = gsub("pr", "pdsi", np)
+names(pdsi_ts) <- np
+
+
+np = gsub("pdsi_", "", np)
+np = gsub("_", "-", np)
+np = as.yearmon(np)
+terra::time(pdsi_ts)<-np
+
+writeRaster(pdsi_ts, filename = paste0(wd$data_p, "pdsi_ts_latlon.tif"), overwrite=TRUE)
+pdsi_ts = resample(pdsi_ts, AWCh1_temp, method="bilinear")
+pdsi_ts <- project(pdsi_ts, resample_100m)
+pdsi_ts = resample(pdsi_ts, resample_100m, method="bilinear")
+writeRaster(pdsi_ts, filename = paste0(wd$data_p, "pdsi_ts_100m.tif"), overwrite=TRUE)
+
+rm(a, pdsi_rast, pdsi_temp, pdsi_mat, np, AWC_df, pet_df, pr_df, pet_mat, pr_mat)
+
 
 
 ```
 
 
+```{r}
+# Assuming your SpatRaster stack is named 'raster_stack'
 
-#### Stack and Save Rasters
+# Subset the months of June, July, and August for the years 2003-2018
+pdsi_ts_JunAug <- subset(pdsi_ts, which(substr(time(pdsi_ts), 6, 7) %in% c("06", "07", "08") & as.integer(substr(time(raster_stack), 1, 4)) >= 2003))
 
-```{r, label='Stack and Save Timeseries', message=FALSE,warning=FALSE}
+# Calculate the average of June-August for each year
+pdsi_ts_JunAug_Avg <- apply(pdsi_ts_Jun_Aug, 'year', mean)
 
-Clim_r <- c(pr_r, tas_r, tasmax_r, tasmin_r, pet_r, cmi_r, pdsi_r, clt_r, rsds_r, npp_r, kg2_r, kg3_r, kg4_r, fcf_r, swb_r, gdd10_r, ngd10_r)
-
-writeRaster(Clim_r, filename = paste0(wd$data_p, "Clim_r_resampled.tif"), overwrite=TRUE)
-
-rm(pr_r, tas_r, tasmax_r, tasmin_r, pet_r, cmi_r, pdsi_r, clt_r, rsds_r, npp_r, kg2_r, kg3_r, kg4_r, fcf_r, swb_r, gdd0_r, gdd10_r, ngd0_r, ngd10_r, phdi_r)
-rm(pet,pr,tas,tasmax,tasmin,clt,rsds,npp, kg0, fcf)
-
+# Take the inter-annual mean of the June-August averages across all years
+pdsi_JunAug_2003_2018_mean <- mosaic(pdsi_ts_JunAug_Avg, mean)
 
 ```
-
 
 
 
