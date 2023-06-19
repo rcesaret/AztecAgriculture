@@ -222,8 +222,8 @@ Topo_r_30m = subset(Topo_r_30m, c(names(Topo_r_30m)[1:7], names(Topo_r_30m)[9:11
 
 Topo_r_30m = c(Topo_r_30m, DistStreams, DistStreams2, ElevAboveStreams, ElevAboveStreams2, Valleys, elev_watershed, FloodOrder_Rel, FloodOrder, FlowDirect_d8_30m, FlowDirect_inf_30m)#Streams, Streams2, 
 names(Topo_r_30m) = c(names(Topo_r_30m), "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "Valleys", "elev_watershed", "FloodOrder_Rel", "FloodOrder", "FlowDirect_d8_30m", "FlowDirect_inf_30m")#, "Streams", "Streams2"
-writeRaster(Topo_r_30m, paste0(wd$data_p,"Topo_r_30m_2.tif"))
-Topo_r_30m <- rast(paste0(wd$data_p, "Topo_r_30m_2.tif"))
+writeRaster(Topo_r_30m, paste0(wd$data_p,"Topo_r_30m.tif"))
+Topo_r_30m <- rast(paste0(wd$data_p, "Topo_r_30m.tif"))
 
 Soil_30m <- rast(paste0(wd$data_p, "Soil_r_30m.tif"))
 
@@ -1091,15 +1091,15 @@ AGType_RF_df %>%
 rm(AGType_RF_Train_df, AGType_RF_df, AGType_RF_model, x, form, i, l, parts, zzz, SIAP_LU_Fields_AGType, AGType_RF_model_prob, boruta, DEM, ArableAreaMask)
 
 
-DEM_r <- rast(paste0(wd$data_r,"DEM_r.tif"))
-AGType_Predict_100m <- resample(AGType, DEM_r, method = "near")
+DEM_100m <- rast(paste0(wd$data_p,"DEM_100m.tif"))
+AGType_Predict_100m <- resample(AGType, DEM_100m, method = "near")
 writeRaster(AGType_Predict_100m, filename = paste0(wd$data_p, "AGType_Predict_100m.tif"), overwrite=TRUE)
-AGType_Prob_Temp_100m <- resample(AGType_Prob_Temp, DEM_r, method = "bilinear")
+AGType_Prob_Temp_100m <- resample(AGType_Prob_Temp, DEM_100m, method = "bilinear")
 writeRaster(AGType_Prob_Temp_100m, filename = paste0(wd$data_p, "AGType_Prob_Temp_100m.tif"), overwrite=TRUE)
-AGType_Prob_Irrig_100m <- resample(AGType_Prob_Irrig, DEM_r, method = "bilinear")
+AGType_Prob_Irrig_100m <- resample(AGType_Prob_Irrig, DEM_100m, method = "bilinear")
 writeRaster(AGType_Prob_Irrig_100m, filename = paste0(wd$data_p, "AGType_Prob_Irrig_100m.tif"), overwrite=TRUE)
 
-#rm(DEM_r,AGType_Predict_100m,AGType_Prob_Temp_100m,AGType_Prob_Irrig_100m)
+#rm(DEM_100m,AGType_Predict_100m,AGType_Prob_Temp_100m,AGType_Prob_Irrig_100m)
 
 
 #rm(Arable_RF_Train_df, Arable_RF_df, RF_pred, Arable_RF_Predict_df, RF_model, boruta, Cultiv)

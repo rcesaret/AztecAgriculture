@@ -121,7 +121,7 @@ Dist from streams
 ### DEM and Topographic Data ###
 
 resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
-DEM <- rast(paste0(wd$data_r,"DEM.tif"))
+DEM <- rast(paste0(wd$data_p,"DEM_15m.tif"))
 DEM <- resample(DEM, resample_30m, method = "bilinear")
 writeRaster(DEM,paste0(wd$data_p,"DEM_30m.tif"), overwrite=TRUE)
 
@@ -1425,10 +1425,10 @@ ArableArea1 <- rast(paste0(wd$data_p,"ArableArea1.tif"))
 ArableArea <- merge(ArableArea1, ArableArea2)
 writeRaster(ArableArea, filename = paste0(wd$data_p, "ArableArea.tif"), overwrite=TRUE)
 
-DEM_r <- rast(paste0(wd$data_r,"DEM_r.tif"))
-ArableArea_100m <- resample(ArableArea, DEM_r, method = "near")
+DEM_100m <- rast(paste0(wd$data_p,"DEM_100m.tif"))
+ArableArea_100m <- resample(ArableArea, DEM_100m, method = "near")
 writeRaster(ArableArea_100m, filename = paste0(wd$data_p, "ArableArea_100m.tif"), overwrite=TRUE)
-rm(DEM_r,ArableArea_100m)
+rm(DEM_100m,ArableArea_100m)
 
 
 #rm(Arable_RF_Train_df, Arable_RF_df, RF_pred, Arable_RF_Predict_df, RF_model, boruta, Cultiv)

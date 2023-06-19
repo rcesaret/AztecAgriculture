@@ -152,8 +152,8 @@ resample_100m <- aggregate(resample_100m, 10)
 
 
 DEM <- rast(paste0(wd$data_r,"DEM_CEM_v3.0_15m_CMex.tif"))
+DEM <- ifel(DEM == 0 | is.nan(DEM), NA, DEM)
 
-DEM[DEM == 0 | is.nan(DEM)] <- NA
 ```
 
 ## Smooth DEM
@@ -171,11 +171,11 @@ DEM <- focal(DEM, w=9, fun='mean', na.rm=T)
 DEM <- focal(DEM, w=11, fun='mean', na.rm=T)
 DEM <- focal(DEM, w=13, fun='mean', na.rm=T)
 
-writeRaster(DEM,paste0(wd$data_r,"DEM.tif"), overwrite=TRUE)
-#DEM <- rast(paste0(wd$data_r,"DEM.tif"))
+writeRaster(DEM,paste0(wd$data_p,"DEM_15m.tif"), overwrite=TRUE)
+#DEM <- rast(paste0(wd$data_p,"DEM_15m.tif"))
 
-DEM_r <- resample(DEM, resample_100m, method = "bilinear")
-writeRaster(DEM_r,paste0(wd$data_r,"DEM_r.tif"), overwrite=TRUE)
+DEM_100m <- resample(DEM, resample_100m, method = "bilinear")
+writeRaster(DEM_100m,paste0(wd$data_p,"DEM_100m.tif"), overwrite=TRUE)
 
 rm(DEM)
 ```
@@ -186,7 +186,7 @@ rm(DEM)
 ```{r, label='Calculate Topographic Variable Rasters', message=FALSE,warning=FALSE}
 
 
-DEM_r <- rast(paste0(wd$data_r,"DEM_r.tif"))
+DEM_100m <- rast(paste0(wd$data_p,"DEM_100m.tif"))
 
 #create temp directory for rasters we will delete later
 # we will stack and save these together at the end of this chunk
@@ -195,14 +195,14 @@ DEM_r <- rast(paste0(wd$data_r,"DEM_r.tif"))
 
 ######### TRI ######### 
 
-TRI <- terra::terrain(DEM_r, v="TRI")# calc Terrain Ruggedness Index
+TRI <- terra::terrain(DEM_100m, v="TRI")# calc Terrain Ruggedness Index
 
-slope <- terra::terrain(DEM_r, v="slope", unit="degrees")#Slope
-writeRaster(slope,paste0(wd$data_p,"temp_rasts/Slope.tif"), overwrite=TRUE)
+Slope <- terra::terrain(DEM_100m, v="slope", unit="degrees")#Slope
+writeRaster(Slope,paste0(wd$data_p,"temp_rasts/Slope_100m.tif"), overwrite=TRUE)
 
 ######################################################
 
-wbt_breach_depressions(dem = paste0(wd$data_r,"DEM_r.tif"), output = paste0(wd$data_p,"temp_rasts/DEM_breach.tif"))
+wbt_breach_depressions(dem = paste0(wd$data_r,"DEM_100m.tif"), output = paste0(wd$data_p,"temp_rasts/DEM_breach.tif"))
 
 ######################################################
 
@@ -211,15 +211,15 @@ Accum <- rast(paste0(wd$data_p, "temp_rasts/Accum.tif"))
 
 ######### TWI ######### 
 
-wbt_wetness_index(sca=paste0(wd$data_p,"temp_rasts/Accum.tif"), slope=paste0(wd$data_p,"temp_rasts/Slope.tif"), output=paste0(wd$data_p,"temp_rasts/TWI.tif"), verbose_mode = FALSE)
+wbt_wetness_index(sca=paste0(wd$data_p,"temp_rasts/Accum.tif"), slope=paste0(wd$data_p,"temp_rasts/Slope_100m.tif"), output=paste0(wd$data_p,"temp_rasts/TWI.tif"), verbose_mode = FALSE)
 TWI <- rast(paste0(wd$data_p, "temp_rasts/TWI.tif"))
-TWI <- focal(TWI, w=17, fun='max', na.policy="only", na.rm=T)
-writeRaster(TWI,paste0(wd$data_p,"temp_rasts/TWI.tif"), overwrite=TRUE)
+#TWI <- focal(TWI, w=17, fun='max', na.policy="only", na.rm=T)
+#writeRaster(TWI,paste0(wd$data_p,"temp_rasts/TWI.tif"), overwrite=TRUE)
 
 
 ######### SPI ######### 
 
-wbt_stream_power_index(sca=paste0(wd$data_p,"temp_rasts/Accum.tif"),slope=paste0(wd$data_p,"temp_rasts/Slope.tif"),output=paste0(wd$data_p,"temp_rasts/SPI.tif"),exponent = 1)
+wbt_stream_power_index(sca=paste0(wd$data_p,"temp_rasts/Accum.tif"),slope=paste0(wd$data_p,"temp_rasts/Slope_100m.tif"),output=paste0(wd$data_p,"temp_rasts/SPI.tif"),exponent = 1)
 SPI <- rast(paste0(wd$data_p, "temp_rasts/SPI.tif"))
 
 ######### STI ######### 
@@ -227,15 +227,15 @@ SPI <- rast(paste0(wd$data_p, "temp_rasts/SPI.tif"))
 wbt_fd8_flow_accumulation(paste0(wd$data_p,"temp_rasts/DEM_breach.tif"), output=paste0(wd$data_p,"temp_rasts/Accum_fd8.tif"), out_type = "specific contributing area")
 Accum_fd8 <- rast(paste0(wd$data_p, "temp_rasts/Accum_fd8.tif"))
 
-wbt_sediment_transport_index(sca=paste0(wd$data_p,"temp_rasts/Accum_fd8.tif"),slope=paste0(wd$data_p,"temp_rasts/Slope.tif"),output=paste0(wd$data_p,"temp_rasts/STI.tif"))
+wbt_sediment_transport_index(sca=paste0(wd$data_p,"temp_rasts/Accum_fd8.tif"),slope=paste0(wd$data_p,"temp_rasts/Slope_100m.tif"),output=paste0(wd$data_p,"temp_rasts/STI.tif"))
 STI <- rast(paste0(wd$data_p, "temp_rasts/STI.tif"))
 
 ######################################################
 
-wbt_d_inf_pointer(dem = paste0(wd$data_p,"DEM_r.tif"), output = paste0(wd$data_p,"temp_rasts/FlowDirect_inf_100m.tif"))
+wbt_d_inf_pointer(dem = paste0(wd$data_p,"DEM_100m.tif"), output = paste0(wd$data_p,"temp_rasts/FlowDirect_inf_100m.tif"))
 FlowDirect_inf_30m <- rast(paste0(wd$data_p, "temp_rasts/FlowDirect_inf_100m.tif"))
 
-wbt_d8_pointer(dem = paste0(wd$data_p,"DEM_r.tif"), output = paste0(wd$data_p,"temp_rasts/FlowDirect_d8_100m.tif"))
+wbt_d8_pointer(dem = paste0(wd$data_p,"DEM_100m.tif"), output = paste0(wd$data_p,"temp_rasts/FlowDirect_d8_100m.tif"))
 FlowDirect_d8_30m <- rast(paste0(wd$data_p, "temp_rasts/FlowDirect_d8_100m.tif"))
 
 ######################################################
@@ -249,7 +249,7 @@ BasinsPoly <- st_read(paste0(wd$data_r, "BasinsPoly.gpkg"))
 BasinsPoly <- rownames_to_column(BasinsPoly, var = "ID")
 BasinsPoly$n_cells <- NA
 for (i in 1:length(BasinsPoly$ID)){
-  elev <- DEM_r
+  elev <- DEM_100m
   bp <- BasinsPoly %>% filter(ID == i)
   bp <- vect(bp)
   elev <- mask(elev, bp)
@@ -268,10 +268,10 @@ FloodOrder <- merge(z)
 
 writeRaster(FloodOrder,paste0(wd$data_p,"FloodOrder_100m.tif"), overwrite=TRUE)
 FloodOrder <- rast(paste0(wd$data_p, "FloodOrder_100m.tif"))
-BP = extract(DEM_r, BasinsPoly, fun=ncell)
+BP = extract(DEM_100m, BasinsPoly, fun=ncell)
 BasinsPoly$n_cells = BP$focal_mean
 rm(BP)
-bp <- terra::rasterize(BasinsPoly, DEM_r, field = "n_cells", background = NA)
+bp <- terra::rasterize(BasinsPoly, DEM_100m, field = "n_cells", background = NA)
 writeRaster(bp,paste0(wd$data_p,"Basin_ncells_100m.tif"), overwrite=TRUE)
 bp <- rast(paste0(wd$data_p, "Basin_ncells_100m.tif"))
 FloodOrder_Rel = FloodOrder / bp
@@ -295,7 +295,7 @@ streams_sf <- streams_sf %>% mutate(Order = case_when(
   ORDER_1 == 6 ~ 2,
   ORDER_1 == 7 ~ 3
 ))
-Streams2 <- terra::rasterize(streams_sf, DEM_r, values = 1, background = NA)
+Streams2 <- terra::rasterize(streams_sf, DEM_100m, values = 1, background = NA)
 writeRaster(Streams2,paste0(wd$data_p,"Streams2_100m.tif"), overwrite=TRUE)
 
 ######################################################
@@ -309,17 +309,17 @@ writeRaster(DistStreams2,paste0(wd$data_p,"DistStreams2_100m.tif"), overwrite=TR
 
 ######################################################
 
-wbt_elevation_above_stream(dem = paste0(wd$data_p,"DEM_r.tif"), streams = paste0(wd$data_p,"temp_rasts/Streams_100m.tif"), output = paste0(wd$data_p,"temp_rasts/ElevAboveStreams_100m.tif"))
+wbt_elevation_above_stream(dem = paste0(wd$data_p,"DEM_100m.tif"), streams = paste0(wd$data_p,"temp_rasts/Streams_100m.tif"), output = paste0(wd$data_p,"temp_rasts/ElevAboveStreams_100m.tif"))
 ElevAboveStreams <- rast(paste0(wd$data_p, "temp_rasts/ElevAboveStreams_100m.tif"))
 
 ######################################################
 
-wbt_elevation_above_stream(dem = paste0(wd$data_p,"DEM_r.tif"), streams = paste0(wd$data_p,"Streams2_100m.tif"), output = paste0(wd$data_p,"ElevAboveStreams2_100m.tif"))
+wbt_elevation_above_stream(dem = paste0(wd$data_p,"DEM_100m.tif"), streams = paste0(wd$data_p,"Streams2_100m.tif"), output = paste0(wd$data_p,"ElevAboveStreams2_100m.tif"))
 ElevAboveStreams2 <- rast(paste0(wd$data_p, "ElevAboveStreams2_100m.tif"))
 
 ######################################################
 
-wbt_extract_valleys(dem = paste0(wd$data_p,"DEM_r.tif"), variant = 'JandR', line_thin = F, output =  paste0(wd$data_p,"temp_rasts/valleys_JandR_100m.tif"))
+wbt_extract_valleys(dem = paste0(wd$data_p,"DEM_100m.tif"), variant = 'JandR', line_thin = F, output =  paste0(wd$data_p,"temp_rasts/valleys_JandR_100m.tif"))
 Valleys <- rast(paste0(wd$data_p, "temp_rasts/valleys_JandR_100m.tif"))
 
 ######################################################
@@ -327,36 +327,44 @@ Valleys <- rast(paste0(wd$data_p, "temp_rasts/valleys_JandR_100m.tif"))
 BasinsPoly <- st_read(paste0(wd$data_r, "BasinsPoly.gpkg"))
 BasinsPoly <- rownames_to_column(BasinsPoly, var = "ID")
 #BasinsPoly <- vect(BasinsPoly)
-Basins <- terra::rasterize(BasinsPoly, DEM_r, field = "ID", background = NA)
+Basins <- terra::rasterize(BasinsPoly, DEM_100m, field = "ID", background = NA)
 writeRaster(Basins,paste0(wd$data_p,"Basins_100m.tif"), overwrite=TRUE)
 Basins <- rast(paste0(wd$data_p, "Basins_100m.tif"))
 
 ######################################################
 
-wbt_elev_relative_to_watershed_min_max(dem = paste0(wd$data_p,"DEM_r.tif"), watersheds = paste0(wd$data_p,"Basins_100m.tif"), output = paste0(wd$data_p,"temp_rasts/elev_watershed_100m.tif"))
+wbt_elev_relative_to_watershed_min_max(dem = paste0(wd$data_p,"DEM_100m.tif"), watersheds = paste0(wd$data_p,"Basins_100m.tif"), output = paste0(wd$data_p,"temp_rasts/elev_watershed_100m.tif"))
 elev_watershed <- rast(paste0(wd$data_p, "temp_rasts/elev_watershed_100m.tif"))
+
+wbt_minimal_curvature(dem = paste0(wd$data_p,"DEM_100m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_min_100m.tif"))
+curv_min <- rast(paste0(wd$data_p, "temp_rasts/curv_min_100m.tif"))
+
+wbt_maximal_curvature(dem = paste0(wd$data_p,"DEM_100m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_max_100m.tif"))
+curv_max <- rast(paste0(wd$data_p, "temp_rasts/curv_max_100m.tif"))
+
+wbt_mean_curvature(dem = paste0(wd$data_p,"DEM_100m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_mean_100m.tif"))
+curv_mean <- rast(paste0(wd$data_p, "temp_rasts/curv_mean_100m.tif"))
+
 
 ```
 
+Topo_r_30m = c(Topo_r_30m, )#, , 
+names(Topo_r_30m) = c(names(Topo_r_30m), "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "", "elev_watershed", "FloodOrder_Rel", "", "", "")
 
 ## Stack and Save Rasters
 
-```{r, label='Calculate Topographic Variable Rasters', message=FALSE,warning=FALSE}
+```{r, label='Stack and Save Topographic Variable Rasters', message=FALSE,warning=FALSE}
 
+Topo <- c(DEM_100m, Slope, Accum, Accum_fd8, TRI, TWI, STI, SPI, curv_min, curv_max, curv_mean, DistStreams, DistStreams2, ElevAboveStreams, ElevAboveStreams2, elev_watershed, FloodOrder_Rel)
 
-TopoEnvData <- (c(DEM_r, slope, Accum, Accum_fd8, TRI, TWI, STI, SPI))
+names(Topo) = c("DEM", "Slope", "Accum", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "elev_watershed", "FloodOrder_Rel")
 
-rm(DEM_r, slope, Accum, Accum_fd8, TRI, TWI, STI, SPI)
+writeRaster(Topo, filename = paste0(wd$data_p, "Topo_r_resampled.tif"), overwrite=TRUE)
 
-nam = c("DEM", "Slope", "Accum", "Accum_fd8", "TRI", "TWI", "STI", "SPI")
+Topo <- rast(paste0(wd$data_p, "Topo_r_resampled.tif"))
 
-names(TopoEnvData) = nam
+rm(DEM_100m, Slope, Accum, Accum_fd8, TRI, TWI, STI, SPI, curv_min, curv_max, curv_mean, DistStreams, DistStreams2, ElevAboveStreams, ElevAboveStreams2, elev_watershed, FloodOrder_Rel, FloodOrder, Valleys, FlowDirect_d8_30m, FlowDirect_inf_30m, Streams, Streams2, Basins, streams_sf)
 
-writeRaster(TopoEnvData, filename = paste0(wd$data_p, "TopoEnvData.tif"), overwrite=TRUE)
-
-TopoEnv_r <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
-
-rm(TopoEnvData)
 ```
 
 
@@ -490,22 +498,22 @@ raster("https://files.isric.org/soilgrids/latest/data/wrb/MostProbable.vrt")
 #resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
 #resample_100m <- disagg(resample_30m, 3)
 #resample_100m <- aggregate(resample_100m, 10)
-#TopoEnv_r <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
+#Topo <- rast(paste0(wd$data_p, "Topo_r_resampled.tif"))
 ###############################################
 
 sgwd = "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/"
   
 # Covariates for input into RF_ImputeRast function
-DEM_r <- TopoEnv_r[[1]]
+DEM_100m <- Topo[[1]]
 SG250 <- rast(paste0(sgwd, "BDTICM/BDTICM.tif"))
 terra::values(SG250) <- 1
-DEM_250 <- project(DEM_r, SG250)
+DEM_250 <- project(DEM_100m, SG250)
 DEM_250 <- resample(DEM_250, SG250, method = "bilinear")
 Slope_250 <- terra::terrain(DEM_250, v="slope", unit="degrees")
 
 SGigh <- rast(paste0(sgwd, "BD/BD_0_5cm.vrt"))
 terra::values(SGigh) <- 1
-DEM_igh <- project(DEM_r, SGigh)
+DEM_igh <- project(DEM_100m, SGigh)
 DEM_igh <- resample(DEM_igh, SGigh, method = "bilinear")
 Slope_igh <- terra::terrain(DEM_igh, v="slope", unit="degrees")
 
@@ -784,7 +792,7 @@ SOCS <- project(SOCS, resample_100m)
 SOCS <- resample(SOCS, resample_100m, method = "bilinear")
 #rm(SOCSi)
 
-rm(DepthWeights, m2, m, resample_250m, resample_igh, SGigh, DEM_igh, Slope_igh, DEM_250, Slope_250, SG250, DEM_r, sgwd)
+rm(DepthWeights, m2, m, resample_250m, resample_igh, SGigh, DEM_igh, Slope_igh, DEM_250, Slope_250, SG250, DEM_100m, sgwd)
 
 rm(Zi, Si, CFi, SOCi, CECi, OCDi, Ni, SOCSi, Ci, BDi, AWCtS_2mi, AWCtSi, BDTICMi, BDRLOGi, BDRICMi)
 ```
@@ -814,8 +822,8 @@ resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
 resample_100m <- disagg(resample_30m, 3)
 resample_100m <- aggregate(resample_100m, 10)
 
-DEM_r <- TopoEnv_r[[1]]
-Slope <- TopoEnv_r[[2]]
+DEM_100m <- Topo[[1]]
+Slope <- Topo[[2]]
 Municipios2000s <- st_read(paste0(wd$data_r, "AG_Model_2000s/CMex_Municipios_2000s.gpkg"))
 
 resample_100m_b = resample_100m
@@ -824,7 +832,7 @@ m <- mask(resample_100m_b, Municipios2000s)#Data2000s_poly)
 
 r = SOCS
 rnam = names(r)
-covs = c(DEM_r,Slope)
+covs = c(DEM_100m,Slope)
 Mask = m
 SampFrac = 0.3
 save_mem = FALSE
@@ -974,7 +982,7 @@ files <- paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/", gsub(
 
 raster(URLs[1])
 
-EXT <- raster(paste0(wd$data_r, "TopoEnvData.tif"))
+EXT <- raster(paste0(wd$data_p, "Topo_r_resampled.tif"))
 EXT <- rast(projectRaster(EXT[[1]], crs="epsg:4326"))
 o = rast(paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/pet/CHELSA_pet_penman_01_1981-2010_V.2.1.tif"))
 o <- crop(o, EXT, snap = "out")
@@ -1009,7 +1017,7 @@ rm(bb,ulx, uly, lrx, lry, files, URLs, month, var, var2, o, HTTP, EXT)
 ```{r, label='Process Climatologies', message=FALSE,warning=FALSE}
 chwd = "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/"
 prj = "epsg:32614"
-t <- raster(paste0(wd$data_r, "TopoEnvData.tif"))
+t <- raster(paste0(wd$data_p, "Topo_r_resampled.tif"))
 EXT <- rast(projectRaster(t[[1]], crs="epsg:4326"))
 t = rast(t[[1]])
 
@@ -1345,7 +1353,7 @@ swb <- resample(swb, resample_100m, method = "bilinear")
 
 ```{r, label='Stack and Save Climatologies', message=FALSE,warning=FALSE}
 
-Clim_r <- c(pr, tas, tasmax, tasmin, pet, cmi, clt, rsds, npp, kg2, kg3, kg4, fcf, swb, gdd10, ngd10)
+Clim <- c(pr, tas, tasmax, tasmin, pet, cmi, clt, rsds, npp, kg2, kg3, kg4, fcf, swb, gdd10, ngd10)
 
 writeRaster(Clim_r, filename = paste0(wd$data_p, "Clim_r_resampled.tif"), overwrite=TRUE)
 
@@ -1400,7 +1408,7 @@ files <- paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/timeseri
 
 raster(URLs[1])
 
-EXT <- raster(paste0(wd$data_r, "TopoEnvData.tif"))
+EXT <- raster(paste0(wd$data_p, "Topo_r_resampled.tif"))
 EXT <- rast(projectRaster(EXT[[1]], crs="epsg:4326"))
 o = rast(paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/pet/CHELSA_pet_penman_01_1981-2010_V.2.1.tif"))
 o <- crop(o, EXT, snap = "out")
@@ -1420,7 +1428,7 @@ for (i in 1:length(URLs)) {
                verbose=TRUE)
 }
 
-rm(bb,ulx, uly, lrx, lry, files, URLs, month, year, var, var2, o, EXT, nom)
+rm(bb,ulx, uly, lrx, lry, files, URLs, month, year, var, var2, o, EXT, nom, bbox, chwd)
 
 
 
@@ -1680,7 +1688,7 @@ https://rdrr.io/cran/spatialEco/man/raster.downscale.html
 ```{r}
 Clim_r <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
 target_CRS = crs(Clim_r)
-t <- rast(paste0(wd$data_r, "TopoEnvData.tif"))
+t <- rast(paste0(wd$data_p, "Topo_r_resampled.tif"))
 EXT <- project(t[[1]],"epsg:4326")
 
 
