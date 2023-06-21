@@ -81,7 +81,7 @@ packages <- c("tidyverse", "tidyr", "rgdal", "rgeos", "sp", "sf", "GISTools", "r
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
               "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra", 
               "goft", "MASS", "NSM3", "ggsn", "rlang", "FSA", "philentropy", "sfdep",
-              "spdep", "spatialreg")
+              "spdep", "spatialreg", "DataExplorer", "tableone")
 
 
 # Install packages not yet installed
@@ -300,10 +300,10 @@ Census2000s <- Census2000s %>% mutate(
 Census2000s_poly <- Municipios2000s %>% select(-Area_ha, -Area_m2) %>% 
   left_join(Census2000s, by = c("Estado_ID", "Municipio_ID", "EstadoMunicipio", "Municipio", "Estado"))
 
-st_write(Census2000s_poly, paste0(wd$data_r, "Census2000s_poly.gpkg"), driver = "GPKG", overwrite=TRUE, append=FALSE)
+st_write(Census2000s_poly, paste0(wd$data_p, "Census2000s_poly.gpkg"), driver = "GPKG", overwrite=TRUE, append=FALSE)
 
 # save the data as .csv
-write.csv(Census2000s, paste0(wd$data_r,"CensusData2000s.csv"))
+write.csv(Census2000s, paste0(wd$data_p,"CensusData2000s.csv"))
 
 rm(AGCensus2007, PopCensus2010)
 
@@ -1269,8 +1269,42 @@ if (CASES_REMOVE == TRUE) {
 
 ```
 
- 
- 
+
+
+CreateTableOne(
+  vars,
+  strata,
+  data,
+  factorVars,
+  includeNA = FALSE,
+  test = TRUE,
+  testApprox = chisq.test,
+  argsApprox = list(correct = TRUE),
+  testExact = fisher.test,
+  argsExact = list(workspace = 2 * 10^5),
+  testNormal = oneway.test,
+  argsNormal = list(var.equal = TRUE),
+  testNonNormal = kruskal.test,
+  argsNonNormal = list(NULL),
+  smd = TRUE,
+  addOverall = FALSE
+)
+
+
+```{r}
+
+
+
+
+
+
+
+
+
+
+
+```
+
  
  
  
@@ -1289,6 +1323,8 @@ CY <- read.csv(paste0(wd$data_r,"ComparativeYields.csv"))
 Colonial <- read.csv(paste0(wd$data_r,"Colonial_MaizeYields.csv"))
 
 AGCensus1960 <- read.csv(paste0(wd$data_r,"AGCensus1960_MaizeYields.csv"))
+
+AGCensus1970 <- read.csv(paste0(wd$data_r,"AGCensus1970_MaizeYields.csv"))
 
 AGCensus1991 <- read.csv(paste0(wd$data_r,"AGCensus1991_MaizeYields.csv"))
 
@@ -1390,6 +1426,67 @@ AGCensus1960_E_dens = density(AGCensus1960_E$Maize1960_kgha, na.rm = T, from=0)
 AGCensus1960_BOM_E = AGCensus1960_E %>% filter(Region == "BOM")
 AGCensus1960_BOM_E_dens = density(AGCensus1960_BOM_E$Maize1960_kgha, na.rm = T, from=0)
 
+AGCensus1970_A = AGCensus1970 %>% #filter(Size == "Total") %>% 
+  filter(Size == "Ejido" | Size == "Small" | Size == "Large") %>% 
+  
+  filter(!is.na(Harvest_ha_S))
+#s = sum(AGCensus1970_A$Harvest_ha_S, na.rm = T)
+#AGCensus1970_T_dens = density(AGCensus1970_T$Yield_S, weights = AGCensus1970_T$Harvest_ha_S / s, from = 0, na.rm = T)
+AGCensus1970_A_dens = density(AGCensus1970_A$Yield_S, na.rm = T, from=0)
+AGCensus1970_A_dens2 <- data.frame(AGCensus1970_A_dens$x, AGCensus1970_A_dens$y, AGCensus1970_A_dens$bw, AGCensus1970_A_dens$n, "1970\nAgricultural\nCensus\n\n", "Municipal averages by type of land tenure\n(ejidos, large (>5 ha) and small (<5 ha) holdings)", "AGCensus1970_A"
+)
+names(AGCensus1970_A_dens2) <- c("Yield", "Density", "Bandwidth", "n", "Label", "Data", "Series")
+
+AGCensus1970_BOM_A = AGCensus1970_A %>% filter(Region == "BOM")
+AGCensus1970_BOM_A_dens = density(AGCensus1970_BOM_A$Yield_S, na.rm = T, from=0)
+
+AGCensus1970_T = AGCensus1970 %>% #filter(Size == "Total") %>% 
+  filter(Size == "Total") %>% 
+  
+  filter(!is.na(Harvest_ha_S))
+
+#s = sum(AGCensus1970_T$Harvest_ha_S, na.rm = T)
+#AGCensus1970_T_dens = density(AGCensus1970_T$Yield_S, weights = AGCensus1970_T$Harvest_ha_S / s, from = 0, na.rm = T)
+AGCensus1970_T_dens = density(AGCensus1970_T$Yield_S, na.rm = T, from=0)
+AGCensus1970_T_dens2 <- data.frame(AGCensus1970_T_dens$x, AGCensus1970_T_dens$y, AGCensus1970_T_dens$bw, AGCensus1970_T_dens$n, "1970\nAgricultural\nCensus\n\n", "Overall municipal averages", "AGCensus1970_T")
+names(AGCensus1970_T_dens2) <- c("Yield", "Density", "Bandwidth", "n", "Label", "Data", "Series")
+
+AGCensus1970_BOM_T = AGCensus1970_T %>% filter(Region == "BOM")
+AGCensus1970_BOM_T_dens = density(AGCensus1970_BOM_T$Yield_S, na.rm = T, from=0)
+
+AGCensus1970_S = AGCensus1970 %>% #filter(Size == "Total") %>% 
+  filter(Size == "Small") %>% 
+  
+  filter(!is.na(Harvest_ha_S))
+s = sum(AGCensus1970_S$Harvest_ha_S, na.rm = T)
+#AGCensus1970_S_dens = density(AGCensus1970_S$Yield_S, weights = AGCensus1970_S$Harvest_ha_S / s, from = 0, na.rm = T)
+AGCensus1970_S_dens = density(AGCensus1970_S$Yield_S, na.rm = T, from=0)
+
+AGCensus1970_BOM_S = AGCensus1970_S %>% filter(Region == "BOM")
+AGCensus1970_BOM_S_dens = density(AGCensus1970_BOM_S$Yield_S, na.rm = T, from=0)
+
+AGCensus1970_L = AGCensus1970 %>% #filter(Size == "Total") %>% 
+  filter(Size == "Large") %>% 
+  
+  filter(!is.na(Harvest_ha_S))
+s = sum(AGCensus1970_L$Harvest_ha_S, na.rm = T)
+#AGCensus1970_L_dens = density(AGCensus1970_L$Yield_S, weights = AGCensus1970_L$Harvest_ha_S / s, from = 0, na.rm = T)
+AGCensus1970_L_dens = density(AGCensus1970_L$Yield_S, na.rm = T, from=0)
+
+AGCensus1970_BOM_L = AGCensus1970_L %>% filter(Region == "BOM")
+AGCensus1970_BOM_L_dens = density(AGCensus1970_BOM_L$Yield_S, na.rm = T, from=0)
+
+AGCensus1970_E = AGCensus1970 %>% #filter(Size == "Total") %>% 
+  filter(Size == "Ejido") %>% 
+  
+  filter(!is.na(Harvest_ha_S))
+s = sum(AGCensus1970_E$Harvest_ha_S, na.rm = T)
+#AGCensus1970_E_dens = density(AGCensus1970_E$Yield_S, weights = AGCensus1970_E$Harvest_ha_S / s, from = 0, na.rm = T)
+AGCensus1970_E_dens = density(AGCensus1970_E$Yield_S, na.rm = T, from=0)
+
+AGCensus1970_BOM_E = AGCensus1970_E %>% filter(Region == "BOM")
+AGCensus1970_BOM_E_dens = density(AGCensus1970_BOM_E$Yield_S, na.rm = T, from=0)
+
 AGCensus1991_T = AGCensus1991 %>% filter(!is.na(Yield)) 
 AGCensus1991_dens = density(AGCensus1991_T$Yield, na.rm = T, from=0)
 AGCensus1991_dens2 <- data.frame(AGCensus1991_dens$x, AGCensus1991_dens$y, AGCensus1991_dens$bw, AGCensus1991_dens$n, "1991\nAgricultural\nCensus\n\n", "Overall municipal averages", "AGCensus1991_T")
@@ -1441,18 +1538,20 @@ SIAP_4_Avg_T_dens = density(SIAP_4_Avg_T$AvgYield, na.rm=T, from=0)
 SIAP_4_Avg_T_dens2 <- data.frame(SIAP_4_Avg_T_dens$x, SIAP_4_Avg_T_dens$y, SIAP_4_Avg_T_dens$bw, SIAP_4_Avg_T_dens$n, "SIAP\n2003-2021\nAverage\n\n", "Overall municipal averages", "SIAP_4_Avg_T")
 names(SIAP_4_Avg_T_dens2) <- c("Yield", "Density", "Bandwidth", "n", "Label", "Data", "Series")
 
-Dens.df = rbind(EarlyColonial_dens2, LateColonial_dens2, SandersAztec_dens2, AGCensus1960_T_dens2, AGCensus1960_A_dens2, SandersC20_dens2, AGCensus1991_dens2, SIAP_4_2003_dens2, SIAP_4_2003a_dens2, AGCensus2007_dens2, SIAP_4_2020_dens2, SIAP_4_2020a_dens2, SIAP_4_Avg_dens2, SIAP_4_Avg_T_dens2)
+Dens.df = rbind(EarlyColonial_dens2, LateColonial_dens2, SandersAztec_dens2, AGCensus1960_T_dens2, AGCensus1960_A_dens2, AGCensus1970_T_dens2, AGCensus1970_A_dens2, SandersC20_dens2, AGCensus1991_dens2, SIAP_4_2003_dens2, SIAP_4_2003a_dens2, AGCensus2007_dens2, SIAP_4_2020_dens2, SIAP_4_2020a_dens2, SIAP_4_Avg_dens2, SIAP_4_Avg_T_dens2)
 
-CY_prob_dens_list <- list(EarlyColonial_dens, LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, AGCensus1960_A_dens, AGCensus1960_L_dens, AGCensus1960_S_dens, AGCensus1960_E_dens, AGCensus1960_BOM_A_dens, AGCensus1960_BOM_T_dens, AGCensus1960_BOM_L_dens, AGCensus1960_BOM_S_dens, AGCensus1960_BOM_E_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003_dens, SIAP_4_2003a_dens, AGCensus2007_dens, SIAP_4_2020_dens, SIAP_4_2020a_dens, SIAP_4_Avg_dens, SIAP_4_Avg_T_dens)
-names(CY_prob_dens_list) <- c("EarlyColonial_dens", "LateColonial_dens", "SandersAztec_dens", "AGCensus1960_T_dens", "AGCensus1960_A_dens", "AGCensus1960_L_dens", "AGCensus1960_S_dens", "AGCensus1960_E_dens", "AGCensus1960_BOM_A_dens", "AGCensus1960_BOM_T_dens", "AGCensus1960_BOM_L_dens", "AGCensus1960_BOM_S_dens", "AGCensus1960_BOM_E_dens", "SandersC20_dens", "AGCensus1991_dens", "SIAP_4_2003_dens", "SIAP_4_2003a_dens", "AGCensus2007_dens", "SIAP_4_2020_dens", "SIAP_4_2020a_dens", "SIAP_4_Avg_dens", "SIAP_4_Avg_T_dens")
 
-CY_df_list <- list(EarlyColonial, LateColonial, AGCensus1960_A, AGCensus1960_T, AGCensus1960_S, AGCensus1960_L, AGCensus1960_E, AGCensus1960_BOM_A, AGCensus1960_BOM_T, AGCensus1960_BOM_L, AGCensus1960_BOM_S, AGCensus1960_BOM_E, AGCensus1991_T, AGCensus2007_T, SIAP_4_2003, SIAP_4_2003a, SIAP_4_2020, SIAP_4_2020a, SIAP_4_Avg, SIAP_4_Avg_T)
-names(CY_df_list) <- c("EarlyColonial", "LateColonial", "AGCensus1960_A", "AGCensus1960_T", "AGCensus1960_S", "AGCensus1960_L", "AGCensus1960_E", "AGCensus1960_BOM_A", "AGCensus1960_BOM_T", "AGCensus1960_BOM_L", "AGCensus1960_BOM_S", "AGCensus1960_BOM_E", "AGCensus1991_T", "AGCensus2007_T", "SIAP_4_2003", "SIAP_4_2003a", "SIAP_4_2020", "SIAP_4_2020a", "SIAP_4_Avg", "SIAP_4_Avg_T")
+CY_prob_dens_list <- list(EarlyColonial_dens, LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, AGCensus1960_A_dens, AGCensus1960_L_dens, AGCensus1960_S_dens, AGCensus1960_E_dens, AGCensus1960_BOM_A_dens, AGCensus1960_BOM_T_dens, AGCensus1960_BOM_L_dens, AGCensus1960_BOM_S_dens, AGCensus1960_BOM_E_dens,                   AGCensus1970_T_dens, AGCensus1970_A_dens, AGCensus1970_L_dens, AGCensus1970_S_dens, AGCensus1970_E_dens, AGCensus1970_BOM_A_dens, AGCensus1970_BOM_T_dens, AGCensus1970_BOM_L_dens, AGCensus1970_BOM_S_dens,AGCensus1970_BOM_E_dens,  SandersC20_dens, AGCensus1991_dens, SIAP_4_2003_dens, SIAP_4_2003a_dens, AGCensus2007_dens, SIAP_4_2020_dens, SIAP_4_2020a_dens, SIAP_4_Avg_dens, SIAP_4_Avg_T_dens)
+names(CY_prob_dens_list) <- c("EarlyColonial_dens", "LateColonial_dens", "SandersAztec_dens", "AGCensus1960_T_dens", "AGCensus1960_A_dens", "AGCensus1960_L_dens", "AGCensus1960_S_dens", "AGCensus1960_E_dens", "AGCensus1960_BOM_A_dens", "AGCensus1960_BOM_T_dens", "AGCensus1960_BOM_L_dens", "AGCensus1960_BOM_S_dens", "AGCensus1960_BOM_E_dens",  "AGCensus1970_T_dens", "AGCensus1970_A_dens", "AGCensus1970_L_dens","AGCensus1970_S_dens", "AGCensus1970_E_dens", "AGCensus1970_BOM_A_dens", "AGCensus1970_BOM_T_dens", "AGCensus1970_BOM_L_dens", "AGCensus1970_BOM_S_dens", "AGCensus1970_BOM_E_dens",  "SandersC20_dens", "AGCensus1991_dens", "SIAP_4_2003_dens", "SIAP_4_2003a_dens", "AGCensus2007_dens", "SIAP_4_2020_dens", "SIAP_4_2020a_dens", "SIAP_4_Avg_dens", "SIAP_4_Avg_T_dens")
 
-CY_data_list <- list(Colonial, AGCensus1960, AGCensus1991, AGCensus2007, SandersAztec, SandersC20)
-names(CY_data_list) <- c("Colonial", "AGCensus1960", "AGCensus1991", "AGCensus2007", "SandersAztec", "SandersC20")
+CY_df_list <- list(EarlyColonial, LateColonial, AGCensus1960_A, AGCensus1960_T, AGCensus1960_S, AGCensus1960_L, AGCensus1960_E, AGCensus1960_BOM_A, AGCensus1960_BOM_T, AGCensus1960_BOM_L, AGCensus1960_BOM_S, AGCensus1960_BOM_E, AGCensus1970_A, AGCensus1970_T, AGCensus1970_S, AGCensus1970_L, AGCensus1970_E, AGCensus1970_BOM_A, AGCensus1970_BOM_T, AGCensus1970_BOM_L, AGCensus1970_BOM_S, AGCensus1970_BOM_E, AGCensus1991_T, AGCensus2007_T, SIAP_4_2003, SIAP_4_2003a, SIAP_4_2020, SIAP_4_2020a, SIAP_4_Avg, SIAP_4_Avg_T)
+names(CY_df_list) <- c("EarlyColonial", "LateColonial", "AGCensus1960_A", "AGCensus1960_T", "AGCensus1960_S", "AGCensus1960_L", "AGCensus1960_E", "AGCensus1960_BOM_A", "AGCensus1960_BOM_T", "AGCensus1960_BOM_L", "AGCensus1960_BOM_S", "AGCensus1960_BOM_E", "AGCensus1970_A", "AGCensus1970_T", "AGCensus1970_S", "AGCensus1970_L", "AGCensus1970_E", "AGCensus1970_BOM_A", "AGCensus1970_BOM_T", "AGCensus1970_BOM_L", "AGCensus1970_BOM_S", "AGCensus1970_BOM_E",  "AGCensus1991_T", "AGCensus2007_T", "SIAP_4_2003", "SIAP_4_2003a", "SIAP_4_2020", "SIAP_4_2020a", "SIAP_4_Avg", "SIAP_4_Avg_T")
 
-rm(EarlyColonial_dens2, LateColonial_dens2, SandersAztec_dens2, AGCensus1960_T_dens2, AGCensus1960_A_dens2, SandersC20_dens2, AGCensus1991_dens2, SIAP_4_2003_dens2, SIAP_4_2003a_dens2, AGCensus2007_dens2, SIAP_4_2020_dens2, SIAP_4_2020a_dens2, SIAP_4_Avg_dens2, SIAP_4_Avg_T_dens2, s, nnn, EarlyColonial_dens, LateColonial_dens, SandersAztec_dens, AGCensus1960_T_dens, AGCensus1960_A_dens, AGCensus1960_L_dens, AGCensus1960_S_dens, AGCensus1960_E_dens, AGCensus1960_BOM_A_dens, AGCensus1960_BOM_T_dens, AGCensus1960_BOM_L_dens, AGCensus1960_BOM_S_dens, AGCensus1960_BOM_E_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003_dens, SIAP_4_2003a_dens, AGCensus2007_dens, SIAP_4_2020_dens, SIAP_4_2020a_dens, SIAP_4_Avg_dens, SIAP_4_Avg_T_dens,EarlyColonial, LateColonial, AGCensus1960_A, AGCensus1960_T, AGCensus1960_S, AGCensus1960_L, AGCensus1960_E, AGCensus1960_BOM_A, AGCensus1960_BOM_T, AGCensus1960_BOM_L, AGCensus1960_BOM_S, AGCensus1960_BOM_E, AGCensus1991_T, AGCensus2007_T, SIAP_4_2003, SIAP_4_2003a, SIAP_4_2020, SIAP_4_2020a, SIAP_4_Avg, SIAP_4_Avg_T, Colonial, AGCensus1960, AGCensus1991, AGCensus2007, SandersAztec, SandersC20)
+CY_data_list <- list(Colonial, AGCensus1960, AGCensus1970, AGCensus1991, AGCensus2007, SandersAztec, SandersC20)
+names(CY_data_list) <- c("Colonial", "AGCensus1960", "AGCensus1970", "AGCensus1991", "AGCensus2007", "SandersAztec", "SandersC20")
+
+rm(EarlyColonial_dens2, LateColonial_dens2, SandersAztec_dens2, AGCensus1960_T_dens2, AGCensus1960_A_dens2, AGCensus1970_T_dens2, AGCensus1970_A_dens2, SandersC20_dens2, AGCensus1991_dens2, SIAP_4_2003_dens2, SIAP_4_2003a_dens2, AGCensus2007_dens2, SIAP_4_2020_dens2, SIAP_4_2020a_dens2, SIAP_4_Avg_dens2, SIAP_4_Avg_T_dens2, s, nnn, EarlyColonial_dens, LateColonial_dens, SandersAztec_dens,    AGCensus1960_T_dens, AGCensus1960_A_dens, AGCensus1960_L_dens, AGCensus1960_S_dens, AGCensus1960_E_dens, AGCensus1960_BOM_A_dens, AGCensus1960_BOM_T_dens, AGCensus1960_BOM_L_dens, AGCensus1960_BOM_S_dens, AGCensus1960_BOM_E_dens,  AGCensus1970_T_dens, AGCensus1970_A_dens, AGCensus1970_L_dens, AGCensus1970_S_dens, AGCensus1970_E_dens, AGCensus1970_BOM_A_dens, AGCensus1970_BOM_T_dens, AGCensus1970_BOM_L_dens, AGCensus1970_BOM_S_dens, AGCensus1970_BOM_E_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003_dens, SIAP_4_2003a_dens, AGCensus2007_dens, SIAP_4_2020_dens, SIAP_4_2020a_dens, SIAP_4_Avg_dens, SIAP_4_Avg_T_dens,EarlyColonial, LateColonial, AGCensus1960_A, AGCensus1960_T, AGCensus1960_S, AGCensus1960_L, AGCensus1960_E, AGCensus1960_BOM_A, AGCensus1960_BOM_T, AGCensus1960_BOM_L, AGCensus1960_BOM_S, AGCensus1960_BOM_E, 
+      AGCensus1970_A, AGCensus1970_T, AGCensus1970_S, AGCensus1970_L, AGCensus1970_E, AGCensus1970_BOM_A, AGCensus1970_BOM_T, AGCensus1970_BOM_L, AGCensus1970_BOM_S, AGCensus1970_BOM_E, AGCensus1991_T, AGCensus2007_T, SIAP_4_2003, SIAP_4_2003a, SIAP_4_2020, SIAP_4_2020a, SIAP_4_Avg, SIAP_4_Avg_T, Colonial, AGCensus1960, AGCensus1991, AGCensus2007, SandersAztec, SandersC20)
 ```
 
   
@@ -1496,6 +1595,8 @@ Dens.df = Dens.df %>% mutate(
       Series == "SandersC20" ~ 1300,
       Series == "SandersAztec" ~ 550,
       Series == "AGCensus1991_T" ~ 900,
+      Series == "AGCensus1970_A" ~ 275,
+      Series == "AGCensus1970_T" ~ 275,
       Series == "AGCensus1960_A" ~ 350,
       Series == "AGCensus1960_T" ~ 350,
       Series == "LateColonial" ~ 1200,
@@ -1506,6 +1607,7 @@ Dens.df = Dens.df %>% mutate(
       "Sanders\nAztec\nModel**\n\n", 
       "1960\nAgricultural\nCensus\n\n", 
       "Sanders\nmid-20th\nCentury**\n\n", 
+      "1970\nAgricultural\nCensus\n\n", 
       "1991\nAgricultural\nCensus\n\n", 
       "SIAP 2003\n", 
       "2007\nAgricultural\nCensus\n\n", 
@@ -1561,6 +1663,8 @@ knitr::include_graphics(paste0(wd$figs,"RidgelineComparativeYields.png"), FALSE)
 
 gamma_test(CY_df_list[["AGCensus1960_T"]]$Maize1960_kgha)
 gamma_test(CY_df_list[["AGCensus1960_A"]]$Maize1960_kgha)
+gamma_test(CY_df_list[["AGCensus1970_T"]]$Yield_S)
+gamma_test(CY_df_list[["AGCensus1970_A"]]$Yield_S)
 gamma_test(CY_df_list[["LateColonial"]]$Yield)
 gamma_test(CY_df_list[["EarlyColonial"]]$Yield)
 gamma_test(CY_df_list[["AGCensus1991_T"]]$Yield)
@@ -1598,6 +1702,10 @@ x5 = data.frame(CY_df_list[["AGCensus1960_A"]]$Maize1960_kgha, "AG Census 1960 -
 names(x5) = c("Yield", "Series")
 x6 = data.frame(CY_data_list[["SandersC20"]]$YieldAvg, "Sanders Ethnographic Sample")
 names(x6) = c("Yield", "Series")
+x6B = data.frame(CY_df_list[["AGCensus1970_T"]]$Yield_S, "AG Census 1970 - Average")
+names(x6B) = c("Yield", "Series")
+x6C = data.frame(CY_df_list[["AGCensus1970_A"]]$Yield_S, "AG Census 1970 - All Cases")
+names(x6C) = c("Yield", "Series")
 x7 = data.frame(CY_df_list[["AGCensus1991_T"]]$Yield, "AG Census 1991 - Average")
 names(x7) = c("Yield", "Series")
 x8 = data.frame(CY_df_list[["SIAP_4_2003"]]$Yield, "SIAP 2003 - Average")
@@ -1615,14 +1723,14 @@ names(x13) = c("Yield", "Series")
 x14 = data.frame(CY_df_list[["SIAP_4_Avg"]]$AvgYield, "SIAP 2003-2021 - All Cases")
 names(x14) = c("Yield", "Series")
 
-dat = rbind(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14)
+dat = rbind(x1, x2, x3, x4, x5, x6, x6B, x6C, x7, x8, x9, x10, x11, x12, x13, x14)
 dat = dat[complete.cases(dat), ]
 
 kruskal.test(Yield ~ Series,
   data = dat
 )
 
-z = dunnTest(Yield ~ Series,
+dunnTest(Yield ~ Series,
   data = dat,
   method = "holm"
 )
@@ -2588,11 +2696,12 @@ AGC1960 = CY_data_list[["AGCensus1960"]] %>% filter(INCLUDE == TRUE) %>%
                                     "Atltzayanca" = "Altzayanca"))) %>%
   unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>%  
   group_by(Municipio, Estado, EstadoMunicipio, Size) %>%
+  filter(!(EstadoMunicipio %in% c("San Martin Totoltepec, Puebla"))) %>% 
   summarize(Yield = sum(as.numeric(Maize1960_kg), na.rm=T) / sum(as.numeric(Maize1960_ha), na.rm=T))  %>%
   pivot_wider(names_from = Size, values_from = Yield, values_fill = NA) %>% 
   mutate(across(everything(), ~ifelse(is.nan(.), NA, .))) %>% 
   rename(Y_1960_E = Ejido, Y_1960_S = Small, Y_1960_L = Large, Y_1960_Total = Total) %>%
-  rowwise() %>% mutate(Y_1960_Max = max(Y_1960_E, Y_1960_S, Y_1960_L, Y_1960_Total, na.rm=T)) %>% ungrou()
+  rowwise() %>% mutate(Y_1960_Max = max(Y_1960_E, Y_1960_S, Y_1960_L, Y_1960_Total, na.rm=T)) %>% ungroup()
 
 
 # 1960 split municipios
@@ -2610,6 +2719,42 @@ split_cases$EstadoMunicipio = rEM
 split_cases = split_cases %>% select(-count)
 AGC1960 = AGC1960 %>% bind_rows(split_cases)
 
+
+### 1960 Agricultural Census Yields ###
+
+AGC1970 = CY_data_list[["AGCensus1970"]] %>%
+  select(Municipio, Estado, Size, Yield_S, Harvest_ha_S) %>%
+  mutate_all(~ str_replace_all(., c(" De " = " de ", 
+                                    " Del " = " del ", 
+                                    " La " = " la ", 
+                                    " Las " = " las ", 
+                                    " Los " = " los ",
+                                    " El " = " el ",
+                                    "Ziltlaltepec de Trinidad Sanchez Santos" = "Zitlaltepec de Trinidad Sanchez Santos",
+                                    "Atltzayanca" = "Altzayanca"))) %>%
+  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>%
+  filter(!(EstadoMunicipio %in% c("Santa Catarina Tlaltempan, Puebla"))) %>% 
+  group_by(Municipio, Estado, EstadoMunicipio, Size) %>%
+  summarize(Yield = as.numeric(Yield_S))  %>%
+  pivot_wider(names_from = Size, values_from = Yield, values_fill = NA) %>%
+  mutate(across(everything(), ~ifelse(is.nan(.), NA, .))) %>% 
+  rename(Y_1970_E = Ejido, Y_1970_S = Small, Y_1970_L = Large, Y_1970_Total = Total) %>%
+  rowwise() %>% mutate(Y_1970_Max = max(Y_1970_E, Y_1970_S, Y_1970_L, Y_1970_Total, na.rm=T)) %>% ungroup()
+
+# 1970 split municipios
+
+rEM = c("Santa Cruz Quilehtla, Tlaxcala", "Valle de Chalco Solidaridad, Mexico", "La Magdalena Tlaltelulco, Tlaxcala", "San Francisco Tetlanohcan, Tlaxcala", "Cuautitlan Izcalli, Mexico", "Santa Ana Nopalucan, Tlaxcala", "Tonanitla, Mexico", "Santa Apolonia Teacalco, Tlaxcala", "San Jose del Rincon, Mexico", "Benito Juarez, Tlaxcala", "San Juan Huactzinco, Tlaxcala", "Santa Catarina Ayometla, Tlaxcala", "Emiliano Zapata, Tlaxcala", "Lazaro Cardenas, Tlaxcala", "San Damian Texoloc, Tlaxcala", "San Jeronimo Zacualpan, Tlaxcala", "Tlahuelilpan, Hidalgo", "San Jose Teacalco, Tlaxcala", "San Lucas Tecopilco, Tlaxcala", "San Lorenzo Axocomanitla, Tlaxcala", "Santa Isabel Xiloxoxtla, Tlaxcala")#"Cuauhtemoc, Distrito Federal", "Venustiano Carranza, Distrito Federal", "Benito Juarez, Distrito Federal",, "Temoac, Morelos"
+rM = sub(",.*", "", rEM)
+
+split_cases = AGC1970 %>% filter(EstadoMunicipio %in% c("Cuautitlan, Mexico", "Chalco, Mexico", "Jaltenco, Mexico", "San Felipe del Progreso, Mexico",  "Tezontepec de Aldama, Hidalgo", "Sanctorum de Lazaro Cardenas, Tlaxcala", "Ixtacuixtla de Mariano Matamoros, Tlaxcala", "Nativitas, Tlaxcala", "Tetlatlahuca, Tlaxcala", "Zacatelco, Tlaxcala", "Tepeyanco, Tlaxcala", "Acuamanala de Miguel Hidalgo, Tlaxcala", "Chiautempan, Tlaxcala", "Tzompantepec, Tlaxcala", "Xaltocan, Tlaxcala", "Terrenate, Tlaxcala")) %>% #"Miguel Hidalgo, Distrito Federal", "Zacualpan, Morelos",
+  mutate(count = 1,
+         #count = ifelse(EstadoMunicipio == "Miguel Hidalgo, Distrito Federal", 3, count),
+         count = ifelse(EstadoMunicipio %in% c("Tepeyanco, Tlaxcala", "Zacatelco, Tlaxcala","Tetlatlahuca, Tlaxcala", "Chiautempan, Tlaxcala", "Terrenate, Tlaxcala"), 2, count))  %>% 
+  slice(rep(row_number(), count)) 
+split_cases$Municipio = rM
+split_cases$EstadoMunicipio = rEM
+split_cases = split_cases %>% select(-count)
+AGC1970 = AGC1970 %>% bind_rows(split_cases)
 
 
 ### 1991 Agricultural Census Yields ###
@@ -2729,6 +2874,7 @@ rm(SIAP_annual, SIAP_averages, x, split_cases, rEM, rM)
 
 MunicipioYields <- Municipios2000s %>% 
   left_join(AGC1960, by = c("Municipio", "Estado", "EstadoMunicipio")) %>%
+  left_join(AGC1970, by = c("Municipio", "Estado", "EstadoMunicipio")) %>%
   left_join(AGC1991, by = c("Municipio", "Estado", "EstadoMunicipio")) %>%
   left_join(AGC2007, by = c("Municipio", "Estado", "EstadoMunicipio")) %>%
   left_join(SIAP_yields, by = c("Municipio", "Estado", "EstadoMunicipio")) %>%
@@ -2822,10 +2968,10 @@ myLegendTitle = "Z-Score\nMaize\nYield" #"Maize\nYield\n(kg/ha)"
 
 map_list = list()
 
-var = c("Y_1960_Total", "Y_1960_E", "Y_1960_L", "Y_1960_S", "Y_1991_Total", "Y_AGC2007_Total", "AvgYield_Total", "AvgYield_Irrig", "AvgYield_Temp")
-tit = c("Central Mexico Study Region - 1960 Agricultural Census", "Central Mexico Study Region - 1960 Agricultural Census", "Central Mexico Study Region - 1960 Agricultural Census", "Central Mexico Study Region - 1960 Agricultural Census", "Central Mexico Study Region - 1991 Agricultural Census", "Central Mexico Study Region - 2007 Agricultural Census", "Central Mexico Study Region - SIAP 2003-2021", "Central Mexico Study Region - SIAP 2003-2021", "Central Mexico Study Region - SIAP 2003-2021")
-subtit = c("Z-Score Average Overall Maize Yield", "Z-Score Average Ejido Maize Yield", "Z-Score Average Large Farm Maize Yield", "Z-Score Average Small Farm Maize Yield", "Z-Score Average Overall Maize Yield", "Z-Score Average Overall Maize Yield", "Z-Score Average Overall Maize Yield", "Z-Score Average Irrigation Maize Yield", "Z-Score Average Temporal Maize Yield")
-name=c("Y_1960_Total", "Y_1960_E", "Y_1960_L", "Y_1960_S", "Y_1991_Total", "Y_AGC2007_Total", "SIAP_AvgYield_Total", "SIAP_AvgYield_Irrig", "SIAP_AvgYield_Temp")
+var = c("Y_1960_Total", "Y_1960_E", "Y_1960_L", "Y_1960_S", "Y_1960_Max","Y_1970_Total", "Y_1970_E", "Y_1970_L", "Y_1970_S", "Y_1970_Max", "Y_1991_Total", "Y_AGC2007_Total", "AvgYield_Total", "AvgYield_Irrig", "AvgYield_Temp")
+tit = c("Central Mexico Study Region - 1960 Agricultural Census", "Central Mexico Study Region - 1960 Agricultural Census", "Central Mexico Study Region - 1960 Agricultural Census", "Central Mexico Study Region - 1960 Agricultural Census", "Central Mexico Study Region - 1960 Agricultural Census", "Central Mexico Study Region - 1970 Agricultural Census", "Central Mexico Study Region - 1970 Agricultural Census", "Central Mexico Study Region - 1970 Agricultural Census", "Central Mexico Study Region - 1970 Agricultural Census", "Central Mexico Study Region - 1970 Agricultural Census", "Central Mexico Study Region - 1991 Agricultural Census", "Central Mexico Study Region - 2007 Agricultural Census", "Central Mexico Study Region - SIAP 2003-2021", "Central Mexico Study Region - SIAP 2003-2021", "Central Mexico Study Region - SIAP 2003-2021")
+subtit = c("Z-Score Average Overall Maize Yield", "Z-Score Average Ejido Maize Yield", "Z-Score Average Large Farm Maize Yield", "Z-Score Average Small Farm Maize Yield", "Z-Score Max Average Maize Yield","Z-Score Average Overall Maize Yield", "Z-Score Average Ejido Maize Yield", "Z-Score Average Large Farm Maize Yield", "Z-Score Average Small Farm Maize Yield", "Z-Score Max Average Maize Yield", "Z-Score Average Overall Maize Yield", "Z-Score Average Overall Maize Yield", "Z-Score Average Overall Maize Yield", "Z-Score Average Irrigation Maize Yield", "Z-Score Average Temporal Maize Yield")
+name=c("Y_1960_Total", "Y_1960_E", "Y_1960_L", "Y_1960_S", "Y_1960_Max", "Y_1970_Total", "Y_1970_E", "Y_1970_L", "Y_1970_S", "Y_1970_Max","Y_1991_Total", "Y_AGC2007_Total", "SIAP_AvgYield_Total", "SIAP_AvgYield_Irrig", "SIAP_AvgYield_Temp")
 
 
 for (i in 1:length(var)) {
@@ -2838,7 +2984,7 @@ for (i in 1:length(var)) {
                              sf1_fill_legend_title = myLegendTitle, sf1_fill_legend_limits = myLimits,
                              sf1_fill_legend_breaks = myBreaks, sf2 = Estados, sf2_geom = geom,
                              sf2_label_column = NOM_ENT, sf2_label_nudge_x = Estados2$my_nudge_x, 
-                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = t, mysubtitle = s,
+                             sf2_label_nudge_y = Estados2$my_nudge_y, mytitle = t, mysubtitle = s, global_moran = T,
                              moran_nb = nb, moran_wt = wt, moran_val = val, moran_box = c(572000, 626450, 2195909, 2252689))
 } 
   
