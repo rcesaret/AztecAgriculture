@@ -1605,6 +1605,8 @@ np = gsub("_", "-", np)
 np = as.yearmon(np)
 terra::time(pdsi_ts)<-np
 
+pdsi_ts_latlon <- rast(paste0(wd$data_p, "pdsi_ts_latlon.tif"))
+
 writeRaster(pdsi_ts, filename = paste0(wd$data_p, "pdsi_ts_latlon.tif"), overwrite=TRUE)
 pdsi_ts = resample(pdsi_ts, AWCh1_temp, method="bilinear")
 pdsi_ts <- project(pdsi_ts, resample_100m)
@@ -1622,14 +1624,14 @@ rm(a, pdsi_rast, pdsi_temp, pdsi_mat, np, AWC_df, pet_df, pr_df, pet_mat, pr_mat
 # Assuming your SpatRaster stack is named 'raster_stack'
 
 # Subset the months of June, July, and August for the years 2003-2018
-pdsi_ts_JunAug <- subset(pdsi_ts, which(substr(time(pdsi_ts), 6, 7) %in% c("06", "07", "08") & as.integer(substr(time(raster_stack), 1, 4)) >= 2003))
+pdsi_ts_JunAug <- subset(pdsi_ts_latlon, which(substr(time(pdsi_ts_latlon), 5, 6) %in% c(".4", ".5") & as.integer(substr(time(pdsi_ts_latlon), 1, 4)) >= 2003))
 
 # Calculate the average of June-August for each year
-pdsi_ts_JunAug_Avg <- apply(pdsi_ts_Jun_Aug, 'year', mean)
+pdsi_ts_JunAug_Avg =tapp(pdsi_ts_JunAug, index="years", fun=mean)
 
 # Take the inter-annual mean of the June-August averages across all years
 pdsi_JunAug_2003_2018_mean <- mosaic(pdsi_ts_JunAug_Avg, mean)
-
+pdsi_JunAug_2003_2018_mean <- app(pdsi_ts_JunAug_Avg, mean)
 ```
 
 

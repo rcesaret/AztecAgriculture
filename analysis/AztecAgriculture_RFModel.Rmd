@@ -1323,6 +1323,10 @@ zzz = x %>% select(-EstadoMunicipio, -Estado, -Municipio)
 zzz = zzz[complete.cases(zzz), ]
 
 xxx = x[complete.cases(x), ]
+
+xxxT = xxx %>% filter(AGType == "Temporal") %>% select(-AGType)
+
+xxxI = xxx %>% filter(AGType == "Riego") %>% select(-AGType)
 ```
 
 
@@ -1391,8 +1395,12 @@ Train_Env = Tot %>% select(-Estado_ID, -Municipio_ID) %>%
 
 ```{r, label='Avg Yield Variable Selection', message=FALSE,warning=FALSE}
 #boruta = readRDS(paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
-
-boruta <- Boruta(AvgYield ~ ., data = xxx[,c(4,6:80)], maxRuns = 100)#, doTrace = 2
+boruta <- Boruta(AvgYield ~ ., data = xxx[,c(4,6:ncol(xxx))], maxRuns = 500)#, doTrace = 2
+boruta <- Boruta(AvgYield ~ ., data = xxxT[,c(4,6:ncol(xxxT))], maxRuns = 500)#, doTrace = 2
+boruta <- Boruta(AvgYield ~ ., data = xxxI[,c(4,6:ncol(xxxI))], maxRuns = 500)#, doTrace = 2
+boruta <- Boruta(cvYield ~ ., data = xxx[,c(5,6:ncol(xxx))], maxRuns = 500)#, doTrace = 2
+boruta <- Boruta(cvYield ~ ., data = xxxT[,c(5,6:ncol(xxxT))], maxRuns = 500)#, doTrace = 2
+boruta <- Boruta(cvYield ~ ., data = xxxI[,c(5,6:ncol(xxxI))], maxRuns = 500)#, doTrace = 2
 print(boruta)
 boruta[["finalDecision"]]
 plot(boruta, las = 2, cex.axis = 0.7)
@@ -1416,9 +1424,9 @@ saveRDS(boruta, file = paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
 #AGType_RF_model = readRDS(paste0(wd$data_p,"AGType_RFModel_Ranger.rda"))
 #AGType_RF_model_prob = readRDS(paste0(wd$data_p,"AGType_RFModel_Ranger_Prob.rda"))
 
-AGType_RF_model <- ranger(formula = form, data = AGType_RF_Train_df)
+RF_model <- ranger(formula = form, data = xxxT)
 
-print(AGType_RF_model)
+print(RF_model)
 
 # saving the model
 saveRDS(AGType_RF_model, file = paste0(wd$data_p,"AGType_RFModel_Ranger.rda"))
