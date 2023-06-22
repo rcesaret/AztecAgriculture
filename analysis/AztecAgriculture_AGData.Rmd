@@ -1551,7 +1551,7 @@ CY_data_list <- list(Colonial, AGCensus1960, AGCensus1970, AGCensus1991, AGCensu
 names(CY_data_list) <- c("Colonial", "AGCensus1960", "AGCensus1970", "AGCensus1991", "AGCensus2007", "SandersAztec", "SandersC20")
 
 rm(EarlyColonial_dens2, LateColonial_dens2, SandersAztec_dens2, AGCensus1960_T_dens2, AGCensus1960_A_dens2, AGCensus1970_T_dens2, AGCensus1970_A_dens2, SandersC20_dens2, AGCensus1991_dens2, SIAP_4_2003_dens2, SIAP_4_2003a_dens2, AGCensus2007_dens2, SIAP_4_2020_dens2, SIAP_4_2020a_dens2, SIAP_4_Avg_dens2, SIAP_4_Avg_T_dens2, s, nnn, EarlyColonial_dens, LateColonial_dens, SandersAztec_dens,    AGCensus1960_T_dens, AGCensus1960_A_dens, AGCensus1960_L_dens, AGCensus1960_S_dens, AGCensus1960_E_dens, AGCensus1960_BOM_A_dens, AGCensus1960_BOM_T_dens, AGCensus1960_BOM_L_dens, AGCensus1960_BOM_S_dens, AGCensus1960_BOM_E_dens,  AGCensus1970_T_dens, AGCensus1970_A_dens, AGCensus1970_L_dens, AGCensus1970_S_dens, AGCensus1970_E_dens, AGCensus1970_BOM_A_dens, AGCensus1970_BOM_T_dens, AGCensus1970_BOM_L_dens, AGCensus1970_BOM_S_dens, AGCensus1970_BOM_E_dens, SandersC20_dens, AGCensus1991_dens, SIAP_4_2003_dens, SIAP_4_2003a_dens, AGCensus2007_dens, SIAP_4_2020_dens, SIAP_4_2020a_dens, SIAP_4_Avg_dens, SIAP_4_Avg_T_dens,EarlyColonial, LateColonial, AGCensus1960_A, AGCensus1960_T, AGCensus1960_S, AGCensus1960_L, AGCensus1960_E, AGCensus1960_BOM_A, AGCensus1960_BOM_T, AGCensus1960_BOM_L, AGCensus1960_BOM_S, AGCensus1960_BOM_E, 
-      AGCensus1970_A, AGCensus1970_T, AGCensus1970_S, AGCensus1970_L, AGCensus1970_E, AGCensus1970_BOM_A, AGCensus1970_BOM_T, AGCensus1970_BOM_L, AGCensus1970_BOM_S, AGCensus1970_BOM_E, AGCensus1991_T, AGCensus2007_T, SIAP_4_2003, SIAP_4_2003a, SIAP_4_2020, SIAP_4_2020a, SIAP_4_Avg, SIAP_4_Avg_T, Colonial, AGCensus1960, AGCensus1991, AGCensus2007, SandersAztec, SandersC20)
+      AGCensus1970_A, AGCensus1970_T, AGCensus1970_S, AGCensus1970_L, AGCensus1970_E, AGCensus1970_BOM_A, AGCensus1970_BOM_T, AGCensus1970_BOM_L, AGCensus1970_BOM_S, AGCensus1970_BOM_E, AGCensus1991_T, AGCensus2007_T, SIAP_4_2003, SIAP_4_2003a, SIAP_4_2020, SIAP_4_2020a, SIAP_4_Avg, SIAP_4_Avg_T, Colonial, AGCensus1960, AGCensus1970, AGCensus1991, AGCensus2007, SandersAztec, SandersC20)
 ```
 
   
@@ -2719,6 +2719,7 @@ split_cases$EstadoMunicipio = rEM
 split_cases = split_cases %>% select(-count)
 AGC1960 = AGC1960 %>% bind_rows(split_cases)
 
+write.csv(AGC1960, paste0(wd$data_p,"AGC1960.csv"))
 
 ### 1960 Agricultural Census Yields ###
 
@@ -2756,6 +2757,7 @@ split_cases$EstadoMunicipio = rEM
 split_cases = split_cases %>% select(-count)
 AGC1970 = AGC1970 %>% bind_rows(split_cases)
 
+write.csv(AGC1970, paste0(wd$data_p,"AGC1970.csv"))
 
 ### 1991 Agricultural Census Yields ###
 
@@ -2789,6 +2791,8 @@ split_cases$EstadoMunicipio = rEM
 split_cases = split_cases %>% select(-count)
 AGC1991 = AGC1991 %>% bind_rows(split_cases)
 
+write.csv(AGC1991, paste0(wd$data_p,"AGC1991.csv"))
+
 
 ### 2007 Agricultural Census Yields ###
 
@@ -2807,7 +2811,7 @@ AGC2007 = CY_data_list[["AGCensus2007"]] %>%
   mutate(Y_AGC2007_Total = as.numeric(Y_AGC2007_Total))# %>%
   #mutate(AGType = "Total")
 
-
+write.csv(AGC2007, paste0(wd$data_p,"AGC2007.csv"))
 
 if (CASES_REMOVE == TRUE) {
   
