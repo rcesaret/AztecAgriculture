@@ -185,7 +185,23 @@ PopCensus2010 <- PopCensus2010 %>%
   # remove a number of unwanted variables
   select(-MUN, -ORD, -MUN_NUM, -INCLUDE) %>% 
   # create a variable that joins state and municipality written names ("[municipality], [state]")
-  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F)
+  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>% 
+  mutate(Municipio = str_replace_all(Municipio, c(" De " = " de ",
+                                                  " Del " = " del ",
+                                                  " La " = " la ",
+                                                  " Las " = " las ",
+                                                  " Los " = " los ",
+                                                  " El " = " el ",
+                                                  "Ziltlaltepec" = "Zitlaltepec",
+                                                  "Atltzayanca" = "Altzayanca")),
+         EstadoMunicipio = str_replace_all(EstadoMunicipio, c(" De " = " de ",
+                                                              " Del " = " del ",
+                                                              " La " = " la ",
+                                                              " Las " = " las ",
+                                                              " Los " = " los ",
+                                                              " El " = " el ",
+                                                              "Ziltlaltepec" = "Zitlaltepec",
+                                                              "Atltzayanca" = "Altzayanca")))
 
 # left join the 2010 population census data with the municipality dataframe
 PopCensus2010 <- Municipios2000s_Cases %>% left_join(PopCensus2010, by=c('EstadoMunicipio', 'Municipio', 'Estado'))
@@ -209,7 +225,23 @@ AGCensus2007 <- AGCensus2007 %>% left_join(AGCensus2007_Irrig, by="ORD") %>%
   # remove a number of unwanted variables
   select(-Region, -ORD, -Num, -INCLUDE, -Name, -State) %>% 
   # create a variable that joins state and municipality written names ("[municipality], [state]")
-  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F)
+  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>% 
+  mutate(Municipio = str_replace_all(Municipio, c(" De " = " de ",
+                                                  " Del " = " del ",
+                                                  " La " = " la ",
+                                                  " Las " = " las ",
+                                                  " Los " = " los ",
+                                                  " El " = " el ",
+                                                  "Ziltlaltepec" = "Zitlaltepec",
+                                                  "Atltzayanca" = "Altzayanca")),
+         EstadoMunicipio = str_replace_all(EstadoMunicipio, c(" De " = " de ",
+                                                              " Del " = " del ",
+                                                              " La " = " la ",
+                                                              " Las " = " las ",
+                                                              " Los " = " los ",
+                                                              " El " = " el ",
+                                                              "Ziltlaltepec" = "Zitlaltepec",
+                                                              "Atltzayanca" = "Altzayanca")))
 rm(AGCensus2007_Irrig)
 ```
 

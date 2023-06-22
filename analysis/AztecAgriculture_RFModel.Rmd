@@ -699,11 +699,10 @@ LU2000e <- st_read(paste0(wd$data_r, "LU2000e.gpkg"))
 
 SIAP_LU_poly = LU2000e %>% left_join(SIAP_5_remove_cases_rs, by = c("EstadoMunicipio", "AGType")) %>% select(-ddr_ID, -ddr, -Cader_ID, -Cader, -Municipio_ID.y, -Municipio.y, -Estado_ID.y, -Estado.y, -Area_m2) %>% rename( Municipio = Municipio.x, Estado = Estado.x, Estado_ID = Estado_ID.x, Municipio_ID = Municipio_ID.x, AGType_Area_ha = Area_ha)
 
-Census2000s <- read.csv(paste0(wd$data_p,"CensusData2000s.csv")) %>% mutate(Estado_ID = as.character(Estado_ID), Municipio_ID = as.character(Municipio_ID))
+Census2000s <- read.csv(paste0(wd$data_p,"CensusData2000s.csv")) %>% select(-Estado_ID, -Municipio_ID, -X)
 #Census2000s_poly <- st_read(paste0(wd$data_p, "Census2000s_poly.gpkg")) 
 
-Data2000s_poly_rs = SIAP_LU_poly %>% left_join(Census2000s, 
-           by = c("EstadoMunicipio", "Municipio", "Estado", "Estado_ID", "Municipio_ID"))
+Data2000s_poly_rs = SIAP_LU_poly %>% left_join(Census2000s, by = c("EstadoMunicipio", "Estado", "Municipio"))
 
 st_write(Data2000s_poly_rs, paste0(wd$data_p, "Data2000s_poly_rescale.gpkg"), driver = "GPKG", overwrite=TRUE, append=FALSE)
 
@@ -1089,7 +1088,6 @@ rm(nb, wt, paths, names, n, map_list, v, t, s, val, var, tit, subtit, name, myLe
 ### Load Environmental Predictor Data from Previous Scripts
 
 ```{r, label='Import Data', message=FALSE,warning=FALSE}
-#Municipios2000s <- st_read(paste0(wd$data_p, "Municipios2000s_Data.gpkg"))
 
 #Data2000s_poly <- st_read(paste0(wd$data_p, "Data2000s_poly.gpkg"))
 #Data2000s_poly_rs <- st_read(paste0(wd$data_p, "Data2000s_poly_rescale.gpkg"))
@@ -1108,18 +1106,57 @@ Clim <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
 
 ```{r, label='Subset Environmental Data Rasters', message=FALSE,warning=FALSE}
 
-Soil_r_sub <- subset(Soil_r, c("BD","S", "Z","C","SOC","CEC","OCD","N", "BDRICM", "BDTICM"))
+Soil_sub <- subset(Soil, c("BDRICM", "BDRLOG", "BDTICM", "AWCtS", "AWCtS_2m", "BD", 
+                               "S", "Z", "C", "CF", "SOC", "CEC","OCD", "N", "SOCS"))
 
-TopoEnv_r_sub <- subset(TopoEnv_r, c("DEM", "Slope","Accum", "TRI", "TWI", "STI", "SPI"))
+Topo_sub <- subset(Topo, c("DEM", "Slope","Accum", "TRI", "TWI", "STI", "SPI", 
+                                     "curv_min", "curv_max", "curv_mean", "DistStreams", 
+                                     "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2",
+                                     "elev_watershed", "FloodOrder_Rel"))
 
-Clim_r_sub <- subset(Clim_r, c("prec_04", "prec_05", "prec_06", "prec_07", "prec_08", "prec_09", "prec_10", "prec_11",
-                               "pr_04", "pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", "pr_11",
-                               "tmean_04", "tmean_05", "tmean_06", "tmean_07", "tmean_08", "tmean_09", "tmean_10", "tmean_11", 
-                               "tmin_04","tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10","tmin_11",
-                               "clt_04", "clt_05", "clt_06", "clt_07", "clt_08", "clt_09", "clt_10", "clt_11", 
-                               "rsds_04", "rsds_05", "rsds_06", "rsds_07", "rsds_08", "rsds_09", "rsds_10", "rsds_11"
-                               ))
+pr_spring = app(subset(Clim, c("pr_04", "pr_05")), sum)
+pr_summer = app(subset(Clim, c("pr_06", "pr_07","pr_08")), sum)
+pr_fall = app(subset(Clim, c("pr_09", "pr_10")), sum)
 
+tas_spring = app(subset(Clim, c("tas_04", "tas_05")), mean)
+tas_summer = app(subset(Clim, c("tas_06", "tas_07","tas_08")), mean)
+tas_fall = app(subset(Clim, c("tas_09", "tas_10")), mean)
+
+tasmin_spring = app(subset(Clim, c("tasmin_04", "tasmin_05")), mean)
+tasmin_summer = app(subset(Clim, c("tasmin_06", "tasmin_07","tasmin_08")), mean)
+tasmin_fall = app(subset(Clim, c("tasmin_09", "tasmin_10")), mean)
+
+tasmax_spring = app(subset(Clim, c("tasmax_04", "tasmax_05")), mean)
+tasmax_summer = app(subset(Clim, c("tasmax_06", "tasmax_07","tasmax_08")), mean)
+tasmax_fall = app(subset(Clim, c("tasmax_09", "tasmax_10")), mean)
+
+pet_spring = app(subset(Clim, c("pet_04", "pet_05")), mean)
+pet_summer = app(subset(Clim, c("pet_06", "pet_07","pet_08")), mean)
+pet_fall = app(subset(Clim, c("pet_09", "pet_10")), mean)
+
+cmi_spring = app(subset(Clim, c("cmi_04", "cmi_05")), mean)
+cmi_summer = app(subset(Clim, c("cmi_06", "cmi_07","cmi_08")), mean)
+cmi_fall = app(subset(Clim, c("cmi_09", "cmi_10")), mean)
+
+clt_spring = app(subset(Clim, c("clt_04", "clt_05")), mean)
+clt_summer = app(subset(Clim, c("clt_06", "clt_07","clt_08")), mean)
+clt_fall = app(subset(Clim, c("clt_09", "clt_10")), mean)
+
+rsds_spring = app(subset(Clim, c("rsds_04", "rsds_05")), mean)
+rsds_summer = app(subset(Clim, c("rsds_06", "rsds_07","rsds_08")), mean)
+rsds_fall = app(subset(Clim, c("rsds_09", "rsds_10")), mean)
+
+Clim_sub <- subset(Clim, c("npp", "swb", "gdd10"))
+
+Clim_sub <- c(Clim_sub, pr_spring, pr_summer, pr_fall, tas_spring, tas_summer, tas_fall, tasmin_spring, tasmin_summer, tasmin_fall, tasmax_spring, tasmax_summer, tasmax_fall, pet_spring, pet_summer, pet_fall, cmi_spring, cmi_summer, cmi_fall, clt_spring, clt_summer, clt_fall, rsds_spring, rsds_summer, rsds_fall)
+
+names(Clim_sub) <- c("npp", "swb", "gdd10", "pr_spring", "pr_summer", "pr_fall", "tas_spring", "tas_summer", "tas_fall", "tasmin_spring", "tasmin_summer", "tasmin_fall", "tasmax_spring", "tasmax_summer", "tasmax_fall", "pet_spring", "pet_summer", "pet_fall", "cmi_spring", "cmi_summer", "cmi_fall", "clt_spring", "clt_summer", "clt_fall", "rsds_spring", "rsds_summer", "rsds_fall")
+
+writeRaster(Clim_sub, filename = paste0(wd$data_p, "Clim_sub_RF.tif"), overwrite=TRUE)
+
+rm(Clim_sub, pr_spring, pr_summer, pr_fall, tas_spring, tas_summer, tas_fall, tasmin_spring, tasmin_summer, tasmin_fall, tasmax_spring, tasmax_summer, tasmax_fall, pet_spring, pet_summer, pet_fall, cmi_spring, cmi_summer, cmi_fall, clt_spring, clt_summer, clt_fall, rsds_spring, rsds_summer, rsds_fall)
+
+Clim_sub <- rast(paste0(wd$data_p, "Clim_sub_RF.tif"))
 ```
 
 
@@ -1128,15 +1165,15 @@ Clim_r_sub <- subset(Clim_r, c("prec_04", "prec_05", "prec_06", "prec_07", "prec
 
 ```{r, label='Extract Raster Values', message=FALSE,warning=FALSE}
 
-topo_vals <- exact_extract(x = TopoEnv_r_sub, y = Data2000s_poly, fun = "mean", 
+topo_vals <- exact_extract(x = Topo_sub, y = Data2000s_poly_rs, fun = "mean", 
                            max_cells_in_memory = 8e+08, stack_apply=T, 
                            append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
 
-soil_vals <- exact_extract(x = Soil_r_sub, y = Data2000s_poly, fun = "mean", 
+soil_vals <- exact_extract(x = Soil_sub, y = Data2000s_poly_rs, fun = "mean", 
                            max_cells_in_memory = 8e+08, stack_apply=T, 
                            append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
 
-clim_vals <- exact_extract(x = Clim_r_sub, y = Data2000s_poly, fun = "mean", 
+clim_vals <- exact_extract(x = Clim_sub, y = Data2000s_poly_rs, fun = "mean", 
                            max_cells_in_memory = 8e+08, stack_apply=T, 
                            append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
 
@@ -1159,7 +1196,33 @@ rm(topo_vals, soil_vals, clim_vals)
 
 ```{r, label='Prepare Agricultural Data', message=FALSE,warning=FALSE}
 
-x = st_drop_geometry(Data2000s_poly)# %>% filter(-1:3)
+
+```
+
+### Calculate Additional Variables
+
+```{r}
+Municipios2000s <- st_read(paste0(wd$data_p, "Municipios2000s_Data.gpkg"))
+
+ArableArea_100m <- rast(paste0(wd$data_p, "ArableArea_100m.tif"))
+ArableArea_100m <- as.numeric(ArableArea_100m)
+ArableArea_100m <- ifel(ArableArea_100m < 2, 0, 1)
+
+temp = vect(Data2000s_poly_rs)
+temp <- terra::rasterize(temp, ArableArea_100m, values = 1, background = 0)
+
+ArableArea_100m = ArableArea_100m + temp
+ArableArea_100m <- ifel(ArableArea_100m > 0, 1, 0)
+
+Arable <- exact_extract(x = ArableArea_100m, y = Municipios2000s, fun = "sum", 
+                           max_cells_in_memory = 8e+08, stack_apply=T, 
+                           append_cols = c("EstadoMunicipio","Estado", "Municipio"))
+
+Arable$Arable_ha <- Arable$sum*98.33216*101.2707/10000
+Arable = Arable %>% select(-sum)
+
+
+x = st_drop_geometry(Data2000s_poly_RS)# %>% filter(-1:3)
 x = x %>% filter(!(EstadoMunicipio %in% c("Ixtapaluca, Mexico", "Valle de Chalco Solidaridad, Mexico", "Milpa Alta, Distrito Federal", "Tlahuac, Distrito Federal", "Xochimilco, Distrito Federal", "Axapusco, Mexico") & AGType %in% "Riego"))
 
 #x = x[,-c(1:5)]
@@ -1173,10 +1236,55 @@ Tot = x %>% select(-AvgYield_Total, -sdYield_Total, -cvYield_Total,
                    -ITr_AvgYieldLoss,  -ITr_cvYieldLoss, -minYieldLoss) %>% 
   filter(complete.cases(.))
 
+Accessability to urban pop
+Accessability to rural pop
+Accessability to arable area
+Accessability to pop density
+Accessability to % primary
+Overall size of arable area and labor force?
+% of cultivation irrigated
+Accessability to % irrigated / irrigated_ha
+Arable Area as denomenator for intensive labor input Metrics
 
+Modifiers for numerator for labor and capital input metrics:
+AvgPctArea_Maize_Total
+AvgPctArea_Maize_Crops_Total
+
+AvgPctArea_Maize_Temp
+AvgPctArea_Maize_Crops_Temp
+AvgArea_Irrig
+AvgArea_Irrig_Maize
+AvgPctArea_Maize_Crops_Irrig
+AvgPctArea_Maize_Irrig
+AvgPctArea_Maize_Crops_Temp
+AvgPctArea_Maize_Temp
+AvgArea_Total
+AvgArea_Total_Maize
+AvgArea_Temp_Maize
+AvgArea_Temp
+Reigo_ha
+Temporal_ha
+Area_ha
+Techniques
+Fertilizer
+LU_Total
+LU_Total_perHa
+PopDens
+Pop_Urban
+Pop_Rural
+Pop_Pct_Rural
+Primary
+AG_Workers
+AGType_Area_ha
+
+AGType (MAKE SURE ITS A FACTOR)
+
+DEPENDENT VARS = 
+  AvgYield
+  cvYield
 # Find rows with NA, NaN, or Inf values
 #rows_with_na <- apply(Tot, 1, function(row) any(is.na(row) | is.nan(row) | is.infinite(row)))
-
+  
 # Find columns with NA, NaN, or Inf values
 #columns_with_na <- apply(Tot, 2, function(column) any(is.na(column) | is.nan(column) | is.infinite(column)))
 
@@ -1186,24 +1294,18 @@ Tot = x %>% select(-AvgYield_Total, -sdYield_Total, -cvYield_Total,
 #cat("\n")
 #cat("Columns with NA, NaN, or Inf values:\n")
 #print(which(columns_with_na))
-
-```
-
-### Calculate Additional Variables
-
-```{r}
-
 ```
 
 ### Remove Cases
-
-
+Teotihuacan, Mexico
+Otumba, Mexico
+Tezoyuca, Mexico
+San Martin de las Piramides, Mexico
+Acolman, Mexico
 ```{r}
-filter(!(EstadoMunicipio %in% E_TLAXCALA & AGType %in% "Riego"))
-filter(!(EstadoMunicipio %in% Remove_Irrigation & AGType %in% "Riego"))
-filter(!(EstadoMunicipio %in% Remove_Temporal & AGType %in% "Riego"))
 
-Remove Irrigation
+
+#Remove Irrigation
 E_TLAXCALA = c("Emiliano Zapata, Tlaxcala", "Lazaro Cardenas, Tlaxcala", "Terrenate, Tlaxcala", "Xaloztoc, Tlaxcala", "Tzompantepec, Tlaxcala", "Tocatlan, Tlaxcala", "Huamantla, Tlaxcala", "Altzayanca, Tlaxcala", "Cuapiaxtla, Tlaxcala", "El Carmen Tequexquitla, Tlaxcala", "Zitlaltepec de Trinidad Sanchez Santos, Tlaxcala", "Ixtenco, Tlaxcala", "Nopalucan, Puebla", "Rafael Lara Grajales, Puebla", "Soltepec, Puebla", "Mazapiltepec de Juarez, Puebla","San Jose Chiapa, Puebla")
 
 Remove_Irrigation = c("Chicoloapan, Mexico", "Chimalhuacan, Mexico", "Atenco, Mexico", "Chiconcuac, Mexico", "Ecatepec de Morelos, Mexico", "Coacalco de Berriozabal, Mexico", "Papalotla, Mexico")
@@ -1212,7 +1314,15 @@ Remove_Irrigation = c("Chicoloapan, Mexico", "Chimalhuacan, Mexico", "Atenco, Me
 S_HIDALGO = c("Mixquiahuala de Juarez, Hidalgo", "Tezontepec de Aldama, Hidalgo", "Tepetitlan, Hidalgo", "Tula de Allende, Hidalgo", "Tepeji del Rio de Ocampo, Hidalgo", "Tlaxcoapan, Hidalgo", "Tlahuelilpan, Hidalgo", "Atitalaquia, Hidalgo", "Atotonilco de Tula, Hidalgo", "Francisco I. Madero, Hidalgo", "Tetepango, Hidalgo", "Ajacuba, Hidalgo", "Tetepango, Hidalgo")
 
 Remove_Temporal = c("Milpa Alta, Distrito Federal", "Tlalpan, Distrito Federal", "Xochimilco, Distrito Federal", "Tlahuac, Distrito Federal", "La Magdalena Contreras, Distrito Federal", "Alvaro Obregon, Distrito Federal", "Cuajimalpa de Morelos, Distrito Federal", "Jilotzingo, Mexico", "Naucalpan de Juarez, Mexico", "Atizapan de Zaragoza, Mexico", "Tlalnepantla de Baz, Mexico", "Coacalco de Berriozabal, Mexico", "Jaltenco, Mexico", "Coyotepec, Mexico", "La Paz, Mexico", "Chimalhuacan, Mexico", "Domingo Arenas, Puebla", "San Felipe Teotlalcingo, Puebla", "Puebla, Puebla") #"Chicoloapan, Mexico", "Ixtapaluca, Mexico"
+y = env_vals %>% select(-Estado, -Municipio)
 
+x = st_drop_geometry(Data2000s_poly_rs) %>% select(EstadoMunicipio, Estado, Municipio, AvgYield, cvYield, AGType, LU_Total_perHa, AvgPctArea_Maize_Total, AvgPctArea_Maize_Crops_Total, PopDens, Pop_Urban, TotalLaborDens, PopDensRural, Pop_Rural, UrbRatio, Pct_Primary, Pct_AG_Workers, Techniques, Fertilizer, AG_Workers_perHa, LU_Total) %>% left_join(Arable, by = c("EstadoMunicipio","Estado", "Municipio")) %>% filter(!(EstadoMunicipio %in% c("Ixtapaluca, Mexico", "Valle de Chalco Solidaridad, Mexico", "Milpa Alta, Distrito Federal", "Tlahuac, Distrito Federal", "Xochimilco, Distrito Federal", "Axapusco, Mexico") & AGType %in% "Riego")) %>% filter(!(EstadoMunicipio %in% E_TLAXCALA & AGType %in% "Riego")) %>% filter(!(EstadoMunicipio %in% Remove_Irrigation & AGType %in% "Riego")) %>% filter(!(EstadoMunicipio %in% Remove_Temporal & AGType %in% "Temporal"))  %>% left_join(y, by = c("EstadoMunicipio", "AGType")) %>% mutate(AGType = factor(AGType, levels = c("Temporal", "Riego")))
+
+zzz = x %>% select(-EstadoMunicipio, -Estado, -Municipio)
+
+zzz = zzz[complete.cases(zzz), ]
+
+xxx = x[complete.cases(x), ]
 ```
 
 
@@ -1282,7 +1392,7 @@ Train_Env = Tot %>% select(-Estado_ID, -Municipio_ID) %>%
 ```{r, label='Avg Yield Variable Selection', message=FALSE,warning=FALSE}
 #boruta = readRDS(paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
 
-boruta <- Boruta(AGType ~ ., data = AGType_RF_Train_df[,c(2:27)], maxRuns = 100)#, doTrace = 2
+boruta <- Boruta(AvgYield ~ ., data = xxx[,c(4,6:80)], maxRuns = 100)#, doTrace = 2
 print(boruta)
 boruta[["finalDecision"]]
 plot(boruta, las = 2, cex.axis = 0.7)
