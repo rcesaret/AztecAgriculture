@@ -81,7 +81,7 @@ packages <- c("tidyverse", "tidyr", "rgdal", "rgeos", "sp", "sf", "GISTools", "r
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
               "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra", 
               "goft", "MASS", "NSM3", "ggsn", "rlang", "FSA", "philentropy", "sfdep",
-              "spdep", "spatialreg", "DataExplorer", "tableone")
+              "spdep", "spatialreg", "DataExplorer", "tableone", "exactextractr")
 
 
 # Install packages not yet installed
@@ -169,177 +169,6 @@ st_write(Municipios2000s, paste0(wd$data_p, "Municipios2000s_Data.gpkg"), driver
 ```
 
 
-
-
-## 2000s Census Data
-
-
-#### 2010 Population Census
-
-```{r, 'Load/Organize 2010 Population Census', message=FALSE, warning=FALSE}
-
-# read .csv file of 2010 population census data
-PopCensus2010 <- read.csv(paste0(wd$data_r,"AG_Model_2000s/PopCensus2010.csv"))
-
-PopCensus2010 <- PopCensus2010 %>% 
-  # remove a number of unwanted variables
-  select(-MUN, -ORD, -MUN_NUM, -INCLUDE) %>% 
-  # create a variable that joins state and municipality written names ("[municipality], [state]")
-  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>% 
-  mutate(Municipio = str_replace_all(Municipio, c(" De " = " de ",
-                                                  " Del " = " del ",
-                                                  " La " = " la ",
-                                                  " Las " = " las ",
-                                                  " Los " = " los ",
-                                                  " El " = " el ",
-                                                  "Ziltlaltepec" = "Zitlaltepec",
-                                                  "Atltzayanca" = "Altzayanca")),
-         EstadoMunicipio = str_replace_all(EstadoMunicipio, c(" De " = " de ",
-                                                              " Del " = " del ",
-                                                              " La " = " la ",
-                                                              " Las " = " las ",
-                                                              " Los " = " los ",
-                                                              " El " = " el ",
-                                                              "Ziltlaltepec" = "Zitlaltepec",
-                                                              "Atltzayanca" = "Altzayanca")))
-
-# left join the 2010 population census data with the municipality dataframe
-PopCensus2010 <- Municipios2000s_Cases %>% left_join(PopCensus2010, by=c('EstadoMunicipio', 'Municipio', 'Estado'))
-# export csv of the 2010 population census data
-write.csv(PopCensus2010, paste0(wd$data_r,"AG_Model_2000s/testcensus.csv"))
-
-```
-
-
-
-
-#### 2007 Agricultural Census
-
-```{r, 'Load/Organize 2007 Agricultural Census', message=FALSE, warning=FALSE}
-
-# read .csv files of 2007 agricultural census data
-AGCensus2007 <- read.csv(paste0(wd$data_r,"AG_Model_2000s/AGCensus2007.csv"))
-AGCensus2007_Irrig <- read.csv(paste0(wd$data_r,"AG_Model_2000s/AGCensus2007_Irrig.csv"))
-
-AGCensus2007 <- AGCensus2007 %>% left_join(AGCensus2007_Irrig, by="ORD") %>%
-  # remove a number of unwanted variables
-  select(-Region, -ORD, -Num, -INCLUDE, -Name, -State) %>% 
-  # create a variable that joins state and municipality written names ("[municipality], [state]")
-  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>% 
-  mutate(Municipio = str_replace_all(Municipio, c(" De " = " de ",
-                                                  " Del " = " del ",
-                                                  " La " = " la ",
-                                                  " Las " = " las ",
-                                                  " Los " = " los ",
-                                                  " El " = " el ",
-                                                  "Ziltlaltepec" = "Zitlaltepec",
-                                                  "Atltzayanca" = "Altzayanca")),
-         EstadoMunicipio = str_replace_all(EstadoMunicipio, c(" De " = " de ",
-                                                              " Del " = " del ",
-                                                              " La " = " la ",
-                                                              " Las " = " las ",
-                                                              " Los " = " los ",
-                                                              " El " = " el ",
-                                                              "Ziltlaltepec" = "Zitlaltepec",
-                                                              "Atltzayanca" = "Altzayanca")))
-rm(AGCensus2007_Irrig)
-```
-
-
-
-
-### Integrate 2000s Census Data
-
-```{r, 'Integrate 2000s Cenusus Data', message=FALSE, warning=FALSE}
-
-# create a combined 2000s census dataframe from the 2010 population census dataframe
-# and the 2007 agricultural census dataframe
-Census2000s <- PopCensus2010 %>% 
-  # select desired 2010 population census variables to join with 2007 agricultural census data
-  select(Estado_ID, Municipio_ID, EstadoMunicipio, Municipio, Estado, Area_ha, 
-         Pop_Total, Pop_Rural, Pop_Urban, UrbRatio, Pop_Pct_Rural, Pop_Employed, 
-         Primary, Pct_Primary, AG_Workers, Pct_AG_Workers) %>% 
-  # left join the 2010 population census data with the 2007 agricultural census dataframe
-  left_join(AGCensus2007, by=c('EstadoMunicipio', 'Municipio', 'Estado'))
-
-
-```
-
-
-#### Calculate Derived Census Variables
-
-```{r, 'Calculate Derived 2000s Census Variables', message=FALSE, warning=FALSE}
-
-# Calculate a number of derived variables from the combined 2000s census dataframe
-Census2000s <- Census2000s %>% mutate(
-  PopDens = Pop_Total / Area_ha, # population density
-  PopDensRural = Pop_Rural / Area_ha, # population density of the rural population
-  PrimaryEmployDens = Primary / Area_ha, # population density of primary sector employment (2010 pop census variable)
-  TotalLaborDens = TotalLabor / Area_ha, # population density of total agricultural labor (2007 agricultural census variable)
-  AGPasture_ha = AG_ha + Pasture_ha, # Total land used for agriculture and animal husbandry
-  PrimaryEmploy_perHa = Primary / AGPasture_ha, # Density of primary sector employment (2010 pop census variable) per hectare of agriculture+pasture land
-  AG_Workers_perHa = AG_Workers / AGPasture_ha, # Density of agricultural workers (2010 pop census variable, only includes laborers) per hectare of agriculture+pasture land
-  TotalLabor_perHa = TotalLabor / AGPasture_ha, # Density of total agricultural labor (2007 agricultural census variable) per hectare of agriculture+pasture land
-  MechanizEquip_perHa = MechanizEquip / AGPasture_ha, # Density of mechanized agricultural equipment per hectare of agriculture+pasture land
-  DraftAnimals_perHa = DraftAnimals_Total / AGPasture_ha, # Density of draught animals per hectare of agriculture+pasture land
-  Pct_AG_ha = AG_ha / AGPasture_ha, # Percentage of total agriculture+pasture land that is agricultural
-  Pct_Pasture_ha = Pasture_ha / AGPasture_ha, # Percentage of total agriculture+pasture land that is pasture
-  Pct_AG_ha_Irrig = Reigo_ha / AG_ha,
-  Pct_AG_ha_Temp = Temporal_ha / AG_ha,
-  Fertilizer = Pct_FertilChem_ha + Pct_FertilManure_ha,
-  Techniques = Pct_FertilChem_ha + Pct_FertilManure_ha + Pct_Herbicides_ha + Pct_Insecticides_ha + Pct_ControlledBurn_ha,
-  #### Calculation of "Labor Units" ####
-  # used to equivocate different forms of labor input (machine, animal, human)
-  # using efficiencies calculated from 20th century statistics on cultivation labor 
-  # time per unit area using different technology (i.e. machine, animal, human).
-  # One "Labor Unit" (LU) == 1 person-year of manual labor based on person-day equivalents
-  # for common tasks undertaken over the course of the agricultural season
-
-  LU_MechanizEquip = MechanizEquip * 30, #20 one piece of mechanized equipment is equivalent to 20 people
-  LU_DraftAnimals = DraftAnimals_Total * 2, # draught animals and humans have 1-to-1 LU relationship 
-  LU_FamLabor = FamLabor_Tot * 1, # Each family farm operator contributes 1 labor unit
-  LU_ContractFull = ContractLabor_More6Mo * 1, # Each full-time contract laborer contributes 1 labor unit
-  LU_ContractPart = ContractLabor_Less6Mo * 1, #0.5 Each seasonal contract laborer contributes 0.5 labor units
-  LU_Total = LU_MechanizEquip + LU_DraftAnimals + LU_FamLabor + LU_ContractFull + LU_ContractPart, # total LUs == sum of all LUs
-  LU_Total_perHa = LU_Total / AGPasture_ha # Density of total LUs per hectare of agriculture+pasture land
-  ) %>% mutate(
-         Municipio = str_replace_all(Municipio, c(" De " = " de ",
-                                                  " Del " = " del ",
-                                                  " La " = " la ",
-                                                  " Las " = " las ",
-                                                  " Los " = " los ",
-                                                  " El " = " el ",
-                                                  "Ziltlaltepec" = "Zitlaltepec",
-                                                  "Atltzayanca" = "Altzayanca")),
-         EstadoMunicipio = str_replace_all(EstadoMunicipio, c(" De " = " de ",
-                                                              " Del " = " del ",
-                                                              " La " = " la ",
-                                                              " Las " = " las ",
-                                                              " Los " = " los ",
-                                                              " El " = " el ",
-                                                              "Ziltlaltepec" = "Zitlaltepec",
-                                                              "Atltzayanca" = "Altzayanca")))
-
-
-```
-
-
-
-#### Merge with Municipio Polygons and Export
-
-```{r, 'Merge with Municipio Polygons and Export', message=FALSE, warning=FALSE}
-
-Census2000s_poly <- Municipios2000s %>% select(-Area_ha, -Area_m2) %>% 
-  left_join(Census2000s, by = c("Estado_ID", "Municipio_ID", "EstadoMunicipio", "Municipio", "Estado"))
-
-st_write(Census2000s_poly, paste0(wd$data_p, "Census2000s_poly.gpkg"), driver = "GPKG", overwrite=TRUE, append=FALSE)
-
-# save the data as .csv
-write.csv(Census2000s, paste0(wd$data_p,"CensusData2000s.csv"))
-
-rm(AGCensus2007, PopCensus2010)
-
-```
 
 
 
@@ -583,13 +412,13 @@ SIAP_3 = SIAP_2 %>% left_join(SIAP_ID, by = c('Estado_ID', 'Estado', 'ddr_ID', '
            Area_AGType_OtherCrops = sum(Planted[CultigenGroup == "OtherCrops"], na.rm=T),
            Area_AGType_OtherCrops = ifelse(is.na(Area_AGType_OtherCrops), 0, Area_AGType_OtherCrops)) %>% ungroup() %>%
   group_by(EstadoMunicipio, Year) %>%
-    mutate(Area_Total = sum(Planted, na.rm=T),
-           Area_Total_Maize = sum(Planted[CultigenGroup == "Maize"], na.rm=T),
-           Area_Total_Maize = ifelse(is.na(Area_Total_Maize), 0, Area_Total_Maize),
-           Area_Total_Fodder = sum(Planted[CultigenGroup == "Fodder"], na.rm=T),
-           Area_Total_Fodder = ifelse(is.na(Area_Total_Fodder), 0, Area_Total_Fodder),
-           Area_Total_OtherCrops = sum(Planted[CultigenGroup == "OtherCrops"], na.rm=T),
-           Area_Total_OtherCrops = ifelse(is.na(Area_Total_OtherCrops), 0, Area_Total_OtherCrops)) %>% ungroup() %>%
+    mutate(Area_Total = sum(Planted, na.rm=T) + runif(1, min = 0.0000001, max = 0.0001),
+           Area_Total_Maize = sum(Planted[CultigenGroup == "Maize"], na.rm=T) + runif(1, min = 0.0000001, max = 0.0001),
+           Area_Total_Maize = ifelse(is.na(Area_Total_Maize) | Area_Total_Maize <=  0.0001, 0, Area_Total_Maize),
+           Area_Total_Fodder = sum(Planted[CultigenGroup == "Fodder"], na.rm=T) + runif(1, min = 0.0000001, max = 0.0001),
+           Area_Total_Fodder = ifelse(is.na(Area_Total_Fodder) | Area_Total_Fodder <=  0.0001, 0, Area_Total_Fodder),
+           Area_Total_OtherCrops = sum(Planted[CultigenGroup == "OtherCrops"], na.rm=T) + runif(1, min = 0.0000001, max = 0.0001),
+           Area_Total_OtherCrops = ifelse(is.na(Area_Total_OtherCrops) | Area_Total_OtherCrops <=  0.0001, 0, Area_Total_OtherCrops)) %>% ungroup() %>%
     mutate(PctArea_Maize_Crops_AGType = Area_AGType_Maize / (Area_AGType_Maize + Area_AGType_OtherCrops),
            PctArea_Maize_AGType = Area_AGType_Maize / (Area_AGType_Maize + Area_AGType_OtherCrops + Area_AGType_Fodder),
            PctArea_Maize_Crops_Total = Area_Total_Maize / (Area_Total_Maize + Area_Total_OtherCrops),
@@ -712,54 +541,66 @@ SIAP_4 = SIAP_3 %>%
          sdPctYieldLoss_Temp = sd(PctYieldLoss[AGType == "Temporal"], na.rm=T),
          cvPctYieldLoss_Temp = sdPctYieldLoss_Temp/AvgPctYieldLoss_Temp*100) %>% 
   # calculate variable for the overall number of time series cases by state-municipality
-  add_tally(name = "n_Total") %>% 
+  add_tally(name = "n_Total") %>% ungroup() %>% 
+  group_by(EstadoMunicipio, AGType) %>% 
+  mutate(AvgArea = mean(Area_AGType, na.rm=T),
+         sdArea = sd(Area_AGType, na.rm=T),
+         cvArea = sdArea/AvgArea*100,
+         AvgArea_Maize = mean(Area_AGType_Maize, na.rm=T),
+         sdArea_Maize = sd(Area_AGType_Maize, na.rm=T),
+         cvArea_Maize = sdArea_Maize/AvgArea_Maize*100,
+         AvgArea_Fodder = mean(Area_AGType_Fodder, na.rm=T),
+         AvgArea_OtherCrops = mean(Area_AGType_OtherCrops, na.rm=T),
+         AvgPctArea_Maize_Crops = mean(PctArea_Maize_Crops_AGType, na.rm=T),
+         sdPctArea_Maize_Crops = sd(PctArea_Maize_Crops_AGType, na.rm=T),
+         cvPctArea_Maize_Crops = sdPctArea_Maize_Crops/AvgPctArea_Maize_Crops*100,
+         AvgPctArea_Maize = mean(PctArea_Maize_AGType, na.rm=T),
+         sdPctArea_Maize = sd(PctArea_Maize_AGType, na.rm=T),
+         cvPctArea_Maize = sdPctArea_Maize/AvgPctArea_Maize*100) %>%
+  ungroup() %>% group_by(EstadoMunicipio) %>% 
   mutate(AvgArea_Irrig = mean(Area_AGType[AGType == "Riego"], na.rm=T),
-         sdArea_Irrig = sd(Area_AGType[AGType == "Riego"], na.rm=T),
-         cvArea_Irrig = sdArea_Irrig/AvgArea_Irrig*100,
          AvgArea_Irrig_Maize = mean(Area_AGType_Maize[AGType == "Riego"], na.rm=T),
-         sdArea_Irrig_Maize = sd(Area_AGType_Maize[AGType == "Riego"], na.rm=T),
-         cvArea_Irrig_Maize = sdArea_Irrig_Maize/AvgArea_Irrig_Maize*100,
          AvgArea_Irrig_Fodder = mean(Area_AGType_Fodder[AGType == "Riego"], na.rm=T),
          AvgArea_Irrig_OtherCrops = mean(Area_AGType_OtherCrops[AGType == "Riego"], na.rm=T),
          AvgPctArea_Maize_Crops_Irrig = mean(PctArea_Maize_Crops_AGType[AGType == "Riego"], na.rm=T),
-         sdPctArea_Maize_Crops_Irrig = sd(PctArea_Maize_Crops_AGType[AGType == "Riego"], na.rm=T),
-         cvPctArea_Maize_Crops_Irrig = sdPctArea_Maize_Crops_Irrig/AvgPctArea_Maize_Crops_Irrig*100,
          AvgPctArea_Maize_Irrig = mean(PctArea_Maize_AGType[AGType == "Riego"], na.rm=T),
-         sdPctArea_Maize_Irrig = sd(PctArea_Maize_AGType[AGType == "Riego"], na.rm=T),
-         cvPctArea_Maize_Irrig = sdPctArea_Maize_Irrig/AvgPctArea_Maize_Irrig*100,
          AvgArea_Temp = mean(Area_AGType[AGType == "Temporal"], na.rm=T),
-         sdArea_Temp = sd(Area_AGType[AGType == "Temporal"], na.rm=T),
-         cvArea_Temp = sdArea_Temp/AvgArea_Temp*100,
          AvgArea_Temp_Maize = mean(Area_AGType_Maize[AGType == "Temporal"], na.rm=T),
-         sdArea_Temp_Maize = sd(Area_AGType_Maize[AGType == "Temporal"], na.rm=T),
-         cvArea_Temp_Maize = sdArea_Temp_Maize/AvgArea_Temp_Maize*100,
          AvgArea_Temp_Fodder = mean(Area_AGType_Fodder[AGType == "Temporal"], na.rm=T),
          AvgArea_Temp_OtherCrops = mean(Area_AGType_OtherCrops[AGType == "Temporal"], na.rm=T),
          AvgPctArea_Maize_Crops_Temp = mean(PctArea_Maize_Crops_AGType[AGType == "Temporal"], na.rm=T),
-         sdPctArea_Maize_Crops_Temp = sd(PctArea_Maize_Crops_AGType[AGType == "Temporal"], na.rm=T),
-         cvPctArea_Maize_Crops_Temp = sdPctArea_Maize_Crops_Temp/AvgPctArea_Maize_Crops_Temp*100,
          AvgPctArea_Maize_Temp = mean(PctArea_Maize_AGType[AGType == "Temporal"], na.rm=T),
-         sdPctArea_Maize_Temp = sd(PctArea_Maize_AGType[AGType == "Temporal"], na.rm=T),
-         cvPctArea_Maize_Temp = sdPctArea_Maize_Temp/AvgPctArea_Maize_Temp*100,
          
-         AvgArea_Total = mean(Area_AGType, na.rm=T), # It is correct that the _Total = f(_AGType) 
-         sdArea_Total = sd(Area_AGType, na.rm=T), # because _AGType has a single value for each row (year + EstadoMunicipio + AGType)
-         cvArea_Total = sdArea_Total/AvgArea_Total*100, # while _Total is the average of them per year per EstadoMunicipio
-         AvgArea_Total_Maize = mean(Area_AGType_Maize, na.rm=T),
-         sdArea_Total_Maize = sd(Area_AGType_Maize, na.rm=T),
+         AvgArea_Total = mean(unique(Area_Total), na.rm=T), 
+         sdArea_Total = sd(unique(Area_Total), na.rm=T), 
+         cvArea_Total = sdArea_Total/AvgArea_Total*100,
+         AvgArea_Total_Maize = mean(unique(Area_Total_Maize), na.rm=T),
+         sdArea_Total_Maize = sd(unique(Area_Total_Maize), na.rm=T),
          cvArea_Total_Maize = sdArea_Total_Maize/AvgArea_Total_Maize*100,
-         AvgArea_Total_Fodder = mean(Area_AGType_Fodder, na.rm=T),
-         AvgArea_Total_OtherCrops = mean(Area_AGType_OtherCrops, na.rm=T),
-         AvgPctArea_Maize_Crops_Total = mean(PctArea_Maize_Crops_AGType, na.rm=T),
-         sdPctArea_Maize_Crops_Total = sd(PctArea_Maize_Crops_AGType, na.rm=T),
+         AvgArea_Total_Fodder = mean(unique(Area_Total_Fodder), na.rm=T),
+         AvgArea_Total_OtherCrops = mean(unique(Area_Total_OtherCrops), na.rm=T),
+         AvgPctArea_Maize_Crops_Total = mean(unique(PctArea_Maize_Crops_Total), na.rm=T),
+         sdPctArea_Maize_Crops_Total = sd(unique(PctArea_Maize_Crops_Total), na.rm=T),
          cvPctArea_Maize_Crops_Total = sdPctArea_Maize_Crops_Total/AvgPctArea_Maize_Crops_Total*100,
-         AvgPctArea_Maize_Total = mean(PctArea_Maize_AGType, na.rm=T),
-         sdPctArea_Maize_Total = sd(PctArea_Maize_AGType, na.rm=T),
+         AvgPctArea_Maize_Total = mean(unique(PctArea_Maize_Total), na.rm=T),
+         sdPctArea_Maize_Total = sd(unique(PctArea_Maize_Total), na.rm=T),
          cvPctArea_Maize_Total = sdPctArea_Maize_Total/AvgPctArea_Maize_Total*100) %>%
   # ungroup the data
   ungroup() %>% 
   # calculate additional variables of interest
   mutate(
+    # irrigated maize % of total maize cultivation
+    AvgPctMaizeArea_Irrig = AvgArea_Irrig_Maize / AvgArea_Total_Maize,
+    AvgPctMaizeArea_Irrig = ifelse(is.nan(AvgPctMaizeArea_Irrig), 0, AvgPctMaizeArea_Irrig),
+    # temporal maize % of total maize cultivation 
+    AvgPctMaizeArea_Temp = AvgArea_Temp_Maize / AvgArea_Total_Maize,
+    AvgPctMaizeArea_Temp = ifelse(is.nan(AvgPctMaizeArea_Temp), 0, AvgPctMaizeArea_Temp),
+    # irrigated % of total cultivation 
+    AvgPctArea_Irrig = AvgArea_Irrig / AvgArea_Total,#BY MUNICIPIO (both AGTypes have same value!)
+    AvgPctArea_Irrig = ifelse(is.nan(AvgPctArea_Irrig), 0, AvgPctArea_Irrig),
+    # temporal % of total cultivation 
+    AvgPctArea_Temp = AvgArea_Temp / AvgArea_Total,
+    AvgPctArea_Temp = ifelse(is.nan(AvgPctArea_Temp), 0, AvgPctArea_Temp),
     # calculate the maize yield and yield loss Z-score by state-municipality for all agriculture types
     zYield_Total = (Yield - AvgYield_Total)/sdYield_Total,
     zYieldLoss_Total = (YieldLoss - AvgYieldLoss_Total)/sdYieldLoss_Total,
@@ -775,6 +616,12 @@ SIAP_4 = SIAP_3 %>%
     TTr_cvYieldLoss = cvYieldLoss_Irrig/cvYieldLoss_Total)
 
 
+
+  
+
+  
+
+  
 
 ```
 
@@ -857,52 +704,64 @@ SIAP_5 = SIAP_4 %>%
             ITr_cvYieldLoss = mean(ITr_cvYieldLoss, na.rm=T),# irrigation-to-total ratio for coefficient of variation of maize yield loss
             TTr_AvgYieldLoss = mean(TTr_AvgYieldLoss, na.rm=T), # temporal-to-total ratio for mean maize yield loss
             TTr_cvYieldLoss = mean(TTr_cvYieldLoss, na.rm=T),# temporal-to-total ratio for coefficient of variation of maize yield loss
-            
-         AvgArea_Irrig = mean(Area_AGType[AGType == "Riego"], na.rm=T),
-         sdArea_Irrig = sd(Area_AGType[AGType == "Riego"], na.rm=T),
-         cvArea_Irrig = sdArea_Irrig/AvgArea_Irrig*100,
-         AvgArea_Irrig_Maize = mean(Area_AGType_Maize[AGType == "Riego"], na.rm=T),
-         sdArea_Irrig_Maize = sd(Area_AGType_Maize[AGType == "Riego"], na.rm=T),
-         cvArea_Irrig_Maize = sdArea_Irrig_Maize/AvgArea_Irrig_Maize*100,
-         AvgArea_Irrig_Fodder = mean(Area_AGType_Fodder[AGType == "Riego"], na.rm=T),
-         AvgArea_Irrig_OtherCrops = mean(Area_AGType_OtherCrops[AGType == "Riego"], na.rm=T),
-         AvgPctArea_Maize_Crops_Irrig = mean(PctArea_Maize_Crops_AGType[AGType == "Riego"], na.rm=T),
-         sdPctArea_Maize_Crops_Irrig = sd(PctArea_Maize_Crops_AGType[AGType == "Riego"], na.rm=T),
-         cvPctArea_Maize_Crops_Irrig = sdPctArea_Maize_Crops_Irrig/AvgPctArea_Maize_Crops_Irrig*100,
-         AvgPctArea_Maize_Irrig = mean(PctArea_Maize_AGType[AGType == "Riego"], na.rm=T),
-         sdPctArea_Maize_Irrig = sd(PctArea_Maize_AGType[AGType == "Riego"], na.rm=T),
-         cvPctArea_Maize_Irrig = sdPctArea_Maize_Irrig/AvgPctArea_Maize_Irrig*100,
-         AvgArea_Temp = mean(Area_AGType[AGType == "Temporal"], na.rm=T),
-         sdArea_Temp = sd(Area_AGType[AGType == "Temporal"], na.rm=T),
-         cvArea_Temp = sdArea_Temp/AvgArea_Temp*100,
-         AvgArea_Temp_Maize = mean(Area_AGType_Maize[AGType == "Temporal"], na.rm=T),
-         sdArea_Temp_Maize = sd(Area_AGType_Maize[AGType == "Temporal"], na.rm=T),
-         cvArea_Temp_Maize = sdArea_Temp_Maize/AvgArea_Temp_Maize*100,
-         AvgArea_Temp_Fodder = mean(Area_AGType_Fodder[AGType == "Temporal"], na.rm=T),
-         AvgArea_Temp_OtherCrops = mean(Area_AGType_OtherCrops[AGType == "Temporal"], na.rm=T),
-         AvgPctArea_Maize_Crops_Temp = mean(PctArea_Maize_Crops_AGType[AGType == "Temporal"], na.rm=T),
-         sdPctArea_Maize_Crops_Temp = sd(PctArea_Maize_Crops_AGType[AGType == "Temporal"], na.rm=T),
-         cvPctArea_Maize_Crops_Temp = sdPctArea_Maize_Crops_Temp/AvgPctArea_Maize_Crops_Temp*100,
-         AvgPctArea_Maize_Temp = mean(PctArea_Maize_AGType[AGType == "Temporal"], na.rm=T),
-         sdPctArea_Maize_Temp = sd(PctArea_Maize_AGType[AGType == "Temporal"], na.rm=T),
-         cvPctArea_Maize_Temp = sdPctArea_Maize_Temp/AvgPctArea_Maize_Temp*100,
+         AvgArea = mean(Area_AGType, na.rm=T),
+         sdArea = sd(Area_AGType, na.rm=T),
+         cvArea = sdArea/AvgArea*100,
+         AvgArea_Maize = mean(Area_AGType_Maize, na.rm=T),
+         sdArea_Maize = sd(Area_AGType_Maize, na.rm=T),
+         cvArea_Maize = sdArea_Maize/AvgArea_Maize*100,
+         AvgArea_Fodder = mean(Area_AGType_Fodder, na.rm=T),
+         AvgArea_OtherCrops = mean(Area_AGType_OtherCrops, na.rm=T),
+         AvgPctArea_Maize_Crops = mean(PctArea_Maize_Crops_AGType, na.rm=T),
+         sdPctArea_Maize_Crops = sd(PctArea_Maize_Crops_AGType, na.rm=T),
+         cvPctArea_Maize_Crops = sdPctArea_Maize_Crops/AvgPctArea_Maize_Crops*100,
+         AvgPctArea_Maize = mean(PctArea_Maize_AGType, na.rm=T),
+         sdPctArea_Maize = sd(PctArea_Maize_AGType, na.rm=T),
+         cvPctArea_Maize = sdPctArea_Maize/AvgPctArea_Maize*100,
          
-         AvgArea_Total = mean(Area_AGType, na.rm=T), # It is correct that the _Total = f(_AGType) 
-         sdArea_Total = sd(Area_AGType, na.rm=T), # because _AGType has a single value for each row (year + EstadoMunicipio + AGType)
-         cvArea_Total = sdArea_Total/AvgArea_Total*100, # while _Total is the average of them per year per EstadoMunicipio
-         AvgArea_Total_Maize = mean(Area_AGType_Maize, na.rm=T),
-         sdArea_Total_Maize = sd(Area_AGType_Maize, na.rm=T),
-         cvArea_Total_Maize = sdArea_Total_Maize/AvgArea_Total_Maize*100,
-         AvgArea_Total_Fodder = mean(Area_AGType_Fodder, na.rm=T),
-         AvgArea_Total_OtherCrops = mean(Area_AGType_OtherCrops, na.rm=T),
-         AvgPctArea_Maize_Crops_Total = mean(PctArea_Maize_Crops_AGType, na.rm=T),
-         sdPctArea_Maize_Crops_Total = sd(PctArea_Maize_Crops_AGType, na.rm=T),
-         cvPctArea_Maize_Crops_Total = sdPctArea_Maize_Crops_Total/AvgPctArea_Maize_Crops_Total*100,
-         AvgPctArea_Maize_Total = mean(PctArea_Maize_AGType, na.rm=T),
-         sdPctArea_Maize_Total = sd(PctArea_Maize_AGType, na.rm=T),
-         cvPctArea_Maize_Total = sdPctArea_Maize_Total/AvgPctArea_Maize_Total*100) %>%
+         AvgArea_Irrig = ifelse(is.na(mean(AvgArea_Irrig, na.rm=T)), 0, mean(AvgArea_Irrig, na.rm=T)),
+         AvgArea_Irrig_Maize = ifelse(is.na(mean(AvgArea_Irrig_Maize, na.rm=T)), 0, mean(AvgArea_Irrig_Maize, na.rm=T)),
+         AvgArea_Irrig_Fodder = ifelse(is.na(mean(AvgArea_Irrig_Fodder, na.rm=T)), 0, mean(AvgArea_Irrig_Fodder, na.rm=T)),
+         AvgArea_Irrig_OtherCrops = ifelse(is.na(mean(AvgArea_Irrig_OtherCrops, na.rm=T)), 0, mean(AvgArea_Irrig_OtherCrops, na.rm=T)),
+         AvgPctArea_Maize_Crops_Irrig = ifelse(is.na(mean(AvgPctArea_Maize_Crops_Irrig, na.rm=T)), 0, mean(AvgPctArea_Maize_Crops_Irrig, na.rm=T)),
+         AvgPctArea_Maize_Irrig = ifelse(is.na(mean(AvgPctArea_Maize_Irrig, na.rm=T)), 0, mean(AvgPctArea_Maize_Irrig, na.rm=T)),
+         AvgArea_Temp = ifelse(is.na(mean(AvgArea_Temp, na.rm=T)), 0, mean(AvgArea_Temp, na.rm=T)),
+         AvgArea_Temp_Maize = ifelse(is.na(mean(AvgArea_Temp_Maize, na.rm=T)), 0, mean(AvgArea_Temp_Maize, na.rm=T)),
+         AvgArea_Temp_Fodder = ifelse(is.na(mean(AvgArea_Temp_Fodder, na.rm=T)), 0, mean(AvgArea_Temp_Fodder, na.rm=T)),
+         AvgArea_Temp_OtherCrops = ifelse(is.na(mean(AvgArea_Temp_OtherCrops, na.rm=T)), 0, mean(AvgArea_Temp_OtherCrops, na.rm=T)),
+         AvgPctArea_Maize_Crops_Temp = ifelse(is.na(mean(AvgPctArea_Maize_Crops_Temp, na.rm=T)), 0, mean(AvgPctArea_Maize_Crops_Temp, na.rm=T)),
+         AvgPctArea_Maize_Temp = ifelse(is.na(mean(AvgPctArea_Maize_Temp, na.rm=T)), 0, mean(AvgPctArea_Maize_Temp, na.rm=T)),
+         
+         AvgArea_Total = mean(AvgArea_Total, na.rm=T),
+         sdArea_Total = mean(sdArea_Total, na.rm=T),
+         cvArea_Total = mean(cvArea_Total, na.rm=T),
+         AvgArea_Total_Maize = mean(AvgArea_Total_Maize, na.rm=T),
+         sdArea_Total_Maize = mean(sdArea_Total_Maize, na.rm=T),
+         cvArea_Total_Maize = mean(cvArea_Total_Maize, na.rm=T),
+         AvgArea_Total_Fodder = mean(AvgArea_Total_Fodder, na.rm=T),
+         AvgArea_Total_OtherCrops = mean(AvgArea_Total_OtherCrops, na.rm=T),
+         AvgPctArea_Maize_Crops_Total = mean(AvgPctArea_Maize_Crops_Total, na.rm=T),
+         sdPctArea_Maize_Crops_Total = mean(sdPctArea_Maize_Crops_Total, na.rm=T),
+         cvPctArea_Maize_Crops_Total = mean(cvPctArea_Maize_Crops_Total, na.rm=T),
+         AvgPctArea_Maize_Total = mean(AvgPctArea_Maize_Total, na.rm=T),
+         sdPctArea_Maize_Total = mean(sdPctArea_Maize_Total, na.rm=T),
+         cvPctArea_Maize_Total = mean(cvPctArea_Maize_Total, na.rm=T)) %>%
             # ungroup the data
-  ungroup() %>% rowwise() %>%
+  ungroup() %>% 
+  mutate(
+    # irrigated maize % of total maize cultivation
+    AvgPctMaizeArea_Irrig = AvgArea_Irrig_Maize / AvgArea_Total_Maize,
+    AvgPctMaizeArea_Irrig = ifelse(is.nan(AvgPctMaizeArea_Irrig), 0, AvgPctMaizeArea_Irrig),
+    # temporal maize % of total maize cultivation 
+    AvgPctMaizeArea_Temp = AvgArea_Temp_Maize / AvgArea_Total_Maize,
+    AvgPctMaizeArea_Temp = ifelse(is.nan(AvgPctMaizeArea_Temp), 0, AvgPctMaizeArea_Temp),
+    # irrigated % of total cultivation 
+    AvgPctArea_Irrig = AvgArea_Irrig / AvgArea_Total,#BY MUNICIPIO (both AGTypes have same value!)
+    AvgPctArea_Irrig = ifelse(is.nan(AvgPctArea_Irrig), 0, AvgPctArea_Irrig),
+    # temporal % of total cultivation 
+    AvgPctArea_Temp = AvgArea_Temp / AvgArea_Total,
+    AvgPctArea_Temp = ifelse(is.nan(AvgPctArea_Temp), 0, AvgPctArea_Temp)) %>% 
+  rowwise() %>%
   # Remove NaN values from affected variables
   mutate(cvYieldLoss = ifelse(is.nan(cvYieldLoss), 0, cvYieldLoss),
          cvLost = ifelse(is.nan(cvLost), 0, cvLost)) %>% 
@@ -962,9 +821,9 @@ x = SIAP_4 %>%
             sdPrice = sd(Price, na.rm=T), # standard deviation of price per kg in $MX for maize
             cvPrice = sdPrice/AvgPrice*100, # coefficient of variation of price per kg in $MX for maize
             n = mean(n, na.rm=T),# number of time series cases by state-municipality and agriculture type
-            AvgArea = mean(Area_AGType, na.rm=T), # It is correct that the _Total = f(_AGType) 
-            sdArea = sd(Area_AGType, na.rm=T), # because _AGType has a single value for each row (year + EstadoMunicipio + AGType)
-            cvArea = sdArea/AvgArea*100, # while _Total is the average of them per year per EstadoMunicipio
+            AvgArea = mean(Area_AGType, na.rm=T),
+            sdArea = sd(Area_AGType, na.rm=T),
+            cvArea = sdArea/AvgArea*100,
             AvgArea_Maize = mean(Area_AGType_Maize, na.rm=T),
             sdArea_Maize = sd(Area_AGType_Maize, na.rm=T),
             cvArea_Maize = sdArea_Maize/AvgArea_Maize*100,
@@ -1022,20 +881,20 @@ SIAP_6 = SIAP_4 %>%
             sdPrice = sd(Price, na.rm=T), # standard deviation of price per kg in $MX for maize
             cvPrice = sdPrice/AvgPrice*100, # coefficient of variation of price per kg in $MX for maize
             n = n(),# number of time series cases by state-municipality and agriculture type
-            AvgArea = mean(Area_AGType, na.rm=T), # It is correct that the _Total = f(_AGType) 
-            sdArea = sd(Area_AGType, na.rm=T), # because _AGType has a single value for each row (year + EstadoMunicipio + AGType)
-            cvArea = sdArea/AvgArea*100, # while _Total is the average of them per year per EstadoMunicipio
-            AvgArea_Maize = mean(Area_AGType_Maize, na.rm=T),
-            sdArea_Maize = sd(Area_AGType_Maize, na.rm=T),
-            cvArea_Maize = sdArea_Maize/AvgArea_Maize*100,
-            AvgArea_Fodder = mean(Area_AGType_Fodder, na.rm=T),
-            AvgArea_OtherCrops = mean(Area_AGType_OtherCrops, na.rm=T),
-            AvgPctArea_Maize_Crops = mean(PctArea_Maize_Crops_AGType, na.rm=T),
-            sdPctArea_Maize_Crops = sd(PctArea_Maize_Crops_AGType, na.rm=T),
-            cvPctArea_Maize_Crops = sdPctArea_Maize_Crops/AvgPctArea_Maize_Crops*100,
-            AvgPctArea_Maize = mean(PctArea_Maize_AGType, na.rm=T),
-            sdPctArea_Maize = sd(PctArea_Maize_AGType, na.rm=T),
-            cvPctArea_Maize = sdPctArea_Maize/AvgPctArea_Maize*100) %>% 
+            AvgArea = mean(AvgArea_Total, na.rm=T),
+            sdArea = mean(sdArea_Total, na.rm=T),
+            cvArea = mean(cvArea_Total, na.rm=T),
+            AvgArea_Maize = mean(AvgArea_Total_Maize, na.rm=T),
+            sdArea_Maize = mean(sdArea_Total_Maize, na.rm=T),
+            cvArea_Maize = mean(cvArea_Total_Maize, na.rm=T),
+            AvgArea_Fodder = mean(AvgArea_Total_Fodder, na.rm=T),
+            AvgArea_OtherCrops = mean(AvgArea_Total_OtherCrops, na.rm=T),
+            AvgPctArea_Maize_Crops = mean(AvgPctArea_Maize_Crops_Total, na.rm=T),
+            sdPctArea_Maize_Crops = mean(sdPctArea_Maize_Crops_Total, na.rm=T),
+            cvPctArea_Maize_Crops = mean(cvPctArea_Maize_Crops_Total, na.rm=T),
+            AvgPctArea_Maize = mean(AvgPctArea_Maize_Total, na.rm=T),
+            sdPctArea_Maize = mean(sdPctArea_Maize_Total, na.rm=T),
+            cvPctArea_Maize = mean(cvPctArea_Maize_Total, na.rm=T)) %>% 
   ungroup() %>% 
   bind_rows(x) %>% 
   pivot_longer(-c(Estado_ID, Estado, ddr_ID, ddr, Cader_ID, Cader, Municipio_ID, Municipio, EstadoMunicipio, AGType), names_to = "Variable", values_to = "Value") %>% 
@@ -1109,8 +968,20 @@ SIAP_6 = SIAP_4 %>%
     TTr_AvgProduct = ifelse((AvgProduct_Temp/AvgProduct_Total) == 1, NA, AvgProduct_Temp/AvgProduct_Total),
     TTr_sdProduct = ifelse((sdProduct_Temp/sdProduct_Total) == 1, NA, sdProduct_Temp/sdProduct_Total),
     TTr_cvProduct = ifelse((cvProduct_Temp/cvProduct_Total) == 1, NA, cvProduct_Temp/cvProduct_Total)
-    ) %>% ungroup()
-
+    ) %>% ungroup() %>% 
+  mutate(
+    # irrigated maize % of total maize cultivation
+    AvgPctMaizeArea_Irrig = AvgArea_Maize_Irrig / AvgArea_Maize_Total,
+    AvgPctMaizeArea_Irrig = ifelse(is.nan(AvgPctMaizeArea_Irrig), 0, AvgPctMaizeArea_Irrig),
+    # temporal maize % of total maize cultivation 
+    AvgPctMaizeArea_Temp = AvgArea_Maize_Temp / AvgArea_Maize_Total,
+    AvgPctMaizeArea_Temp = ifelse(is.nan(AvgPctMaizeArea_Temp), 0, AvgPctMaizeArea_Temp),
+    # irrigated % of total cultivation 
+    AvgPctArea_Irrig = AvgArea_Irrig / AvgArea_Total,#BY MUNICIPIO (both AGTypes have same value!)
+    AvgPctArea_Irrig = ifelse(is.nan(AvgPctArea_Irrig), 0, AvgPctArea_Irrig),
+    # temporal % of total cultivation 
+    AvgPctArea_Temp = AvgArea_Temp / AvgArea_Total,
+    AvgPctArea_Temp = ifelse(is.nan(AvgPctArea_Temp), 0, AvgPctArea_Temp))
 rm(x)
 
 ```
@@ -1134,6 +1005,247 @@ write.csv(SIAP_6, paste0(wd$data_r,"SIAP_6.csv"))
 
 rm(SIAP_2, SIAP_ID, SIAP)
 ```
+
+## 2000s Census Data
+
+
+#### 2010 Population Census
+
+```{r, 'Load/Organize 2010 Population Census', message=FALSE, warning=FALSE}
+
+# read .csv file of 2010 population census data
+PopCensus2010 <- read.csv(paste0(wd$data_r,"AG_Model_2000s/PopCensus2010.csv"))
+
+PopCensus2010 <- PopCensus2010 %>% 
+  # remove a number of unwanted variables
+  select(-MUN, -ORD, -MUN_NUM, -INCLUDE) %>% 
+  # create a variable that joins state and municipality written names ("[municipality], [state]")
+  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>% 
+  mutate(Municipio = str_replace_all(Municipio, c(" De " = " de ",
+                                                  " Del " = " del ",
+                                                  " La " = " la ",
+                                                  " Las " = " las ",
+                                                  " Los " = " los ",
+                                                  " El " = " el ",
+                                                  "Ziltlaltepec" = "Zitlaltepec",
+                                                  "Atltzayanca" = "Altzayanca")),
+         EstadoMunicipio = str_replace_all(EstadoMunicipio, c(" De " = " de ",
+                                                              " Del " = " del ",
+                                                              " La " = " la ",
+                                                              " Las " = " las ",
+                                                              " Los " = " los ",
+                                                              " El " = " el ",
+                                                              "Ziltlaltepec" = "Zitlaltepec",
+                                                              "Atltzayanca" = "Altzayanca")))
+
+# left join the 2010 population census data with the municipality dataframe
+PopCensus2010 <- Municipios2000s_Cases %>% left_join(PopCensus2010, by=c('EstadoMunicipio', 'Municipio', 'Estado'))
+# export csv of the 2010 population census data
+write.csv(PopCensus2010, paste0(wd$data_r,"AG_Model_2000s/testcensus.csv"))
+
+```
+
+
+
+
+#### 2007 Agricultural Census
+
+```{r, 'Load/Organize 2007 Agricultural Census', message=FALSE, warning=FALSE}
+
+# read .csv files of 2007 agricultural census data
+AGCensus2007 <- read.csv(paste0(wd$data_r,"AG_Model_2000s/AGCensus2007.csv"))
+AGCensus2007_Irrig <- read.csv(paste0(wd$data_r,"AG_Model_2000s/AGCensus2007_Irrig.csv"))
+
+AGCensus2007 <- AGCensus2007 %>% left_join(AGCensus2007_Irrig, by="ORD") %>%
+  # remove a number of unwanted variables
+  select(-Region, -ORD, -Num, -INCLUDE, -Name, -State) %>% 
+  # create a variable that joins state and municipality written names ("[municipality], [state]")
+  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>% 
+  mutate(Municipio = str_replace_all(Municipio, c(" De " = " de ",
+                                                  " Del " = " del ",
+                                                  " La " = " la ",
+                                                  " Las " = " las ",
+                                                  " Los " = " los ",
+                                                  " El " = " el ",
+                                                  "Ziltlaltepec" = "Zitlaltepec",
+                                                  "Atltzayanca" = "Altzayanca")),
+         EstadoMunicipio = str_replace_all(EstadoMunicipio, c(" De " = " de ",
+                                                              " Del " = " del ",
+                                                              " La " = " la ",
+                                                              " Las " = " las ",
+                                                              " Los " = " los ",
+                                                              " El " = " el ",
+                                                              "Ziltlaltepec" = "Zitlaltepec",
+                                                              "Atltzayanca" = "Altzayanca")))
+rm(AGCensus2007_Irrig)
+```
+
+
+
+
+### Integrate 2000s Census Data
+
+```{r, 'Integrate 2000s Cenusus Data', message=FALSE, warning=FALSE}
+
+# create a combined 2000s census dataframe from the 2010 population census dataframe
+# and the 2007 agricultural census dataframe
+Census2000s <- PopCensus2010 %>% 
+  # select desired 2010 population census variables to join with 2007 agricultural census data
+  select(Estado_ID, Municipio_ID, EstadoMunicipio, Municipio, Estado, Area_ha, 
+         Pop_Total, Pop_Rural, Pop_Urban, UrbRatio, Pop_Pct_Rural, Pop_Employed, 
+         Primary, Pct_Primary, AG_Workers, Pct_AG_Workers) %>% 
+  # left join the 2010 population census data with the 2007 agricultural census dataframe
+  left_join(AGCensus2007, by=c('EstadoMunicipio', 'Municipio', 'Estado'))
+
+
+```
+
+
+#### Calculate Derived Census Variables
+
+```{r, 'Calculate Derived 2000s Census Variables', message=FALSE, warning=FALSE}
+
+# Calculate a number of derived variables from the combined 2000s census dataframe
+Census2000s <- Census2000s %>% mutate(
+  PopDens = Pop_Total / Area_ha, # population density
+  PopDensRural = Pop_Rural / Area_ha, # population density of the rural population
+  PrimaryEmployDens = Primary / Area_ha, # population density of primary sector employment (2010 pop census variable)
+  TotalLaborDens = TotalLabor / Area_ha, # population density of total agricultural labor (2007 agricultural census variable)
+  AGPasture_ha = AG_ha + Pasture_ha, # Total land used for agriculture and animal husbandry
+  PrimaryEmploy_perHa = Primary / AGPasture_ha, # Density of primary sector employment (2010 pop census variable) per hectare of agriculture+pasture land
+  AG_Workers_perHa = AG_Workers / AGPasture_ha, # Density of agricultural workers (2010 pop census variable, only includes laborers) per hectare of agriculture+pasture land
+  TotalLabor_perHa = TotalLabor / AGPasture_ha, # Density of total agricultural labor (2007 agricultural census variable) per hectare of agriculture+pasture land
+  MechanizEquip_perHa = MechanizEquip / AGPasture_ha, # Density of mechanized agricultural equipment per hectare of agriculture+pasture land
+  DraftAnimals_perHa = DraftAnimals_Total / AGPasture_ha, # Density of draught animals per hectare of agriculture+pasture land
+  Pct_AG_ha = AG_ha / AGPasture_ha, # Percentage of total agriculture+pasture land that is agricultural
+  Pct_Pasture_ha = Pasture_ha / AGPasture_ha, # Percentage of total agriculture+pasture land that is pasture
+  Pct_AG_ha_Irrig = Reigo_ha / AG_ha,
+  Pct_AG_ha_Temp = Temporal_ha / AG_ha,
+  Fertilizer = Pct_FertilChem_ha + Pct_FertilManure_ha,
+  Techniques = Pct_FertilChem_ha + Pct_FertilManure_ha + Pct_Herbicides_ha + Pct_Insecticides_ha + Pct_ControlledBurn_ha,
+  #### Calculation of "Labor Units" ####
+  # used to equivocate different forms of labor input (machine, animal, human)
+  # using efficiencies calculated from 20th century statistics on cultivation labor 
+  # time per unit area using different technology (i.e. machine, animal, human).
+  # One "Labor Unit" (LU) == 1 person-year of manual labor based on person-day equivalents
+  # for common tasks undertaken over the course of the agricultural season
+
+  LU_MechanizEquip = MechanizEquip * 30, #20 one piece of mechanized equipment is equivalent to 20 people
+  LU_DraftAnimals = DraftAnimals_Total * 2, # draught animals and humans have 1-to-1 LU relationship 
+  LU_FamLabor = FamLabor_Tot * 1, # Each family farm operator contributes 1 labor unit
+  LU_ContractFull = ContractLabor_More6Mo * 1, # Each full-time contract laborer contributes 1 labor unit
+  LU_ContractPart = ContractLabor_Less6Mo * 1, #0.5 Each seasonal contract laborer contributes 0.5 labor units
+  LU_Total = LU_MechanizEquip + LU_DraftAnimals + LU_FamLabor + LU_ContractFull + LU_ContractPart, # total LUs == sum of all LUs
+  LU_Total_perHa = LU_Total / AGPasture_ha # Density of total LUs per hectare of agriculture+pasture land
+  ) %>% mutate(
+         Municipio = str_replace_all(Municipio, c(" De " = " de ",
+                                                  " Del " = " del ",
+                                                  " La " = " la ",
+                                                  " Las " = " las ",
+                                                  " Los " = " los ",
+                                                  " El " = " el ",
+                                                  "Ziltlaltepec" = "Zitlaltepec",
+                                                  "Atltzayanca" = "Altzayanca")),
+         EstadoMunicipio = str_replace_all(EstadoMunicipio, c(" De " = " de ",
+                                                              " Del " = " del ",
+                                                              " La " = " la ",
+                                                              " Las " = " las ",
+                                                              " Los " = " los ",
+                                                              " El " = " el ",
+                                                              "Ziltlaltepec" = "Zitlaltepec",
+                                                              "Atltzayanca" = "Altzayanca")))
+
+
+```
+
+```{r}
+# Arable Area
+
+#Municipios2000s <- st_read(paste0(wd$data_p, "Municipios2000s_Data.gpkg"))
+
+ArableArea_100m <- rast(paste0(wd$data_p, "ArableArea_100m.tif"))
+ArableArea_100m <- as.numeric(ArableArea_100m)
+ArableArea_100m <- ifel(ArableArea_100m < 2, 0, 1)
+
+temp = vect(LU2000e)
+temp <- terra::rasterize(temp, ArableArea_100m, values = 1, background = 0)
+
+ArableArea_100m = ArableArea_100m + temp
+ArableArea_100m <- ifel(ArableArea_100m > 0, 1, 0)
+
+Arable <- exact_extract(x = ArableArea_100m, y = Municipios2000s, fun = "sum", 
+                           max_cells_in_memory = 8e+08, stack_apply=T, 
+                           append_cols = c("EstadoMunicipio","Estado", "Municipio", "Area_ha"))
+
+Arable <- Arable %>% mutate(Arable_ha = sum*res(ArableArea_100m)[1]*res(ArableArea_100m)[2]/10000,
+                            PctMun_Arable = Arable_ha / Area_ha) %>% 
+                     rename(AreaMun_ha = Area_ha) %>% select(-sum)
+
+Census2000s <- Census2000s %>% 
+  left_join(Arable, by = c("EstadoMunicipio","Estado", "Municipio"))
+  
+  
+rm(Arable, ArableArea_100m, temp)
+
+#########################################################################
+
+# Settled Area
+
+CONABIO_2015_LandUse_30m <- rast(paste0(wd$data_r,"CONABIO_2015_LandUse_30m.tif"))
+
+LandUse_100m <- resample(CONABIO_2015_LandUse_30m, Topo[[1]], method = "near")
+LandUse_100m <- crop(LandUse_100m, Topo[[1]])
+LandUse_100m <- ifel(LandUse_100m == 17, 1, 0)
+
+Settlement <- exact_extract(x = LandUse_100m, y = Municipios2000s, fun = "sum", 
+                           max_cells_in_memory = 8e+08, stack_apply=T, 
+                           append_cols = c("EstadoMunicipio","Estado", "Municipio"))
+
+Census2000s <- Census2000s %>% 
+  left_join(Settlement, by = c("EstadoMunicipio","Estado", "Municipio")) %>% 
+  mutate(Settlement_ha = sum*res(LandUse_100m)[1]*res(LandUse_100m)[2]/10000,
+         PctMun_Settlement = Settlement_ha / AreaMun_ha,
+         AvgMunSettlementDens = Pop_Total / Settlement_ha) %>% 
+  select(-sum)
+
+rm(Settlement, LandUse_100m, CONABIO_2015_LandUse_30m)
+
+#########################################################################
+
+# Intensive labor and laboresque capital input metrics using Arable Area as denominator
+
+Census2000s <- Census2000s %>% mutate(
+  LU_Total_DensArable = LU_Total / Arable_ha,
+  AG_Workers_DensArable = AG_Workers / Arable_ha,
+  MechanizEquip_DensArable = MechanizEquip / Arable_ha,
+  DraftAnimals_DensArable = DraftAnimals_Total / Arable_ha,
+  PrimaryEmploy_DensArable = Primary / Arable_ha,
+  TotalLabor_DensArable = TotalLabor / Arable_ha,
+  Pop_DensArable = Pop_Total / Arable_ha,
+  PopRural_DensArable = Pop_Rural / Arable_ha) %>% 
+  mutate(across(everything(), ~replace(., is.infinite(.), 0))) %>% 
+  mutate(across(everything(), ~replace(., is.na(.), 0)))
+Census2000s[is.infinite(Census2000s)] <- 0
+Census2000s <- replace(Census2000s, is.infinite(Census2000s), 0)
+```
+
+
+#### Merge with Municipio Polygons and Export
+
+```{r, 'Merge with Municipio Polygons and Export', message=FALSE, warning=FALSE}
+
+Census2000s_poly <- Municipios2000s %>% select(-Area_ha, -Area_m2) %>% 
+  left_join(Census2000s, by = c("Estado_ID", "Municipio_ID", "EstadoMunicipio", "Municipio", "Estado"))
+
+st_write(Census2000s_poly, paste0(wd$data_p, "Census2000s_poly.gpkg"), driver = "GPKG", overwrite=TRUE, append=FALSE)
+
+# save the data as .csv
+write.csv(Census2000s, paste0(wd$data_p,"CensusData2000s.csv"))
+
+rm(AGCensus2007, PopCensus2010)
+
+```
+
 
 
 ## Merge Data
@@ -4081,6 +4193,45 @@ ggsave("Hist_vs_Modern_Yields.png", plot = pltABC, device = "png", path = wd$fig
 
 knitr::include_graphics(paste0(wd$figs,"Hist_vs_Modern_Yields.png"), FALSE)
 ```
+
+
+
+# Census Corr Plots
+
+```{r}
+if (!require("psych")) {install.packages("psych")}
+library(psych)
+C = st_drop_geometry(Census2000s_poly)
+C = C %>% select(LU_Total, AG_Workers, Primary, TotalLabor, Pop_Rural)
+
+
+pairs.panels(C, smooth = F, scale = F, density=TRUE,ellipses=F,
+     digits = 2,method="pearson", pch = 19, lm=T,cor=TRUE,jiggle=FALSE,factor=2, 
+     hist.col="#00AFBB",show.points=TRUE,rug=TRUE, breaks = "Sturges",cex.cor=3,wt=NULL,
+     smoother=FALSE,stars=T,ci=T,alpha=.05)
+
+C = C %>% select(AG_Workers, TotalLabor, Pop_Rural)
+
+pairs.panels(C, smooth = F, scale = F, density=TRUE,ellipses=F,
+     digits = 2,method="pearson", pch = 19, lm=T,cor=TRUE,jiggle=FALSE,factor=2, 
+     hist.col="#00AFBB",show.points=TRUE,rug=TRUE, breaks = "Sturges",cex.cor=3,wt=NULL,
+     smoother=FALSE,stars=T,ci=T,alpha=.05)
+
+
+```
+
+pairs(x, 
+      smooth = TRUE, 
+      scale = FALSE, 
+      density=TRUE,
+      ellipses=TRUE,
+     digits = 2,
+     method="pearson", 
+     pch = 20, 
+     lm=FALSE,
+     cor=TRUE,jiggle=FALSE,factor=2, 
+     hist.col="cyan",show.points=TRUE,rug=TRUE, breaks = "Sturges",cex.cor=1,wt=NULL,
+     smoother=FALSE,stars=FALSE,ci=FALSE,alpha=.05, ...)
 
 
 
