@@ -895,6 +895,8 @@ SIAP_6 = SIAP_4 %>%
             AvgPctArea_Maize = mean(AvgPctArea_Maize_Total, na.rm=T),
             sdPctArea_Maize = mean(sdPctArea_Maize_Total, na.rm=T),
             cvPctArea_Maize = mean(cvPctArea_Maize_Total, na.rm=T)) %>% 
+  
+  
   ungroup() %>% 
   bind_rows(x) %>% 
   pivot_longer(-c(Estado_ID, Estado, ddr_ID, ddr, Cader_ID, Cader, Municipio_ID, Municipio, EstadoMunicipio, AGType), names_to = "Variable", values_to = "Value") %>% 

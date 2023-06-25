@@ -1,0 +1,239 @@
+---
+title: "Untitled"
+author: "Rudolf Cesaretti"
+date: "2023-06-25"
+output: html_document
+---
+
+
+
+
+```{r, 'Load, Clean and Organize SIAP 2003-2021 Yield Data', message=FALSE, warning=FALSE}
+
+# Read-in the SIAP 2003-2021 Yield Data
+SIAP <- read.csv(paste0(wd$data_r,"Cierre_agricola_mun_2003_2021.csv"))
+
+# read-in manually-edited SIAP 2003-2021 ID Data
+SIAP_ID <- read.csv(paste0(wd$data_r,"SIAP_ID_EDITS.csv")) %>% 
+  # Change some string names in the data to be congruent with the other agricultural data
+  mutate_all(~ str_replace_all(., c("Ciudad de Mexico / DF" = "Distrito Federal", 
+                                    "Ciudad de Mexico" = "Distrito Federal",
+                                    "QUECHOLAC" = "Quecholac",
+                                    "alvaro Obregon" = "Alvaro Obregon", 
+                                    "General Felipe angeles" = "General Felipe Angeles",
+                                    " De " = " de ", 
+                                    " Del " = " del ", 
+                                    " La " = " la ", 
+                                    " Las " = " las ", 
+                                    " Los " = " los ",
+                                    " El " = " el ",
+                                    "Ziltlaltepec" = "Zitlaltepec",
+                                    "Atltzayanca" = "Altzayanca")))
+
+SIAP_Cults = SIAP %>% 
+  # restrict dataset to the Mexican states located in the CMex focal region
+  filter(Estado == "Ciudad de Mexico / DF" | 
+         Estado == "Ciudad de Mexico" |
+         Estado == "Mexico" |
+         Estado == "Puebla" |
+         Estado == "Morelos" |
+         Estado == "Hidalgo" |
+         Estado == "Tlaxcala") %>% 
+  # Change some string names in the data to be congruent with the other agricultural data
+  mutate_all(~ str_replace_all(., c("Ciudad de Mexico / DF" = "Distrito Federal", 
+                                    "Ciudad de Mexico" = "Distrito Federal",
+                                    "QUECHOLAC" = "Quecholac",
+                                    "alvaro Obregon" = "Alvaro Obregon", 
+                                    "General Felipe angeles" = "General Felipe Angeles",
+                                    " De " = " de ", 
+                                    " Del " = " del ", 
+                                    " La " = " la ", 
+                                    " Las " = " las ", 
+                                    " Los " = " los ",
+                                    " El " = " el ",
+                                    "Ziltlaltepec" = "Zitlaltepec",
+                                    "Atltzayanca" = "Altzayanca"))) %>%
+  unite(col = EstadoMunicipio, Municipio, Estado, sep = ", ", remove = F) %>%
+  left_join(SIAP_ID, by = c('Estado_ID', 'Estado', 'ddr_ID', 'ddr', 'Cader_ID', 
+                            'Cader', 'Municipio_ID', 'Municipio', 'EstadoMunicipio')) %>% 
+  # filter the data to only include states and municipalities in the CMex focal region
+  filter(INCLUDE == TRUE) %>%
+  # only consider Spring-Summer crop cycle yields (exclude Autumn-Winter yields)
+  filter(Cycle %in% c("Primavera-Verano", "Perennes")) %>%
+  filter(Cultigen %in% c("Calabacita", "Frijol", "Maiz grano", "Amaranto", "Cebada grano","Trigo grano",  "Haba grano", "Chilacayote", "Calabaza", "Centeno grano", "Chia")) %>%# "Maguey pulquero (miles de lts.)","Maguey pulquero", 
+  mutate(Cultigen = case_when(
+    Cultigen == "Maiz grano" ~ "Maize",
+    Cultigen == "Frijol" ~ "Beans",
+    Cultigen == "Amaranto" ~ "Amaranth",
+    #Cultigen == "Maguey pulquero (miles de lts.)" ~ "Maguey",
+    #Cultigen == "Maguey pulquero" ~ "Maguey",
+    Cultigen == "Chia" ~ "Chia",
+    Cultigen == "Calabacita" ~ "Squash",
+    Cultigen == "Chilacayote" ~ "Squash",
+    Cultigen == "Calabaza" ~ "Squash",
+    Cultigen == "Trigo grano" ~ "Wheat",
+    Cultigen == "Cebada grano" ~ "Barley",
+    Cultigen == "Centeno grano" ~ "Rye",
+    Cultigen == "Haba grano" ~ "BroadBeans")) %>%
+  # Change incorrectly-designated character variables to numeric
+  mutate(Planted = as.numeric(Planted), Harvested = as.numeric(Harvested),
+          Lost = as.numeric(Lost), Product = as.numeric(Product)*1000,
+          Yield = as.numeric(Yield)*1000, Price = as.numeric(Price),
+          Value = as.numeric(Value)) %>%
+  group_by(Estado, Municipio, EstadoMunicipio, AGType, Year, Cultigen) %>%
+  summarize(
+    Planted = sum(Planted, na.rm=T),
+    Harvested = sum(Harvested, na.rm=T),
+    Lost = sum(Lost, na.rm=T),
+    Product = sum(Product, na.rm=T),
+    Yield_orig = Product / Harvested,
+    Yield = Product / Planted,
+    YieldLoss = (Product / Harvested) - Yield,
+    PctYieldLoss = (1 - (Yield / (Product / Harvested)))*100,
+    Value = sum(Value, na.rm=T),
+    Price = Value / Product) %>% ungroup() %>% 
+  rowwise() %>% mutate(
+      YieldLoss = ifelse(YieldLoss < 0, 0, YieldLoss),
+      PctYieldLoss = ifelse(PctYieldLoss < 0, 0, PctYieldLoss)) %>% ungroup()
+  
+SIAP_Cults2 = SIAP_Cults %>% group_by(Estado, Municipio, EstadoMunicipio, AGType, Year) %>%
+  mutate(Yield_Maize = Yield[Cultigen == "Maize"])
+
+
+
+
+
+
+%>% 
+  mutate(
+    # reported yield in the data == Product (tons) / hectares harvested
+    Yield_orig = Yield,
+    # we want to change the reported yield to == Product (tons) / hectares planted
+    # to account for yield loss over the course of the growing season
+    Yield = Product / Planted,
+    # calculate the overall/average yield loss in tons per hectare
+    YieldLoss = (Product / Harvested) - Yield,
+    # calculate the percentage yield loss
+    PctYieldLoss = (1 - (Yield / (Product / Harvested)))*100) %>% rowwise() %>% mutate(
+      YieldLoss = ifelse(YieldLoss < 0, 0, YieldLoss),
+      PctYieldLoss = ifelse(PctYieldLoss < 0, 0, PctYieldLoss)) %>% ungroup()
+
+#SIAP_ID = SIAP_2 %>% select(-Year, -(Cycle_ID:Value)) %>% distinct(EstadoMunicipio, .keep_all = T, .remove_duplicates = TRUE)
+
+# Export SIAP 2003-2021 Yield Data for manual editing
+#write.csv(SIAP_ID, paste0(wd$data_r,"SIAP_ID.csv"))
+
+
+
+Maguey = SIAP_Cults %>% filter(Cultigen == "Maguey")
+write.csv(Maguey, paste0(wd$data_r,"SIAP_Maguey.csv"))
+
+
+
+
+# left-join edited SIAP_ID dataframe with SIAP_2 yield data
+SIAP_3 = SIAP_2 %>% left_join(SIAP_ID, by = c('Estado_ID', 'Estado', 'ddr_ID', 'ddr', 'Cader_ID', 'Cader', 'Municipio_ID', 'Municipio', 'EstadoMunicipio')) %>% 
+  # filter the data to only include states and municipalities in the CMex focal region
+  filter(INCLUDE == TRUE) %>%
+  # only consider Spring-Summer crop cycle yields (exclude Autumn-Winter yields)
+  filter(Cycle %in% c("Primavera-Verano", "Perennes")) %>%
+  mutate(CultigenGroup = case_when(
+    Cultigen == "Maiz grano" ~ "Maize",
+    Cultigen == "Avena forrajera seca" ~ "Fodder",
+    Cultigen == "Pastos y praderas seco" ~ "Fodder",
+    Cultigen == "Alfalfa verde" ~ "Fodder",
+    Cultigen == "Pastos y praderas" ~ "Fodder",
+    Cultigen == "Cebada forrajera en verde" ~ "Fodder",
+    Cultigen == "Pastos y praderas achicalado" ~ "Fodder",
+    .default = "OtherCrops")) %>%
+  group_by(EstadoMunicipio, Year, AGType) %>%
+    mutate(Area_AGType = sum(Planted, na.rm=T),
+           Area_AGType_Maize = sum(Planted[CultigenGroup == "Maize"], na.rm=T),
+           Area_AGType_Maize = ifelse(is.na(Area_AGType_Maize), 0, Area_AGType_Maize),
+           Area_AGType_Fodder = sum(Planted[CultigenGroup == "Fodder"], na.rm=T),
+           Area_AGType_Fodder = ifelse(is.na(Area_AGType_Fodder), 0, Area_AGType_Fodder),
+           Area_AGType_OtherCrops = sum(Planted[CultigenGroup == "OtherCrops"], na.rm=T),
+           Area_AGType_OtherCrops = ifelse(is.na(Area_AGType_OtherCrops), 0, Area_AGType_OtherCrops)) %>% ungroup() %>%
+  group_by(EstadoMunicipio, Year) %>%
+    mutate(Area_Total = sum(Planted, na.rm=T) + runif(1, min = 0.0000001, max = 0.0001),
+           Area_Total_Maize = sum(Planted[CultigenGroup == "Maize"], na.rm=T) + runif(1, min = 0.0000001, max = 0.0001),
+           Area_Total_Maize = ifelse(is.na(Area_Total_Maize) | Area_Total_Maize <=  0.0001, 0, Area_Total_Maize),
+           Area_Total_Fodder = sum(Planted[CultigenGroup == "Fodder"], na.rm=T) + runif(1, min = 0.0000001, max = 0.0001),
+           Area_Total_Fodder = ifelse(is.na(Area_Total_Fodder) | Area_Total_Fodder <=  0.0001, 0, Area_Total_Fodder),
+           Area_Total_OtherCrops = sum(Planted[CultigenGroup == "OtherCrops"], na.rm=T) + runif(1, min = 0.0000001, max = 0.0001),
+           Area_Total_OtherCrops = ifelse(is.na(Area_Total_OtherCrops) | Area_Total_OtherCrops <=  0.0001, 0, Area_Total_OtherCrops)) %>% ungroup() %>%
+    mutate(PctArea_Maize_Crops_AGType = Area_AGType_Maize / (Area_AGType_Maize + Area_AGType_OtherCrops),
+           PctArea_Maize_AGType = Area_AGType_Maize / (Area_AGType_Maize + Area_AGType_OtherCrops + Area_AGType_Fodder),
+           PctArea_Maize_Crops_Total = Area_Total_Maize / (Area_Total_Maize + Area_Total_OtherCrops),
+           PctArea_Maize_Total = Area_Total_Maize / (Area_Total_Maize + Area_Total_OtherCrops + Area_Total_Fodder)) %>%
+    # filter the data to only include Maize from the spring-summer cycle
+    filter(Cultigen == "Maiz grano", Cycle == "Primavera-Verano") %>%
+    # convert units -- tons to kg -- for yield, yield loss and product
+    mutate(Yield = Yield * 1000, Yield_orig = Yield_orig * 1000, Product = Product* 1000, YieldLoss = YieldLoss*1000) %>%
+    group_by(EstadoMunicipio, Year) %>%
+    # calculate overall municipal average maize yields for all agricultural types (temporal and riego)
+    # by first grouping by state-municipality and year, and then dividing the sum of the product by the sum of the hectares planted
+    mutate(TotYield = (sum(Product, na.rm=T) / sum(Planted, na.rm=T)) + runif(1, min = 0.0001, max = 0.01),
+           TotYield_orig = sum(Product, na.rm=T) / sum(Harvested, na.rm=T),
+           TotYieldLoss = TotYield_orig - TotYield,
+           TotPctYieldLoss = (1-(TotYield/TotYield_orig))*100) %>% ungroup()
+  
+#write.csv(SIAP_3, paste0(wd$data_r,"SIAP_CMex_Maize.csv"))
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

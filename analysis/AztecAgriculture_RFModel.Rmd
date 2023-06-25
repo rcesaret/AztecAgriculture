@@ -86,7 +86,7 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "tableone", "mlr3", "mlr3verse", "mlr3learners", "mlr3measures", 
               "mlr3tuning", "mlr3mbo", "mlr3misc", "mlr3viz", "mlr3tuningspaces", 
               "mlr3pipelines", "mlr3hyperband", "mlr3fselect", "mlr3filters", 
-              "mlr3cluster")
+              "mlr3cluster", "FSelectorRcpp", "praznik", "care", "genalg")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -105,6 +105,19 @@ invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
 rm(FUNCS)
 
 ```
+
+"Milpa Alta, Distrito Federal", "Tlahuac, Distrito Federal", "Xochimilco, Distrito Federal", "Axapusco, Mexico", "Ixtapaluca, Mexico", "Valle de Chalco Solidaridad, Mexico", "Chicoloapan, Mexico", "Chimalhuacan, Mexico", "Malinalco, Mexico"
+
+
+
+
+
+
+```{r}
+
+```
+
+write.csv(SIAP_2, paste0(wd$data_r,"SIAP_2_BOM_IrrigNoMaizeCases.csv"))
 
 
 # Rescale Yields
@@ -1199,9 +1212,17 @@ names(Clim_sub) <- c("npp", "swb", "gdd10", "pr_spring", "pr_summer", "pr_fall",
 
 writeRaster(Clim_sub, filename = paste0(wd$data_p, "Clim_sub_RF.tif"), overwrite=TRUE)
 
-rm(Clim_sub, pr_spring, pr_summer, pr_fall, tas_spring, tas_summer, tas_fall, tasmin_spring, tasmin_summer, tasmin_fall, tasmax_spring, tasmax_summer, tasmax_fall, pet_spring, pet_summer, pet_fall, cmi_spring, cmi_summer, cmi_fall, clt_spring, clt_summer, clt_fall, rsds_spring, rsds_summer, rsds_fall)
+rm(Clim_sub, pr_spring, pr_summer, pr_fall, tas_spring, tas_summer, tas_fall, tasmin_spring, tasmin_summer, tasmin_fall, tasmax_spring, tasmax_summer, tasmax_fall, pet_spring, pet_summer, pet_fall, cmi_spring, cmi_summer, cmi_fall, clt_spring, clt_summer, clt_fall, rsds_spring, rsds_summer, rsds_fall, Clim, Soil)
 
 Clim_sub <- rast(paste0(wd$data_p, "Clim_sub_RF.tif"))
+
+Env_sub = c(Topo_sub, Soil_sub, Clim_sub)
+
+writeRaster(Env_sub, filename = paste0(wd$data_p, "Env_sub_RF.tif"), overwrite=TRUE)
+
+Env_sub <- rast(paste0(wd$data_p, "Env_sub_RF.tif"))
+
+rm(Clim_sub, Topo_sub, Soil_sub)
 ```
 
 
@@ -1210,26 +1231,32 @@ Clim_sub <- rast(paste0(wd$data_p, "Clim_sub_RF.tif"))
 
 ```{r, label='Extract Raster Values', message=FALSE,warning=FALSE}
 
-topo_vals <- exact_extract(x = Topo_sub, y = Data2000s_poly_rs, fun = "mean", 
+
+env_vals <- exact_extract(x = Env_sub, y = Data2000s_poly_rs, fun = "mean", 
                            max_cells_in_memory = 8e+08, stack_apply=T, 
                            append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
 
-soil_vals <- exact_extract(x = Soil_sub, y = Data2000s_poly_rs, fun = "mean", 
-                           max_cells_in_memory = 8e+08, stack_apply=T, 
-                           append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
 
-clim_vals <- exact_extract(x = Clim_sub, y = Data2000s_poly_rs, fun = "mean", 
-                           max_cells_in_memory = 8e+08, stack_apply=T, 
-                           append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+#topo_vals <- exact_extract(x = Topo_sub, y = Data2000s_poly_rs, fun = "mean", 
+#                           max_cells_in_memory = 8e+08, stack_apply=T, 
+#                           append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
 
-env_vals <- topo_vals %>% left_join(soil_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>% 
-                          left_join(clim_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>% 
-                          mutate(AGType = as.factor(AGType))
+#soil_vals <- exact_extract(x = Soil_sub, y = Data2000s_poly_rs, fun = "mean", 
+#                           max_cells_in_memory = 8e+08, stack_apply=T, 
+#                           append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+
+#clim_vals <- exact_extract(x = Clim_sub, y = Data2000s_poly_rs, fun = "mean", 
+#                           max_cells_in_memory = 8e+08, stack_apply=T, 
+#                           append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+
+#env_vals <- topo_vals %>% left_join(soil_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>% 
+#                          left_join(clim_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>% 
+#                          mutate(AGType = as.factor(AGType))
   
 
 #env_vals = merge(topo_vals, soil_vals, all = F, sort = F)
 
-rm(topo_vals, soil_vals, clim_vals)
+#rm(topo_vals, soil_vals, clim_vals)
 
 ```
 
@@ -1298,6 +1325,7 @@ Data2000s_poly_rs <- Data2000s_poly_rs %>% rowwise() %>% mutate(
   DraftAnimalsMz_perMzHa = DraftAnimalsMz / AvgArea_Maize,
   TractorsMz_perMzHa = TractorsMz / AvgArea_Maize) %>% ungroup()
 
+write.csv(st_drop_geometry(Data2000s_poly_rs), paste0(wd$data_r,"Data2000s_poly_rs.csv"))
 
 #########################################################################
 
@@ -1533,6 +1561,259 @@ high_elev$Maize <- 0
 high_elev <- high_elev[,which(names(high_elev) != "DEM")]
 ```
 
+# Construct RF Prediction Dataset
+
+--Predictions also for polygon values
+
+--Rasterize AG data (popdens, labor, etc)
+--Arable Area == MASK
+--AGType Raster
+--Raster Variables used to dataframe
+
+```{r}
+
+
+Pred_Poly_ModLU <- Data2000s_poly_rs %>%  mutate(
+    AvgPctArea_ofTotal = case_when(
+      EstadoMunicipio == "Ixtapaluca, Mexico" & AGType == "Riego" ~ 0.012594759,
+      EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" ~ 0.012594759,
+      EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" ~ 0.012594759,
+      EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" ~ 0.012594759,
+      EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" ~ 0.012594759,
+      EstadoMunicipio == "Axapusco, Mexico" & AGType == "Riego" ~ 0.006730203,
+	  .default = AvgPctArea_ofTotal))
+
+Municipios2000s <- st_read(paste0(wd$data_p, "Municipios2000s_Data.gpkg")) %>% select(EstadoMunicipio, Estado, Municipio)
+
+Pred_Poly_ModMun_Temp = st_drop_geometry(Pred_Poly_ModLU) %>% filter(AGType == "Temporal") 
+Pred_Poly_ModMun_Temp = Municipios2000s %>% left_join(Pred_Poly_ModMun_Temp, by = c("EstadoMunicipio", "Estado", "Municipio"))
+
+Pred_Poly_ModMun_Irrig = st_drop_geometry(Pred_Poly_ModLU) %>% filter(AGType == "Riego") 
+Pred_Poly_ModMun_Irrig = Municipios2000s %>% left_join(Pred_Poly_ModMun_Irrig, by = c("EstadoMunicipio", "Estado", "Municipio"))
+
+```
+Riego
+AvgPctArea_ofTotal
+Axapusco == Otumba, Mexico == 0.006730203
+Milpa Alta, Tlahuac, Xochimilco, Ixtapaluca == Chalco, Mexico == 0.012594759
+Chalco, Mexico
+
+
+
+yyy = st_drop_geometry(Data2000s_poly_rs) %>% filter(EstadoMunicipio %in% c("Chalco, Mexico", "Otumba, Mexico")) %>% select(EstadoMunicipio, AGType, AvgPctArea_ofTotal)
+
+
+
+## Rasterize Agricultural Data
+
+
+
+Fertilizer
+AvgPctArea_ofTotal
+
+Pop_DensArable
+AG_Workers_DensArable
+
+Census2000s <- read.csv(paste0(wd$data_p,"CensusData2000s.csv")) %>% select(-Estado_ID, -Municipio_ID, -X)
+
+
+```{r}
+ArableAreaMask <- rast(paste0(wd$data_p, "ArableArea_100m.tif"))
+ArableAreaMask <- as.numeric(ArableAreaMask)
+ArableAreaMask <- ifel(ArableAreaMask < 2, 0, 1)
+temp <- st_read(paste0(wd$data_r, "LU2000e.gpkg"))
+temp = vect(temp)
+temp <- terra::rasterize(temp, ArableAreaMask, values = 1, background = 0)
+ArableAreaMask = ArableAreaMask + temp
+ArableAreaMask <- ifel(ArableAreaMask > 0, 1, NA)
+rm(temp)
+
+#AGType_Temp <- ifel(ArableAreaMask > 0, 1, NA)
+AGType_Temp <- as.factor(ArableAreaMask)
+levels(AGType_Temp) = levels(AGType_Temp)[[1]] %>% select(-ArableArea) %>%
+  mutate(AGType_Temp = case_when(
+    ID == 1 ~ "Temporal",
+    ID == 2 ~ "Riego"))
+
+################################
+Fertilizer_Temp <- terra::rasterize(Pred_Poly_ModMun_Temp, Topo[[1]], 
+                                    field = "Fertilizer", background = NA)
+Fertilizer_Temp = mask(Fertilizer_Temp, ArableAreaMask)
+
+AvgPctArea_ofTotal_Temp <- terra::rasterize(Pred_Poly_ModMun_Temp, Topo[[1]], 
+                                            field = "AvgPctArea_ofTotal", background = NA)
+AvgPctArea_ofTotal_Temp = mask(AvgPctArea_ofTotal_Temp, ArableAreaMask)
+
+TotalLabor_DensArable_Temp <- terra::rasterize(Pred_Poly_ModMun_Temp, Topo[[1]], 
+                                               field = "TotalLabor_DensArable", background = NA)
+TotalLabor_DensArable_Temp = mask(TotalLabor_DensArable_Temp, ArableAreaMask)
+
+AG_Workers_DensArable_Temp <- terra::rasterize(Pred_Poly_ModMun_Temp, Topo[[1]], 
+                                               field = "AG_Workers_DensArable", background = NA)
+AG_Workers_DensArable_Temp = mask(AG_Workers_DensArable_Temp, ArableAreaMask)
+
+Pop_DensArable_Temp <- terra::rasterize(Pred_Poly_ModMun_Temp, Topo[[1]], field = "Pop_DensArable", background = NA)
+Pop_DensArable_Temp = mask(Pop_DensArable_Temp, ArableAreaMask)
+
+AGRastsRF_Temp = c(AGType_Temp, Fertilizer_Temp, AvgPctArea_ofTotal_Temp, TotalLabor_DensArable_Temp, AG_Workers_DensArable_Temp, Pop_DensArable_Temp)
+names(AGRastsRF_Temp) = c("AGType", "Fertilizer", "AvgPctArea_ofTotal", "TotalLabor_DensArable", "AG_Workers_DensArable", "Pop_DensArable")
+
+rm(AGType_Temp, Fertilizer_Temp, AvgPctArea_ofTotal_Temp, TotalLabor_DensArable_Temp, AG_Workers_DensArable_Temp, Pop_DensArable_Temp)
+
+
+################################
+
+AGType_Irrig <- ifel(ArableAreaMask > 0, 2, NA)
+AGType_Irrig <- as.factor(AGType_Irrig)
+levels(AGType_Irrig) = levels(AGType_Irrig)[[1]] %>% rename(AGType = ArableArea) %>%
+  mutate(AGType = case_when(
+    ID == 1 ~ "Temporal",
+    ID == 2 ~ "Riego"))
+
+
+################################
+Fertilizer_Irrig <- terra::rasterize(Pred_Poly_ModMun_Irrig, Topo[[1]], 
+                                    field = "Fertilizer", background = NA)
+Fertilizer_Irrig = mask(Fertilizer_Irrig, ArableAreaMask)
+
+
+AvgPctArea_ofTotal_Irrig <- terra::rasterize(Pred_Poly_ModMun_Irrig, Topo[[1]], 
+                                            field = "AvgPctArea_ofTotal", background = NA)
+AvgPctArea_ofTotal_Irrig = mask(AvgPctArea_ofTotal_Irrig, ArableAreaMask)
+
+TotalLabor_DensArable_Irrig <- terra::rasterize(Pred_Poly_ModMun_Irrig, Topo[[1]], 
+                                               field = "TotalLabor_DensArable", background = NA)
+TotalLabor_DensArable_Irrig = mask(TotalLabor_DensArable_Irrig, ArableAreaMask)
+
+AG_Workers_DensArable_Irrig <- terra::rasterize(Pred_Poly_ModMun_Irrig, Topo[[1]], 
+                                               field = "AG_Workers_DensArable", background = NA)
+AG_Workers_DensArable_Irrig = mask(AG_Workers_DensArable_Irrig, ArableAreaMask)
+
+Pop_DensArable_Irrig <- terra::rasterize(Pred_Poly_ModMun_Irrig, Topo[[1]], field = "Pop_DensArable", background = NA)
+Pop_DensArable_Irrig = mask(Pop_DensArable_Irrig, ArableAreaMask)
+
+AGRastsRF_Irrig = c(AGType_Irrig, Fertilizer_Irrig, AvgPctArea_ofTotal_Irrig, TotalLabor_DensArable_Irrig, AG_Workers_DensArable_Irrig, Pop_DensArable_Irrig)
+names(AGRastsRF_Irrig) = c("AGType", "Fertilizer", "AvgPctArea_ofTotal", "TotalLabor_DensArable", "AG_Workers_DensArable", "Pop_DensArable")
+################################
+
+rm(AGType_Irrig, Fertilizer_Irrig, AvgPctArea_ofTotal_Irrig, TotalLabor_DensArable_Irrig, AG_Workers_DensArable_Irrig, Pop_DensArable_Irrig)
+```
+
+
+## Convert Data from Raster Stack to Dataframe 
+
+```{r, label='Convert Data from Raster Stack to Dataframe ', message=FALSE,warning=FALSE}
+
+Env_sub <- mask(Env_sub, ArableAreaMask)
+
+Env_df <- as.data.frame(Env_sub[[1]])
+names(Env_df) <- names(Env_sub[[1]])
+Env_df <- rownames_to_column(Env_df, var = "Cells")
+
+for (i in 2:nlyr(Env_sub)) {
+  
+  t = as.data.frame(Env_sub[[i]])
+  t <- rownames_to_column(t, var = "Cells")
+  names(t) <- c("Cells", names(Env_sub[[i]]))
+  Env_df <- Env_df %>% left_join(t, by="Cells")
+
+}
+
+AGRastTemp_df <- as.data.frame(AGRastsRF_Temp[[1]])
+names(AGRastTemp_df) <- names(AGRastsRF_Temp[[1]])
+AGRastTemp_df <- rownames_to_column(AGRastTemp_df, var = "Cells")
+
+for (i in 2:nlyr(AGRastsRF_Temp)) {
+  
+  t = as.data.frame(AGRastsRF_Temp[[i]])
+  t <- rownames_to_column(t, var = "Cells")
+  names(t) <- c("Cells", names(AGRastsRF_Temp[[i]]))
+  AGRastTemp_df <- AGRastTemp_df %>% left_join(t, by="Cells")
+
+}
+
+AGRastIrrig_df <- as.data.frame(AGRastsRF_Irrig[[1]])
+names(AGRastIrrig_df) <- names(AGRastsRF_Irrig[[1]])
+AGRastIrrig_df <- rownames_to_column(AGRastIrrig_df, var = "Cells")
+
+for (i in 2:nlyr(AGRastsRF_Irrig)) {
+  
+  t = as.data.frame(AGRastsRF_Irrig[[i]])
+  t <- rownames_to_column(t, var = "Cells")
+  names(t) <- c("Cells", names(AGRastsRF_Irrig[[i]]))
+  AGRastIrrig_df <- AGRastIrrig_df %>% left_join(t, by="Cells")
+
+}
+
+writeRaster(AGRastsRF_Temp, filename = paste0(wd$data_p, "AGRastsRF_Temp.tif"), overwrite=TRUE)
+writeRaster(AGRastsRF_Irrig, filename = paste0(wd$data_p, "AGRastsRF_Irrig.tif"), overwrite=TRUE)
+rm(AGRastsRF_Temp, AGRastsRF_Irrig)
+
+RF_df_Temp = AGRastTemp_df %>% left_join(Env_df, by = "Cells") %>% mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")))
+RF_df_Irrig = AGRastIrrig_df %>% left_join(Env_df, by = "Cells") %>% mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")))
+
+write_csv(RF_df_Temp, paste0(wd$data_p,"YieldRFRast_df_Temp.csv.gz"))
+write_csv(RF_df_Irrig, paste0(wd$data_p,"YieldRFRast_df_Irrig.csv.gz"))
+
+#x_df = x_df %>% select(-Streams, -Streams2)
+#d = x_df[complete.cases(x_df), ]
+#d <- x_df[complete.cases(x_df[, -which(names(x_df) == "AGType")]), ]
+rm(Env_df, Municipios2000s, t)
+
+```
+RF_df_Temp
+RF_df_Irrig
+AGType_RF_df <- x_df %>% 
+  mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")),
+         #LandUseArchy = factor(LandUseArchy, levels = c("Unknown", "Wetland", "Settlement", "Water", "Glacial")),
+         Geomorphons = factor(Geomorphons, levels = c("Flat", "Summit", "Ridge", "Shoulder", "Spur", "Slope", "Hollow", "Footslope", "Valley", "Depression")),
+         WRB = factor(WRB, levels = c("NoData", "Andosols", "Arenosols", "Calcisols", "Cambisols", "Durisols", "Fluvisols", "Gleysols", "Leptosols", "Luvisols", "Phaeozems", "Regosols", "Solonchaks", "Solonetz", "Umbrisols", "Vertisols")))
+
+rm(x_df)
+
+AGType_RF_df %>%
+  mutate(part = case_when(
+    row_number() <= ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data1",
+    row_number() <= 2 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data2",
+    row_number() <= 3 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data3",
+    row_number() <= 4 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data4",
+    TRUE ~ "AGType_RFModel_Data5"
+  )) %>%
+  group_split(part) %>%
+  purrr::walk2(
+    .,
+    c("AGType_RFModel_Data1", "AGType_RFModel_Data2", "AGType_RFModel_Data3", "AGType_RFModel_Data4", "AGType_RFModel_Data5"),
+    ~ write_csv(.x, file = paste0(wd$data_p, .y, ".csv.gz"))
+  )
+
+x <- rast(paste0(wd$data_p,"AGType_Raster_Data.tif"))
+names(x) = c("AGType", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "Streams", "Streams2", "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "Valleys", "elev_watershed", "FloodOrder_Rel", "FloodOrder", "FlowDirect_d8_30m", "FlowDirect_inf_30m", "BDRICM", "BDRLOG", "BDTICM", "BD", "S", "Z", "C", "SOC", "CEC", "OCD", "N", "SOCS", "WRB")
+
+l = 1:5
+file_paths <- paste0(wd$data_p, "AGType_RFModel_Data", l, ".csv.gz")
+AGType_RF_df <- file_paths %>%
+  map_dfr(~ read_csv(.x))
+
+
+## Shortcut Import
+
+
+```{r, label='Shortcut Import', message=FALSE,warning=FALSE}
+
+RF_df_Temp <- read_csv(paste0(wd$data_p,"YieldRFRast_df_Temp.csv.gz")) %>% 
+  mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")))
+
+RF_df_Irrig <- read_csv(paste0(wd$data_p,"YieldRFRast_df_Irrig.csv.gz")) %>% 
+  mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")))
+
+AGRastsRF_Temp <- rast(paste0(wd$data_p, "AGRastsRF_Temp.tif"))
+
+AGRastsRF_Irrig <- rast(paste0(wd$data_p, "AGRastsRF_Irrig.tif"))
+
+```
+
+
+
 
 
 
@@ -1551,10 +1832,8 @@ Train_df_Both_cvYield
 
 ```{r, label='Avg Yield Variable Selection', message=FALSE,warning=FALSE}
 
-par(mar = c(11, 4, 4, 2))
+#par(mar = c(11, 4, 4, 2))
 
-Train_df_Both_AvgYield = Train_df_Both_AvgYield %>% select(-AvgPctArea_ofArable, -AvgArea_Maize, -mean.ElevAboveStreams2, -Pop_Rural, -LU_Total_DensArable, -PrimaryEmploy_DensArable, -PopDens, -Pct_Herbicides_ha, -mean.DistStreams2, -PopRuralMz_perMzHa,  -PrimaryMz_perMzHa,  -AGWorkersMz_perMzHa,  -TotalLaborMz_perMzHa,  -LUTotalMz_perMzHa, -PopRural_DensArable, -AvgPctMaizeArea_Irrig, -PopDensRural, -Pop_Urban, -UrbRatio, -PctMun_Arable, -AvgPctArea_Irrig, -TotalLabor_DensArable, -mean.BDTICM, -mean.curv_min, -mean.FloodOrder_Rel, -mean.elev_watershed, -mean.STI, -mean.pet_summer, -mean.BD, -mean.curv_mean, -mean.rsds_summer, -mean.pet_fall, -mean.Z, -mean.pet_spring, -mean.CF, -mean.SPI)
- 
 #boruta = readRDS(paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
 boruta_Bavg <- Boruta(AvgYield ~ ., data = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], maxRuns = 500)#, doTrace = 2
 plot(boruta_Bavg, las = 2, cex.axis = 0.7)
@@ -1568,19 +1847,6 @@ Bavg_form = getConfirmedFormula(boruta_Bavg)
 #Iavg_atts <- attStats(boruta_Iavg)
 
 
-boruta_Bcv <- Boruta(cvYield ~ ., data = Train_df_Both_cvYield[,c(4:ncol(Train_df_Both_cvYield))], maxRuns = 500)
-Bcv_atts <- attStats(boruta_Bcv)
-plot(boruta_Bcv, las = 2, cex.axis = 0.7)
-Bcv_atts <- attStats(boruta_Bcv)
-Bcv_form = getConfirmedFormula(boruta_Bcv)
-
-#boruta_Tcv <- Boruta(cvYield ~ ., data = Train_df_Temp_cvYield[,c(4:ncol(Train_df_Temp_cvYield))], maxRuns = 500)
-#Tcv_atts <- attStats(boruta_Tcv)
-
-#boruta_Icv <- Boruta(cvYield ~ ., data = Train_df_Irrig_cvYield[,c(4:ncol(Train_df_Irrig_cvYield))], maxRuns = 500)
-#Icv_atts <- attStats(boruta_Icv)
-
-
 #print(boruta)
 #boruta[["finalDecision"]]
 #plot(boruta, las = 2, cex.axis = 0.7)
@@ -1590,17 +1856,126 @@ Bcv_form = getConfirmedFormula(boruta_Bcv)
 #form=getConfirmedFormula(boruta)
 
 # saving the model
-saveRDS(boruta, file = paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
+saveRDS(boruta_Bavg, file = paste0(wd$data_p,"AvgYield_RFModel_boruta.rda"))
 #rm(boruta)
 #loading the model
 #boruta = readRDS(paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
+rm(Bavg_atts, boruta_Bavg)
+
+Train_df_Both_AvgYield = Train_df_Both_AvgYield %>% select(-AvgPctArea_ofArable, -AvgArea_Maize, -mean.ElevAboveStreams2, -Pop_Rural, -LU_Total_DensArable, -PrimaryEmploy_DensArable, -PopDens, -Pct_Herbicides_ha, -mean.DistStreams2, -PopRuralMz_perMzHa,  -PrimaryMz_perMzHa,  -AGWorkersMz_perMzHa,  -TotalLaborMz_perMzHa,  -LUTotalMz_perMzHa, -PopRural_DensArable, -AvgPctMaizeArea_Irrig, -PopDensRural, -Pop_Urban, -UrbRatio, -PctMun_Arable, -AvgPctArea_Irrig, -TotalLabor_DensArable, -mean.BDTICM, -mean.curv_min, -mean.FloodOrder_Rel, -mean.elev_watershed, -mean.STI, -mean.pet_summer, -mean.BD, -mean.curv_mean, -mean.rsds_summer, -mean.pet_fall, -mean.Z, -mean.pet_spring, -mean.CF, -mean.SPI)
 ```
 5.1 4.1 4.1 2.1
 
 
 
 
-### (Hyper)Parameter Tuning 
+### (Hyper)Parameter Tuning, Training and Feature Selection
+
+```{r}
+lgr::get_logger("mlr3")$set_threshold("warn")
+
+names(Train_df_Both_AvgYield) = sub("^mean\\.", "", names(Train_df_Both_AvgYield))
+
+# Dataset ("Task")
+Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "Both_AvgYield")
+
+# Partition the data with the default 2/3 split (== 2/3 data for training, 1/3 for testing)
+splits = partition(Both_AvgYield, ratio=0.67)
+Both_AvgYield_train = Both_AvgYield$filter(splits$train)
+Both_AvgYield_test = Both_AvgYield$filter(splits$train)
+Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "BoAvY")
+#### Initial Random Forest Model Parameter Tuning
+
+# Setup Ranger Random Forest Regression Model (= "Learner") for tuning the hyperparameters
+RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(c(100,300,500)), mtry = to_tune(c(4,6,8)), min.node.size = to_tune(c(4,6,8)),
+            #regularization.usedepth = T, regularization.factor = to_tune(c(0.25,0.5,0.75)),#to_tune(seq(0.1,1,0.1))
+            max.depth = to_tune(c(6,8,10)))
+
+# Setup Tuning using grid search (hyperparameter space specified in the RF model above)
+
+termz = trm("combo", list(trm("run_time", secs = 12000), trm("evals", n_evals = 300)), any = T)
+tuner_grid = tnr("grid_search", resolution = 1, batch_size = 1)
+
+rsmp_holdout = rsmp("holdout")
+
+# Find optimal parameter values
+
+#progressr::with_progress()
+BoAvY_instance = tune(
+  tuner = tuner_grid,
+  task = Both_AvgYield_train,
+  learner = RegRF,
+  resampling = rsmp_holdout,
+  measures =  msr("regr.mae"),
+  terminator = termz
+)
+
+# Results of Tuning via grid search:
+BoAvY_instance$result$learner_param_vals
+
+insample = BoAvY_instance$result_y
+
+# Save tuning grid search results as table for inspection
+#z = as.data.table(BoAvY_instance$archive)
+
+#autoplot(BoAvY_instance)
+
+BoAvY_at = auto_tuner(
+  tuner = tuner_grid,
+  learner = RegRF,
+  resampling = rsmp_holdout,
+  measure = msr("regr.mae"),
+  terminator = termz
+)
+rsmp_cv5 = rsmp("cv", folds = 5)
+
+outsample = resample(Both_AvgYield_train, BoAvY_at, rsmp_cv5)$aggregate(msr("regr.mae"))
+
+# setup another Ranger Random Forest Regression Model
+RegRF_tuned = lrn("regr.ranger")
+
+# Set the tuned parameter values
+RegRF_tuned$param_set$values = BoAvY_instance$result_learner_param_vals
+
+generalization = RegRF_tuned$train(Both_AvgYield_train)$
+  predict(Both_AvgYield_test)$score(msr("regr.mae"))
+
+rbind(generalization,insample,outsample)
+
+###### Benchmarking
+
+tasks = list(Both_AvgYield)
+learners = list(RegRF_tuned, lrn("regr.featureless"), lrn("regr.ranger"))
+resamplings = list(rsmp("cv", folds = 5))
+
+grid = benchmark_grid(tasks, learners, resamplings)
+head(grid)
+bmr = benchmark(grid, msr("regr.mae"))
+bmr
+bmr$aggregate(msrs(c("regr.mse", "regr.mae", "regr.rsq")))[, .(task_id, learner_id, regr.mse, regr.mae, regr.rsq)]
+
+autoplot(bmr, measure = msr("regr.rsq"))
+```
+
+RF_df_Temp
+RF_df_Irrig
+
+
+```{r}
+RegRF_trained <- RegRF_tuned$train(Both_AvgYield)
+
+RegRF_pred = RegRF_tuned$predict(task = Both_AvgYield)
+pred = as.data.frame(RegRF_pred)
+
+Train_df_Both_AvgYield$pred <- pred$response
+
+
+
+
+
+
+```
 
 
 The mtry parameter controls the number of randomly selected features to consider at each split
@@ -1873,6 +2248,19 @@ saveRDS(AGType_RF_model_prob, file = paste0(wd$data_p,"AGType_RFModel_Ranger_Pro
 ```{r, label='C.V. Avg Yield RF Model Variable Selection', message=FALSE,warning=FALSE}
 #boruta = readRDS(paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
 
+boruta_Bcv <- Boruta(cvYield ~ ., data = Train_df_Both_cvYield[,c(4:ncol(Train_df_Both_cvYield))], maxRuns = 500)
+Bcv_atts <- attStats(boruta_Bcv)
+plot(boruta_Bcv, las = 2, cex.axis = 0.7)
+Bcv_atts <- attStats(boruta_Bcv)
+Bcv_form = getConfirmedFormula(boruta_Bcv)
+
+#boruta_Tcv <- Boruta(cvYield ~ ., data = Train_df_Temp_cvYield[,c(4:ncol(Train_df_Temp_cvYield))], maxRuns = 500)
+#Tcv_atts <- attStats(boruta_Tcv)
+
+#boruta_Icv <- Boruta(cvYield ~ ., data = Train_df_Irrig_cvYield[,c(4:ncol(Train_df_Irrig_cvYield))], maxRuns = 500)
+#Icv_atts <- attStats(boruta_Icv)
+
+
 boruta <- Boruta(AGType ~ ., data = AGType_RF_Train_df[,c(2:27)], maxRuns = 100)#, doTrace = 2
 print(boruta)
 boruta[["finalDecision"]]
@@ -1922,247 +2310,6 @@ saveRDS(AGType_RF_model_prob, file = paste0(wd$data_p,"AGType_RFModel_Ranger_Pro
 #AGType_RF_model_prob = readRDS(paste0(wd$data_p,"AGType_RFModel_Ranger_Prob.rda"))
 
 ```
-
-# Construct RF Prediction Dataset
-
---Predictions also for polygon values
-
---Rasterize AG data (popdens, labor, etc)
---Arable Area == MASK
---AGType Raster
---Raster Variables used to dataframe
-
-```{r}
-Pred_ModernLUPoly
-
-Pred_ModernMun_
-
-Pred_Poly_ModLU <- Data2000s_poly_rs %>%  mutate(
-    AvgPctArea_ofTotal = case_when(
-      EstadoMunicipio == "Ixtapaluca, Mexico" & AGType == "Riego" ~ 1200,
-      EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" ~ 1200,
-      EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" ~ 2000,
-      EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" ~ 2000,
-      EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" ~ 1200,
-      EstadoMunicipio == "Axapusco, Mexico" & AGType == "Riego" ~ 1500
-	  .default = AvgPctArea_ofTotal))
-
-Municipios2000s <- st_read(paste0(wd$data_p, "Municipios2000s_Data.gpkg")) %>% select(EstadoMunicipio, Estado, Municipio)
-
-Pred_Poly_ModMun_Temp = st_drop_geometry(Pred_Poly_ModLU) %>% filter(AGType == "Temp") 
-Pred_Poly_ModMun_Temp = Municipios2000s_Data %>% left_join(Pred_Poly_ModMun_Temp, by = c("EstadoMunicipio", "Estado", "Municipio"))
-
-Pred_Poly_ModMun_Irrig = st_drop_geometry(Pred_Poly_ModLU) %>% filter(AGType == "Irrig") 
-Pred_Poly_ModMun_Irrig = Municipios2000s_Data %>% left_join(Pred_Poly_ModMun_Irrig, by = c("EstadoMunicipio", "Estado", "Municipio"))
-
-```
-
-
-
-
-
-## Rasterize Agricultural Data
-
-
-
-Fertilizer
-AvgPctArea_ofTotal
-
-Pop_DensArable
-AG_Workers_DensArable
-
-Census2000s <- read.csv(paste0(wd$data_p,"CensusData2000s.csv")) %>% select(-Estado_ID, -Municipio_ID, -X)
-
-
-```{r}
-ArableAreaMask <- rast(paste0(wd$data_p, "ArableArea_100m.tif"))
-ArableAreaMask <- as.numeric(ArableAreaMask)
-ArableAreaMask <- ifel(ArableAreaMask < 2, 0, 1)
-temp <- st_read(paste0(wd$data_r, "LU2000e.gpkg"))
-temp = vect(temp)
-temp <- terra::rasterize(temp, ArableAreaMask, values = 1, background = 0)
-ArableAreaMask = ArableAreaMask + temp
-ArableAreaMask <- ifel(ArableAreaMask > 0, 1, NA)
-rm(temp)
-
-#AGType_Temp <- ifel(ArableAreaMask > 0, 1, NA)
-AGType_Temp <- as.factor(ArableAreaMask)
-levels(AGType_Temp) = levels(AGType_Temp)[[1]] %>% select(-layer) %>%
-  mutate(AGType_Temp = case_when(
-    ID == 1 ~ "Temporal",
-    ID == 2 ~ "Riego"))
-
-################################
-Fertilizer_Temp <- terra::rasterize(Pred_Poly_ModMun_Temp, Topo[[1]], 
-                                    field = "Fertilizer", background = NA)
-Fertilizer_Temp = mask(Fertilizer_Temp, ArableAreaMask)
-
-AvgPctArea_ofTotal_Temp <- terra::rasterize(Pred_Poly_ModMun_Temp, Topo[[1]], 
-                                            field = "AvgPctArea_ofTotal", background = NA)
-AvgPctArea_ofTotal_Temp = mask(AvgPctArea_ofTotal_Temp, ArableAreaMask)
-
-TotalLabor_DensArable_Temp <- terra::rasterize(Pred_Poly_ModMun_Temp, Topo[[1]], 
-                                               field = "TotalLabor_DensArable", background = NA)
-TotalLabor_DensArable_Temp = mask(TotalLabor_DensArable_Temp, ArableAreaMask)
-
-AG_Workers_DensArable_Temp <- terra::rasterize(AG_Workers_DensArable_Temp, Topo[[1]], 
-                                               field = "AG_Workers_DensArable", background = NA)
-AG_Workers_DensArable_Temp = mask(AG_Workers_DensArable_Temp, ArableAreaMask)
-
-Pop_DensArable_Temp <- terra::rasterize(Pop_DensArable_Temp, Topo[[1]], field = "Pop_DensArable", background = NA)
-Pop_DensArable_Temp = mask(Pop_DensArable_Temp, ArableAreaMask)
-
-AGRastsRF_Temp = c(AGType_Temp, Fertilizer_Temp, AvgPctArea_ofTotal_Temp, TotalLabor_DensArable_Temp, AG_Workers_DensArable_Temp, Pop_DensArable_Temp)
-names(AGRastsRF_Temp) = c("AGType", "Fertilizer", "AvgPctArea_ofTotal", "TotalLabor_DensArable", "AG_Workers_DensArable", "Pop_DensArable")
-################################
-
-AGType_Irrig <- ifel(ArableAreaMask > 0, 2, NA)
-AGType_Irrig <- as.factor(AGType_Irrig)
-levels(AGType_Irrig) = levels(AGType_Irrig)[[1]] %>% rename(AGType = ArableArea) %>%
-  mutate(AGType = case_when(
-    ID == 1 ~ "Temporal",
-    ID == 2 ~ "Riego"))
-
-
-################################
-Fertilizer_Irrig <- terra::rasterize(Pred_Poly_ModMun_Irrig, Topo[[1]], 
-                                    field = "Fertilizer", background = NA)
-Fertilizer_Irrig = mask(Fertilizer_Irrig, ArableAreaMask)
-
-
-AvgPctArea_ofTotal_Irrig <- terra::rasterize(Pred_Poly_ModMun_Irrig, Topo[[1]], 
-                                            field = "AvgPctArea_ofTotal", background = NA)
-AvgPctArea_ofTotal_Irrig = mask(AvgPctArea_ofTotal_Irrig, ArableAreaMask)
-
-TotalLabor_DensArable_Irrig <- terra::rasterize(Pred_Poly_ModMun_Irrig, Topo[[1]], 
-                                               field = "TotalLabor_DensArable", background = NA)
-TotalLabor_DensArable_Irrig = mask(TotalLabor_DensArable_Irrig, ArableAreaMask)
-
-AG_Workers_DensArable_Irrig <- terra::rasterize(AG_Workers_DensArable_Irrig, Topo[[1]], 
-                                               field = "AG_Workers_DensArable", background = NA)
-AG_Workers_DensArable_Irrig = mask(AG_Workers_DensArable_Irrig, ArableAreaMask)
-
-Pop_DensArable_Irrig <- terra::rasterize(Pop_DensArable_Irrig, Topo[[1]], field = "Pop_DensArable", background = NA)
-Pop_DensArable_Irrig = mask(Pop_DensArable_Irrig, ArableAreaMask)
-
-AGRastsRF_Irrig = c(AGType_Irrig, Fertilizer_Irrig, AvgPctArea_ofTotal_Irrig, TotalLabor_DensArable_Irrig, AG_Workers_DensArable_Irrig, Pop_DensArable_Irrig)
-names(AGRastsRF_Irrig) = c("AGType", "Fertilizer", "AvgPctArea_ofTotal", "TotalLabor_DensArable", "AG_Workers_DensArable", "Pop_DensArable")
-################################
-```
-
-
-## Convert Data from Raster Stack to Dataframe 
-
-```{r, label='Convert Data from Raster Stack to Dataframe ', message=FALSE,warning=FALSE}
-
-Clim_sub <- mask(Clim_sub, ArableAreaMask)
-
-Clim_df <- as.data.frame(Clim_sub[[1]])
-names(Clim_df) <- names(Clim_sub[[1]])
-Clim_df <- rownames_to_column(Clim_df, var = "Cells")
-
-for (i in 2:nlyr(Clim_sub)) {
-  
-  t = as.data.frame(Clim_sub[[i]])
-  t <- rownames_to_column(t, var = "Cells")
-  names(t) <- c("Cells", names(Clim_sub[[i]]))
-  Clim_df <- Clim_df %>% left_join(t, by="Cells")
-
-}
-
-AGRastTemp_df <- (AGRastsRF_Temp[[1]])
-names(AGRastTemp_df) <- names(AGRastsRF_Temp[[1]])
-AGRastTemp_df <- rownames_to_column(AGRastTemp_df, var = "Cells")
-
-for (i in 2:nlyr(AGRastsRF_Temp)) {
-  
-  t = as.data.frame(AGRastsRF_Temp[[i]])
-  t <- rownames_to_column(t, var = "Cells")
-  names(t) <- c("Cells", names(AGRastsRF_Temp[[i]]))
-  AGRastTemp_df <- AGRastTemp_df %>% left_join(t, by="Cells")
-
-}
-
-AGRastIrrig_df <- (AGRastsRF_Irrig[[1]])
-names(AGRastIrrig_df) <- names(AGRastsRF_Irrig[[1]])
-AGRastIrrig_df <- rownames_to_column(AGRastIrrig_df, var = "Cells")
-
-for (i in 2:nlyr(AGRastsRF_Irrig)) {
-  
-  t = as.data.frame(AGRastsRF_Irrig[[i]])
-  t <- rownames_to_column(t, var = "Cells")
-  names(t) <- c("Cells", names(AGRastsRF_Irrig[[i]]))
-  AGRastIrrig_df <- AGRastIrrig_df %>% left_join(t, by="Cells")
-
-}
-
-writeRaster(AGRastsRF_Temp, filename = paste0(wd$data_p, "AGRastsRF_Temp.tif"), overwrite=TRUE)
-writeRaster(AGRastsRF_Irrig, filename = paste0(wd$data_p, "AGRastsRF_Irrig.tif"), overwrite=TRUE)
-rm(AGRastsRF_Temp, AGRastsRF_Irrig)
-
-RF_df_Temp = cbind(AGRastTemp_df, Clim_df) %>% mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")))
-RF_df_Irrig = cbind(AGRastIrrig_df, Clim_df) %>% mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")))
-
-write_csv(RF_df_Temp, paste0(wd$data_p,"YieldRFRast_df_Temp.csv.gz"))
-write_csv(RF_df_Irrig, paste0(wd$data_p,"YieldRFRast_df_Irrig.csv.gz"))
-
-#x_df = x_df %>% select(-Streams, -Streams2)
-#d = x_df[complete.cases(x_df), ]
-#d <- x_df[complete.cases(x_df[, -which(names(x_df) == "AGType")]), ]
-
-
-```
-
-AGType_RF_df <- x_df %>% 
-  mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")),
-         #LandUseArchy = factor(LandUseArchy, levels = c("Unknown", "Wetland", "Settlement", "Water", "Glacial")),
-         Geomorphons = factor(Geomorphons, levels = c("Flat", "Summit", "Ridge", "Shoulder", "Spur", "Slope", "Hollow", "Footslope", "Valley", "Depression")),
-         WRB = factor(WRB, levels = c("NoData", "Andosols", "Arenosols", "Calcisols", "Cambisols", "Durisols", "Fluvisols", "Gleysols", "Leptosols", "Luvisols", "Phaeozems", "Regosols", "Solonchaks", "Solonetz", "Umbrisols", "Vertisols")))
-
-rm(x_df)
-
-AGType_RF_df %>%
-  mutate(part = case_when(
-    row_number() <= ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data1",
-    row_number() <= 2 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data2",
-    row_number() <= 3 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data3",
-    row_number() <= 4 * ceiling(nrow(.) / 5) ~ "AGType_RFModel_Data4",
-    TRUE ~ "AGType_RFModel_Data5"
-  )) %>%
-  group_split(part) %>%
-  purrr::walk2(
-    .,
-    c("AGType_RFModel_Data1", "AGType_RFModel_Data2", "AGType_RFModel_Data3", "AGType_RFModel_Data4", "AGType_RFModel_Data5"),
-    ~ write_csv(.x, file = paste0(wd$data_p, .y, ".csv.gz"))
-  )
-
-x <- rast(paste0(wd$data_p,"AGType_Raster_Data.tif"))
-names(x) = c("AGType", "Geomorphons", "DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "Streams", "Streams2", "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "Valleys", "elev_watershed", "FloodOrder_Rel", "FloodOrder", "FlowDirect_d8_30m", "FlowDirect_inf_30m", "BDRICM", "BDRLOG", "BDTICM", "BD", "S", "Z", "C", "SOC", "CEC", "OCD", "N", "SOCS", "WRB")
-
-l = 1:5
-file_paths <- paste0(wd$data_p, "AGType_RFModel_Data", l, ".csv.gz")
-AGType_RF_df <- file_paths %>%
-  map_dfr(~ read_csv(.x))
-
-
-## Shortcut Import
-
-
-```{r, label='Shortcut Import', message=FALSE,warning=FALSE}
-
-RF_df_Temp <- read_csv(paste0(wd$data_p,"YieldRFRast_df_Temp.csv.gz")) %>% 
-  mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")))
-
-RF_df_Irrig <- read_csv(paste0(wd$data_p,"YieldRFRast_df_Irrig.csv.gz")) %>% 
-  mutate(AGType = factor(AGType, levels = c("Temporal", "Irrigation")))
-
-AGRastsRF_Temp <- rast(paste0(wd$data_p, "AGRastsRF_Temp.tif"))
-
-AGRastsRF_Irrig <- rast(paste0(wd$data_p, "AGRastsRF_Irrig.tif"))
-
-```
-
-
 
 
 # Model Predictions

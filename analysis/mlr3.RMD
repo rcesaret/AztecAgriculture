@@ -1,0 +1,590 @@
+---
+title: "Untitled"
+author: "Rudolf Cesaretti"
+date: "2023-06-24"
+output: html_document
+---
+
+```{r, setup, include=FALSE,echo=FALSE, message=FALSE,warning=FALSE}
+
+rm(list = ls())
+```
+
+# Start
+
+```{r, label='Set Local Directory Location', message=FALSE,warning=FALSE}
+
+wd <- list()
+
+#SET YOUR LOCAL DIRECTORY LOCATION HERE:
+wd$dir <- "D:/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
+#wd$dir <- "C:/Users/TJ McMote/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
+
+wd$analysis <- paste0(wd$dir,"analysis/")
+wd$data_r <- paste0(wd$dir,"data-raw/")
+wd$data_p <- paste0(wd$dir,"data-processed/")
+wd$data_f <- paste0(wd$dir,"data-final-outputs/")
+wd$figs <- paste0(wd$dir,"figures/")
+wd$funcs <- paste0(wd$dir,"functions/")
+
+```
+
+
+
+# Packages
+
+
+```{r, label='Load Libraries', message=FALSE,warning=FALSE}
+# Package names
+packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster", 
+              "Matrix", "terra","gdistance", "lwgeom", "tidyr", "stars", 
+              "dismo", "purrr", "spatialEco", "whitebox", "classInt",
+              "ggnewscale", "lbmech", "data.table", "tidyterra","gridExtra", 
+              "cowplot", "scam", "rmarkdown", "spatialreg","spdep", "ggridges", 
+              "ggnewscale", "scales", "ggstatsplot", "stringi", "fuzzyjoin", 
+              "mgcv", "randomForest", "ranger", "exactextractr", "kableExtra",
+              "goft", "MASS", "NSM3", "ggsn", "rlang", "FSA", "philentropy", 
+              "sfdep","spdep", "Boruta", "mlbench", "caret", "DataExplorer", 
+              "tableone", "mlr3", "mlr3verse", "mlr3learners", "mlr3measures", 
+              "mlr3tuning", "mlr3mbo", "mlr3misc", "mlr3viz", "mlr3tuningspaces", 
+              "mlr3pipelines", "mlr3hyperband", "mlr3fselect", "mlr3filters", 
+              "mlr3cluster", "FSelectorRcpp", "praznik", "care", "genalg")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# load packages
+invisible(lapply(packages, library, character.only = TRUE))
+
+rm(packages,installed_packages)
+
+#Read in custom R functions located in the wd$funcs directory folder
+FUNCS <- list("RescaleSpatRast.R", "Terra_df.R", "RF_ImputeRast.R", "linear_rescale.R", "CMex_AG_Map.R")
+invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
+rm(FUNCS)
+
+```
+
+# Data Setup
+
+```{r}
+Data2000s_poly_rs <- st_read(paste0(wd$data_p, "Data2000s_poly_rescale.gpkg"))
+Topo <- rast(paste0(wd$data_p, "Topo_r_resampled.tif"))
+Soil <- rast(paste0(wd$data_p, "Soil_r_resampled.tif"))
+#Clim <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
+Clim_sub <- rast(paste0(wd$data_p, "Clim_sub_RF.tif"))
+Soil_sub <- subset(Soil, c("BDRICM", "BDRLOG", "BDTICM", "AWCtS", "AWCtS_2m", "BD", 
+                               "S", "Z", "C", "CF", "SOC", "CEC","OCD", "N", "SOCS"))
+
+Topo_sub <- subset(Topo, c("DEM", "Slope","Accum", "TRI", "TWI", "STI", "SPI", 
+                                     "curv_min", "curv_max", "curv_mean", "DistStreams", 
+                                     "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2",
+                                     "elev_watershed", "FloodOrder_Rel"))
+topo_vals <- exact_extract(x = Topo_sub, y = Data2000s_poly_rs, fun = "mean", 
+                           max_cells_in_memory = 8e+08, stack_apply=T, 
+                           append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+
+soil_vals <- exact_extract(x = Soil_sub, y = Data2000s_poly_rs, fun = "mean", 
+                           max_cells_in_memory = 8e+08, stack_apply=T, 
+                           append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+
+clim_vals <- exact_extract(x = Clim_sub, y = Data2000s_poly_rs, fun = "mean", 
+                           max_cells_in_memory = 8e+08, stack_apply=T, 
+                           append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+
+env_vals <- topo_vals %>% left_join(soil_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>% 
+                          left_join(clim_vals, by = c("EstadoMunicipio","Estado", "Municipio", "AGType")) %>% 
+                          mutate(AGType = as.factor(AGType))
+
+rm(topo_vals, soil_vals, clim_vals)
+
+Data2000s_poly_rs <- Data2000s_poly_rs %>% mutate(
+  LU_Total_DensArable = ifelse(LU_Total_DensArable > 3.5, 3.5, LU_Total_DensArable),
+  AG_Workers_DensArable = ifelse(AG_Workers_DensArable > 1, 1, AG_Workers_DensArable),
+  #MechanizEquip_DensArable = MechanizEquip / Arable_ha,
+  #DraftAnimals_DensArable = DraftAnimals_Total / Arable_ha,
+  PrimaryEmploy_DensArable = ifelse(PrimaryEmploy_DensArable > 1.3, 1.3, PrimaryEmploy_DensArable),
+  TotalLabor_DensArable = ifelse(TotalLabor_DensArable > 2.5, 2.5, TotalLabor_DensArable),
+  Pop_DensArable = ifelse(Pop_DensArable > 100, 100, Pop_DensArable),
+  PopRural_DensArable = ifelse(PopRural_DensArable > 7, 7, PopRural_DensArable))
+
+
+Data2000s_poly_rs <- Data2000s_poly_rs %>% rowwise() %>% mutate(
+  AvgPctArea_ofTotal = AvgArea_Maize / AvgArea_Total,
+  AvgPctArea_ofArable = AvgArea_Maize / Arable_ha,
+  PopRuralMz = Pop_Rural * AvgPctArea_ofTotal,
+  PrimaryMz = Primary * AvgPctArea_ofTotal,
+  AGWorkersMz = AG_Workers * AvgPctArea_ofTotal,
+  TotalLaborMz = TotalLabor * AvgPctArea_ofTotal,
+  LUTotalMz = LU_Total * AvgPctArea_ofTotal, 
+  ContractLaboTotMz = ContractLabor_Tot * AvgPctArea_ofTotal, 
+  ContractLaborFullMz = ContractLabor_More6Mo * AvgPctArea_ofTotal, 
+  ContractLaboPartMz = ContractLabor_Less6Mo * AvgPctArea_ofTotal, 
+  FamLaborMz = FamLabor_Tot * AvgPctArea_ofTotal, 
+  MechanizEquipMz = MechanizEquip * AvgPctArea_ofTotal, 
+  DraftAnimalsMz = DraftAnimals_Total * AvgPctArea_ofTotal, 
+  TractorsMz = Tractors * AvgPctArea_ofTotal,
+  
+  PopRuralMz_perMzHa = PopRuralMz / AvgArea_Maize,
+  #PopRuralMz_perMzHa = ifelse(PopRuralMz_perMzHa > 150, 150, PopRuralMz_perMzHa),
+  PrimaryMz_perMzHa = PrimaryMz / AvgArea_Maize,
+  AGWorkersMz_perMzHa = AGWorkersMz / AvgArea_Maize,
+  TotalLaborMz_perMzHa = TotalLaborMz / AvgArea_Maize,
+  LUTotalMz_perMzHa = LUTotalMz / AvgArea_Maize,
+  ContractLaboTotMz_perMzHa = ContractLaboTotMz / AvgArea_Maize,
+  ContractLaborFullMz_perMzHa = ContractLaborFullMz / AvgArea_Maize,
+  ContractLaboPartMz_perMzHa = ContractLaboPartMz / AvgArea_Maize,
+  FamLaborMz_perMzHa = FamLaborMz / AvgArea_Maize,
+  MechanizEquipMz_perMzHa = MechanizEquipMz / AvgArea_Maize,
+  DraftAnimalsMz_perMzHa = DraftAnimalsMz / AvgArea_Maize,
+  TractorsMz_perMzHa = TractorsMz / AvgArea_Maize) %>% ungroup()
+
+y = env_vals %>% select(-Estado, -Municipio, -mean.AWCtS)
+
+Train_df = st_drop_geometry(Data2000s_poly_rs) %>% select(
+  
+  EstadoMunicipio, Estado, Municipio, AvgYield, cvYield, AGType, 
+  
+  PopDens, Pop_Urban, Pop_Rural, 
+  PopDensRural, UrbRatio,
+  
+  #Pct_Primary, Pct_AG_Workers, 
+  
+  #Pct_Rest_ha, Pct_Fallow_ha, 
+  
+  #Pct_Tract_Mechaniz_pu, Pct_Tract_Animal_pu, Pct_Tract_Manual_pu, 
+  
+  Pct_Herbicides_ha, #Pct_FertilChem_ha, Pct_FertilManure_ha, Pct_ImprovSeed_ha, Pct_Insecticides_ha, Pct_ControlledBurn_ha, 
+  
+  Fertilizer, #Techniques, 
+  
+  #IrrigPU_EarthenCanals, IrrigPU_CoatedCanals, IrrigPU_CanalsTotal, IrrigPU_Modern, IrrigPU_Other, IrrigPUWater_River, IrrigPUWater_Spring, IrrigPUWater_Dam, IrrigPUWater_Modern, IrrigPUWater_Other,
+  
+  PopRuralMz_perMzHa,  PrimaryMz_perMzHa,  AGWorkersMz_perMzHa,  TotalLaborMz_perMzHa,  LUTotalMz_perMzHa,
+  #ContractLaboTotMz_perMzHa,  ContractLaborFullMz_perMzHa,  ContractLaboPartMz_perMzHa,  FamLaborMz_perMzHa,
+  #MechanizEquipMz_perMzHa,  DraftAnimalsMz_perMzHa,  TractorsMz_perMzHa,
+  
+  AvgArea_Maize, AvgPctArea_ofTotal, AvgPctArea_ofArable, AvgPctMaizeArea_Irrig, AvgPctMaizeArea_Temp, AvgPctArea_Irrig, AvgPctArea_Temp,
+  
+  LU_Total_DensArable, AG_Workers_DensArable, PrimaryEmploy_DensArable, TotalLabor_DensArable, Pop_DensArable, PopRural_DensArable, PctMun_Arable
+  #MechanizEquip_DensArable, DraftAnimals_DensArable, PctMun_Settlement, AvgMunSettlementDens
+  )
+
+
+#Remove Irrigation
+E_TLAXCALA = c("Emiliano Zapata, Tlaxcala", "Lazaro Cardenas, Tlaxcala", "Terrenate, Tlaxcala", "Xaloztoc, Tlaxcala", "Tzompantepec, Tlaxcala", "Tocatlan, Tlaxcala", "Huamantla, Tlaxcala", "Altzayanca, Tlaxcala", "Cuapiaxtla, Tlaxcala", "El Carmen Tequexquitla, Tlaxcala", "Zitlaltepec de Trinidad Sanchez Santos, Tlaxcala", "Ixtenco, Tlaxcala", "Nopalucan, Puebla", "Rafael Lara Grajales, Puebla", "Soltepec, Puebla", "Mazapiltepec de Juarez, Puebla","San Jose Chiapa, Puebla")
+
+Remove_Irrigation = c("Chicoloapan, Mexico", "Chimalhuacan, Mexico", "Atenco, Mexico", "Chiconcuac, Mexico", "Ecatepec de Morelos, Mexico", "Coacalco de Berriozabal, Mexico", "Papalotla, Mexico")
+
+#RESCALE Irrigation
+S_HIDALGO = c("Mixquiahuala de Juarez, Hidalgo", "Tezontepec de Aldama, Hidalgo", "Tepetitlan, Hidalgo", "Tula de Allende, Hidalgo", "Tepeji del Rio de Ocampo, Hidalgo", "Tlaxcoapan, Hidalgo", "Tlahuelilpan, Hidalgo", "Atitalaquia, Hidalgo", "Atotonilco de Tula, Hidalgo", "Francisco I. Madero, Hidalgo", "Tetepango, Hidalgo", "Ajacuba, Hidalgo", "Tetepango, Hidalgo")
+
+Remove_Temporal = c("Milpa Alta, Distrito Federal", "Tlalpan, Distrito Federal", "Xochimilco, Distrito Federal", "Tlahuac, Distrito Federal", "La Magdalena Contreras, Distrito Federal", "Alvaro Obregon, Distrito Federal", "Cuajimalpa de Morelos, Distrito Federal", "Jilotzingo, Mexico", "Naucalpan de Juarez, Mexico", "Atizapan de Zaragoza, Mexico", "Tlalnepantla de Baz, Mexico", "Coacalco de Berriozabal, Mexico", "Jaltenco, Mexico", "Coyotepec, Mexico", "La Paz, Mexico", "Chimalhuacan, Mexico", "Domingo Arenas, Puebla", "San Felipe Teotlalcingo, Puebla", "Puebla, Puebla") #"Chicoloapan, Mexico", "Ixtapaluca, Mexico"
+
+Train_df = Train_df %>% 
+  
+  filter(!(EstadoMunicipio %in% c("Ixtapaluca, Mexico", "Valle de Chalco Solidaridad, Mexico", "Milpa Alta, Distrito Federal", "Tlahuac, Distrito Federal", "Xochimilco, Distrito Federal", "Axapusco, Mexico") & AGType %in% "Riego")) %>% 
+  
+  filter(!(EstadoMunicipio %in% E_TLAXCALA & AGType %in% "Riego")) %>% 
+  
+  filter(!(EstadoMunicipio %in% Remove_Irrigation & AGType %in% "Riego")) %>% 
+  
+  filter(!(EstadoMunicipio %in% Remove_Temporal & AGType %in% "Temporal")) %>% 
+  
+  left_join(y, by = c("EstadoMunicipio", "AGType")) %>% 
+  
+  mutate(AGType = factor(AGType, levels = c("Temporal", "Riego")))
+
+#Train_df[, c("IrrigPU_EarthenCanals", "IrrigPU_CoatedCanals", "IrrigPU_CanalsTotal", "IrrigPU_Modern", "IrrigPU_Other", "IrrigPUWater_River", "IrrigPUWater_Spring", "IrrigPUWater_Dam", "IrrigPUWater_Modern", "IrrigPUWater_Other")][is.na(Train_df[, c("IrrigPU_EarthenCanals", "IrrigPU_CoatedCanals", "IrrigPU_CanalsTotal", "IrrigPU_Modern", "IrrigPU_Other", "IrrigPUWater_River", "IrrigPUWater_Spring", "IrrigPUWater_Dam", "IrrigPUWater_Modern", "IrrigPUWater_Other")])] <- 0
+
+#Train_df_Temp_AvgYield = Train_df %>% filter(AGType == "Temporal") %>% select(-AGType, -cvYield, -IrrigPU_EarthenCanals, -IrrigPU_CoatedCanals, -IrrigPU_CanalsTotal, -IrrigPU_Modern, -IrrigPU_Other, -IrrigPUWater_River, -IrrigPUWater_Spring, -IrrigPUWater_Dam, -IrrigPUWater_Modern, -IrrigPUWater_Other, -AvgPctArea_Irrig, -AvgPctMaizeArea_Irrig) %>% filter(complete.cases(.))
+
+#Train_df_Irrig_AvgYield = Train_df %>% filter(AGType == "Riego") %>% select(-AGType, -cvYield, -Pct_Rest_ha, -Pct_Fallow_ha, -Pct_ControlledBurn_ha, -AvgPctArea_Temp, -AvgPctMaizeArea_Temp) %>% filter(complete.cases(.))
+
+Train_df_Both_AvgYield = Train_df %>% select(-AvgPctArea_Temp, -cvYield, -AvgPctMaizeArea_Temp) %>% filter(complete.cases(.))
+
+#Train_df_Temp_cvYield = Train_df %>% filter(AGType == "Temporal") %>% select(-AGType, -AvgYield, -IrrigPU_EarthenCanals, -IrrigPU_CoatedCanals, -IrrigPU_CanalsTotal, -IrrigPU_Modern, -IrrigPU_Other, -IrrigPUWater_River, -IrrigPUWater_Spring, -IrrigPUWater_Dam, -IrrigPUWater_Modern, -IrrigPUWater_Other, -AvgPctArea_Irrig, -AvgPctMaizeArea_Irrig) %>% filter(complete.cases(.))
+
+#Train_df_Irrig_cvYield = Train_df %>% filter(AGType == "Riego") %>% select(-AGType, -AvgYield, -Pct_Rest_ha, -Pct_Fallow_ha, -Pct_ControlledBurn_ha, -AvgPctArea_Temp, -AvgPctMaizeArea_Temp) %>% filter(complete.cases(.))
+
+Train_df_Both_cvYield = Train_df %>% select(-AvgPctArea_Temp, -AvgYield, -AvgPctMaizeArea_Temp) %>% filter(complete.cases(.))
+
+rm(y)
+
+
+Train_df_Both_AvgYield = Train_df_Both_AvgYield %>% select(-AvgPctArea_ofArable, -AvgArea_Maize, -mean.ElevAboveStreams2, -Pop_Rural, -LU_Total_DensArable, -PrimaryEmploy_DensArable, -PopDens, -Pct_Herbicides_ha, -mean.DistStreams2, -PopRuralMz_perMzHa,  -PrimaryMz_perMzHa,  -AGWorkersMz_perMzHa,  -TotalLaborMz_perMzHa,  -LUTotalMz_perMzHa, -PopRural_DensArable, -AvgPctMaizeArea_Irrig, -PopDensRural, -Pop_Urban, -UrbRatio, -PctMun_Arable, -AvgPctArea_Irrig, -TotalLabor_DensArable, -mean.BDTICM, -mean.curv_min, -mean.FloodOrder_Rel, -mean.elev_watershed, -mean.STI, -mean.pet_summer, -mean.BD, -mean.curv_mean, -mean.rsds_summer, -mean.pet_fall, -mean.Z, -mean.pet_spring, -mean.CF, -mean.SPI)
+```
+
+
+https://mlr3book.mlr-org.com/
+
+A supervised machine learning model can only be deployed in practice if it has a good generalization performance, which means it generalizes well to new, unseen data. Accurate estimation of the generalization performance is crucial for many aspects of machine learning application and research – whether we want to fairly compare a novel algorithm with established ones or to find the best algorithm for a particular task. The concept of performance estimation provides information on how well a model will generalize to new data and plays an important role in the context of model comparison, model selection, and hyperparameter tuning
+
+Assessing the generalization performance of a model begins with selecting a performance measure that is appropriate for our given task and evaluation goal.
+
+Once we have decided on a performance measure, the next step is to adopt a strategy that defines how to use the available data to estimate the generalization performance. **Using the same data to train and test a model is a bad strategy as it would lead to an overly optimistic performance estimate. For example, a model that is overfitted (fit too closely to the data) could make perfect predictions on training data simply by memorizing it and then only make random guesses for new data.** In Section 2.2.1.1 we introduced partition(), which splits a dataset into training data – data for training the model – and test data – data for testing the model and estimating the generalization performance, this is known as the holdout strategy (Section 3.1) and is where we will begin this chapter. We will then consider more advanced strategies for assessing the generalization performance (Section 3.2), look at robust methods for comparing models (Section 3.3), and **finally will discuss specialized performance measures for binary classification** (Section 3.4). For an in-depth overview of measures and performance estimation, we recommend Japkowicz and Shah (2011).
+
+**Holdout Strategy** == randomly partition the data in two, test and train datasets
+
+The holdout strategy is a simple method to create this split between training and testing datasets, whereby the original data is split into two datasets using a defined ratio. Ideally, the training dataset should be as large as possible so the intermediate model represents the final model as well possible. If the training data is too small, the intermediate model is unlikely to perform as well as the final model, resulting in a pessimistically biased performance estimate. On the other hand, if the training data is too large, then we will not have a reliable estimate of the generalization performance due to high variance resulting from small test data. As a rule of thumb, it is common to use 2/3 of the data for training and 1/3 for testing as this provides a reasonable trade-off between bias and variance of the generalization performance estimate (Kohavi (1995);Dobbin and Simon (2011)).
+
+create an model intermediate model trained on a subset of the data, and then evaluate its generalization performance by testing this model on the remainder of the data
+
+"Final Model" = the model fitted on all data
+
+**Resampling strategies** == test and train datasets are random samples of larger dataset --> perform training and testing repeatedly on multiple samples
+Generalization performance is estimated by aggregating the performance scores over multiple resampling iterations
+
+A variety of resampling strategies exist, each with its advantages and disadvantages, which depend on the number of available samples, the task complexity, and the type of model.
+
+**k-fold cross-validation (CV)** == very common strategy that randomly partitions the data into k non-overlapping subsets, called "folds". The k models are trained on training data consisting of k-1 of the folds, with the remaining fold being used as the test data, this process is then repeated until each fold has acted exactly once as the test data. The k performance estimates resulting from each fold are aggregated to obtain a more reliable performance estimate. Common values for k are 5 and 10, meaning each training set will consist of 4/5 or 9/10 of the original data respectively.
+
+**Subsampling** randomly selects a given ratio (4/5 and 9/10 are common) of the data for the training dataset where each observation in the dataset is drawn without replacement from the original dataset. The model is trained on this data and then tested on the remaining data, and this process is repeated k times. This differs from k-fold CV as the subsets of test data may be overlapping.
+
+**Bootstrapping** follows the same process as subsampling but data is drawn with replacement from the original dataset, this means an observation could be selected multiple times (and thus duplicated) in the training data (but never more than once per test dataset). This means that bootstrapping can result in training sets of the same size as the original data but at the cost of repeating some observations.
+
+
+Benchmarking
+Benchmarking in supervised machine learning refers to the comparison of models
+When comparing multiple models on a single dataset or on a domain consisting of multiple similar datasets, the main aim is often to rank the models according to a pre-defined performance measure and to identify the best-performing model for the considered dataset or domain.
+
+# Model
+
+
+
+```{r}
+
+
+
+RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(seq(100, 600, 100)), mtry = to_tune(seq(4, 10, 2)), 
+            min.node.size = to_tune(seq(4, 10, 2)),regularization.usedepth = T, 
+            regularization.factor = to_tune(seq(0.1,1,0.1)),#alpha = to_tune(0, 5), 
+            max.depth = to_tune(seq(5, 15, 2)))
+BoAvY_instance = ti(task = Both_AvgYield, learner = RegRF, resampling = rsmp("cv", folds = 2), 
+                    measures = msr("regr.rsq"), terminator = trm("none"))
+
+###########################################################################
+###########################################################################
+
+# Dataset ("Task")
+Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "BoAvY")
+
+# Partition the data with the default 2/3 split (== 2/3 data for training, 1/3 for testing)
+splits = partition(Both_AvgYield, ratio=0.67)
+Both_AvgYield_train = Both_AvgYield$filter(splits$train)
+Both_AvgYield_test = Both_AvgYield$filter(splits$train)
+
+#### Initial Random Forest Model Parameter Tuning
+
+# Setup Ranger Random Forest Regression Model (= "Learner") for tuning the hyperparameters
+RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(c(100,300,500)), mtry = to_tune(c(4,6,8)), min.node.size = to_tune(c(4,6,8)),
+            #regularization.usedepth = T, regularization.factor = to_tune(c(0.25,0.5,0.75)),#to_tune(seq(0.1,1,0.1))
+            max.depth = to_tune(c(6,8,10)))
+
+# Setup Tuning using grid search (hyperparameter space specified in the RF model above)
+
+termz = trm("combo", list(trm("run_time", secs = 12000), trm("evals", n_evals = 300)), any = T)
+tuner_grid = tnr("grid_search", resolution = 1, batch_size = 1)
+rsmp_cv2 = rsmp("cv", folds = 2)
+rsmp_holdout = rsmp("holdout")
+
+# Find optimal parameter values
+
+#progressr::with_progress()
+BoAvY_instance = tune(
+  tuner = tuner_grid,
+  task = Both_AvgYield_train,
+  learner = RegRF,
+  resampling = rsmp_holdout,
+  measures =  msr("regr.mae"),
+  terminator = termz
+)
+# Results of Tuning via grid search:
+BoAvY_instance$result$learner_param_vals
+insample = BoAvY_instance$result_y
+# Save tuning grid search results as table for inspection
+#z = as.data.table(BoAvY_instance$archive)
+
+#autoplot(BoAvY_instance)
+
+BoAvY_at = auto_tuner(
+  tuner = tuner_grid,
+  learner = RegRF,
+  resampling = rsmp_cv2,
+  measure = msr("regr.mae"),
+  terminator = termz
+)
+
+
+outsample = resample(Both_AvgYield_train, BoAvY_at, rsmp_cv2)$aggregate()
+
+# setup another Ranger Random Forest Regression Model
+RegRF_tuned = lrn("regr.ranger")
+
+# Set the tuned parameter values
+RegRF_tuned$param_set$values = BoAvY_instance$result_learner_param_vals
+
+generalization = RegRF_tuned$train(Both_AvgYield_train)$
+  predict(Both_AvgYield_test)$score()
+
+round(c(generalization = as.numeric(generalization),
+  insample = as.numeric(insample),
+  outsample = as.numeric(outsample)), 2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#### Feature Selection
+
+
+instance = fselect(
+  fselector = fs("sequential"),
+  task = Both_AvgYield,
+  learner = lrn("regr.ranger"),
+  resampling = rsmp("holdout"),
+  measure = msr("regr.mae"),
+  term_evals = 100
+)
+instance$result_feature_set
+AGType,Fertilizer,mean.npp,mean.tasmax_spring   176.99
+
+importance
+
+performance
+
+flt_jmi = flt
+flt_jmi$calculate(Both_AvgYield)
+flt_jmi = as.data.frame(as.data.table(flt_jmi))
+names(flt_gain)[2] <- "jmi"
+
+x = flt("information_gain")
+x$calculate(Both_AvgYield)
+x = as.data.frame(as.data.table(x))
+names(x)[2] <- "infogain"
+
+filterz <- c("mim", "cmim", "jmim", "jmi", "njmim", "mrmr", "relief",  "disr")#"carscore",
+
+for (i in 1:length(filterz)){
+  flt_temp = flt(filterz[i])
+  flt_temp$calculate(Both_AvgYield)
+  flt_temp = as.data.frame(as.data.table(flt_temp))
+  names(flt_temp)[2] <- filterz[i]
+  x = x %>% left_join(flt_temp, by="feature")
+}
+
+
+
+
+
+RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(c(100,300,500)), mtry = 8, min.node.size = to_tune(c(4,6,8)),
+            #regularization.usedepth = T, regularization.factor = to_tune(c(0.25,0.5,0.75)),#to_tune(seq(0.1,1,0.1))
+            max.depth = to_tune(c(6,8,10)))
+
+
+
+#### Train the Dataset using the Tuned Ranger Random Forest Model
+
+# Train the randomly partitioned dataset (2/3rds of original training data)
+# using our tuned model
+RegRF_trained <- RegRF_tuned$train(Both_AvgYield, splits$train)
+
+# check out training model results 
+RegRF_trained$model
+
+
+#### Model Evaluation
+
+# specify some extra measures for model evaluation
+measures = msrs(c("regr.mse", "regr.mae", "regr.rsq"))
+
+# Setup baseline models for comparison and evaluation
+BaselineReg = lrn("regr.featureless")
+BaselineRF = lrn("regr.ranger")
+
+# train baselines
+BaselineReg$train(Both_AvgYield, splits$train)
+BaselineRF$train(Both_AvgYield, splits$train)
+
+# Generate and evaluate predictions of our model against the two baselines 
+# using the partitioned (1/3 sample) test dataset and our 3 test measures
+RegRF_tuned$predict(Both_AvgYield, splits$test)$score(measures)
+BaselineReg$predict(Both_AvgYield, splits$test)$score(measures)
+BaselineRF$predict(Both_AvgYield, splits$test)$score(measures)
+
+
+RegRF_pred = RegRF_tuned$predict(task = Both_AvgYield)
+pred = as.data.frame(RegRF_pred)
+
+#pred = predict(model, Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))])
+#Train_df_Both_AvgYield$pred <- pred$response
+
+
+
+###########################################################################
+###########################################################################
+
+#resampling strategies
+
+# 3-fold Cross Validation (CV) resampling strategy
+cv3 = rsmp("cv", folds = 3)
+# Bootstrapping with 3 repeats and 9/10 ratio
+boot390 = rsmp("bootstrap", repeats = 3, ratio = 0.9)
+# 2-repeats 5-fold CV
+rcv25 = rsmp("repeated_cv", repeats = 2, folds = 5)
+rsmp("holdout", ratio = 0.8)
+
+as.data.table(mlr_resamplings)
+
+
+cv3$instantiate(tsk_penguins)
+
+
+rr = resample(tsk_penguins, lrn_rpart, cv3)
+Each row of the output corresponds to one of the three iterations/folds
+as.data.table(rr)
+calculate the score for each iteration with $score():
+acc = rr$score(msr("classif.ce"))
+acc[, .(iteration, classif.ce)]
+
+By default, $score() evaluates the performance in the test sets in each iteration, however, you could evaluate the train set performance with $score(predict_sets = "train").
+
+Whilst $score() returns the performance in each evaluation, $aggregate(), returns the aggregated score across all resampling iterations.
+
+rr$aggregate(msr("classif.ce"))
+rr$aggregate(msr("classif.ce", average = "micro"))
+autoplot(rr, measure = msr("classif.acc"), type = "boxplot")
+autoplot(rr, measure = msr("classif.acc"), type = "histogram")
+
+The aggregated score returned by $aggregate() estimates the generalization performance of our selected learner on the given task using the resampling strategy defined in the Resampling object.
+
+
+# list of prediction objects
+rrp = rr$predictions()
+# print first two
+rrp[1:2]
+
+
+rr = resample(tsk_penguins, lrn_rpart, cv3, store_models = TRUE)
+rr$learners[[1]]$model
+lapply(rr$learners[2:3], function(x) x$model$variable.importance)
+
+
+#Stratified Sampling
+
+
+
+tsk_str = tsk("penguins")
+# set species to have both the 'target' and 'stratum' column role
+tsk_str$set_col_roles("species", c("target", "stratum"))
+
+rsmp_cv10$instantiate(tsk_str)
+
+# Compare proportions of total and sample
+
+fold1 = prop.table(table(tsk_str$data(rows = rsmp_cv10$test_set(1),
+  cols = "species")))
+fold2 = prop.table(table(tsk_str$data(rows = rsmp_cv10$test_set(2),
+  cols = "species")))
+
+rbind("Fold 1" = fold1, "Fold 2" = fold2)
+
+
+tsk_str$set_col_roles("year", "stratum")
+tsk_str$strata
+table(tsk_penguins$data(cols = c("species", "year")))
+
+
+# Benchmarking
+
+tasks = list(tsk("penguins"), tsk("sonar"))
+learners = list(lrn("classif.featureless"), lrn("classif.rpart"))
+resamplings = list(rsmp("cv"), rsmp("subsampling"))
+
+grid = benchmark_grid(tasks, learners, resamplings)
+
+
+tasks = tsks(c("german_credit", "sonar"))
+learners = lrns(c("classif.rpart", "classif.ranger",
+  "classif.featureless"), predict_type = "prob")
+rsmp_cv5 = rsmps("cv", folds = 5)
+
+design = benchmark_grid(tasks, learners, rsmp_cv5)
+head(design)
+bmr = benchmark(design)
+bmr
+bmr$score()[c(1, 7, 13), .(iteration, task_id, learner_id, classif.ce)]
+
+
+
+
+
+as.data.table(instance$archive)[1:3,
+  .(timestamp, runtime_learners, errors, warnings)]
+
+RegRF_tuned = lrn("regr.ranger")
+bmr$aggregate()[, .(task_id, learner_id, classif.ce)]
+
+
+
+at = auto_tuner(
+  tuner = tnr_grid_search,
+  learner = lrn_svm,
+  resampling = rsmp_cv3,
+  measure = msr_ce
+)
+
+
+as.data.table(msr())
+	
+as.data.table(lrn("regr.ranger")$param_set)[,
+  .(id, class, lower, upper, nlevels)]
+
+RegRF$par.vals
+RegRF$par.set
+
+getHyperPars(RegRF, "train")
+LearnerProperties
+(RegRF)
+(RegRF)
+
+p = listLearners()
+```
+
+	
+
+ LearnerProperties, getClassWeightParam(), getHyperPars(), getLearnerId(), getLearnerNote(), getLearnerPackages(), getLearnerParVals(), getLearnerParamSet(), getLearnerPredictType(), getLearnerShortName(), getLearnerType(), getParamSet(), helpLearnerParam(), helpLearner(), makeLearners(), removeHyperPars(), setHyperPars(), setId(), setLearnerId(), setPredictThreshold(), setPredictType()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
