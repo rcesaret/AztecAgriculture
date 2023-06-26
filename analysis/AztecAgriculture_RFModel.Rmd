@@ -1227,6 +1227,50 @@ rm(Clim_sub, Topo_sub, Soil_sub)
 
 
 
+### High Elevations
+
+
+```{r, label='High Elevations', message=FALSE,warning=FALSE}
+
+vv = as.data.frame(Topo[[1]])
+vv = vv %>% mutate(DEM = ifelse(DEM >= 3100, 0, 1))
+vv = as.numeric(floor((1-sum(vv$DEM)/nrow(vv))*460))
+
+high_elev <- st_read(paste0(wd$data_r, "HighElev.gpkg"))
+high_elev <- high_elev %>% sample_n(vv)
+
+qqq = Data2000s_poly_rs 
+
+qqq = qqq[1:vv,]
+
+new_geometry <- st_geometry(high_elev)
+
+qqq <- st_set_geometry(qqq, new_geometry)
+qqq[,c(1:218)] <- NA
+
+high_elev <- qqq %>% mutate(
+  EstadoMunicipio = "High Elevation",
+  Estado = "High Elevation",
+  Municipio = "High Elevation",
+  AGType = "Temporal",
+  AvgYield = 0,
+  cvYield = NA,
+  LU_Total_DensArable = 0,
+  AG_Workers_DensArable = 0,
+  PrimaryEmploy_DensArable = 0,
+  TotalLabor_DensArable = 0,
+  Pop_DensArable = 0,
+  PopRural_DensArable = 0,
+  
+  Fertilizer = 0.7752172)
+
+Data2000s_poly_rs = rbind(Data2000s_poly_rs, high_elev)
+
+rm(qqq, new_geometry, high_elev)
+
+```
+
+
 ### Extract Raster Values
 
 ```{r, label='Extract Raster Values', message=FALSE,warning=FALSE}
@@ -1261,9 +1305,7 @@ env_vals <- exact_extract(x = Env_sub, y = Data2000s_poly_rs, fun = "mean",
 ```
 
 
-
 ## Agricultural Data
-
 
 ### Calculate/Modify Variables
 
@@ -1294,6 +1336,12 @@ Data2000s_poly_rs <- Data2000s_poly_rs %>% rowwise() %>% mutate(
   # This assumes that the percent of total labor devoted to maize cultivation is directly proportional to its fraction of total cultivation (i.e. that average labor allocation to a crop is proportional to its proportion of the average cultivated area)
   AvgPctArea_ofTotal = AvgArea_Maize / AvgArea_Total,
   AvgPctArea_ofArable = AvgArea_Maize / Arable_ha,
+  AvgPctArea_ofTotal = case_when(
+    EstadoMunicipio == "High Elevation" ~ 0.4700912,
+    .default = AvgPctArea_ofTotal),
+  AvgPctArea_ofArable = case_when(
+    EstadoMunicipio == "High Elevation" ~ 0.2847692,
+    .default = AvgPctArea_ofArable),
   PopRuralMz = Pop_Rural * AvgPctArea_ofTotal,
   PrimaryMz = Primary * AvgPctArea_ofTotal,
   AGWorkersMz = AG_Workers * AvgPctArea_ofTotal,
@@ -1337,6 +1385,42 @@ write.csv(st_drop_geometry(Data2000s_poly_rs), paste0(wd$data_r,"Data2000s_poly_
 #accessibility to pop density
 #accessibility to % primary
 #accessibility to % irrigated / irrigated_ha
+
+```
+
+
+### BOM Chinampas
+"Valle de Chalco Solidaridad, Mexico", "Milpa Alta, Distrito Federal", "Tlahuac, Distrito Federal", "Xochimilco, Distrito Federal",
+```{r}
+
+Pred_Poly_ModLU <- Data2000s_poly_rs %>%  mutate(
+    AvgPctArea_ofTotal = case_when(
+      EstadoMunicipio == "Ixtapaluca, Mexico" & AGType == "Riego" ~ 0.012594759,
+      EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" ~ 0.012594759,
+      EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" ~ 0.012594759,
+      EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" ~ 0.012594759,
+      EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" ~ 0.012594759,
+      EstadoMunicipio == "Axapusco, Mexico" & AGType == "Riego" ~ 0.006730203,
+	  .default = AvgPctArea_ofTotal),
+    cvYield = case_when(
+      EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" ~ 5,
+      EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" ~ 5,
+      EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" ~ 5,
+      EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" ~ 5,
+	  .default = cvYield),
+    AvgYield = case_when(
+      EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" ~ 4000,
+      EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" ~ 4000,
+      EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" ~ 4000,
+      EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" ~ 4000,
+      EstadoMunicipio == "Nextlalpan, Mexico" & AGType == "Riego" ~ 3500,
+	  .default = AvgYield),
+    AvgPctArea_ofArable = case_when(
+      EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" ~ 0.2847692,
+      EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" ~ 0.2847692,
+      EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" ~ 0.2847692,
+      EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" ~ 0.2847692,
+	  .default = AvgYield))
 
 ```
 
@@ -1394,18 +1478,17 @@ Train_df = st_drop_geometry(Data2000s_poly_rs) %>% select(
 Train_df$Avgrat = Train_df$AvgArea_Maize / Train_df$AvgArea_Total
 Train_df$SDrat = Train_df$sdArea_Maize / Train_df$sdArea_Total
 
-
 ### Select Variables
 
 ```{r}
-y = env_vals %>% select(-Estado, -Municipio, -mean.AWCtS)
+y = env_vals %>% select(-Estado, -Municipio, -mean.AWCtS, -EstadoMunicipio, -AGType)
 
-Train_df = st_drop_geometry(Data2000s_poly_rs) %>% select(
+Train_df = st_drop_geometry(Pred_Poly_ModLU) %>% select(
   
   EstadoMunicipio, Estado, Municipio, AvgYield, cvYield, AGType, 
   
-  PopDens, Pop_Urban, Pop_Rural, 
-  PopDensRural, UrbRatio,
+  #PopDens, Pop_Urban, Pop_Rural, 
+  #PopDensRural, UrbRatio,
   
   #Pct_Primary, Pct_AG_Workers, 
   
@@ -1413,21 +1496,23 @@ Train_df = st_drop_geometry(Data2000s_poly_rs) %>% select(
   
   #Pct_Tract_Mechaniz_pu, Pct_Tract_Animal_pu, Pct_Tract_Manual_pu, 
   
-  Pct_Herbicides_ha, #Pct_FertilChem_ha, Pct_FertilManure_ha, Pct_ImprovSeed_ha, Pct_Insecticides_ha, Pct_ControlledBurn_ha, 
+ # Pct_Herbicides_ha, #Pct_FertilChem_ha, Pct_FertilManure_ha, Pct_ImprovSeed_ha, Pct_Insecticides_ha, Pct_ControlledBurn_ha, 
   
   Fertilizer, #Techniques, 
   
   #IrrigPU_EarthenCanals, IrrigPU_CoatedCanals, IrrigPU_CanalsTotal, IrrigPU_Modern, IrrigPU_Other, IrrigPUWater_River, IrrigPUWater_Spring, IrrigPUWater_Dam, IrrigPUWater_Modern, IrrigPUWater_Other,
   
-  PopRuralMz_perMzHa,  PrimaryMz_perMzHa,  AGWorkersMz_perMzHa,  TotalLaborMz_perMzHa,  LUTotalMz_perMzHa,
+  #PopRuralMz_perMzHa,  PrimaryMz_perMzHa,  AGWorkersMz_perMzHa,  TotalLaborMz_perMzHa,  LUTotalMz_perMzHa,
   #ContractLaboTotMz_perMzHa,  ContractLaborFullMz_perMzHa,  ContractLaboPartMz_perMzHa,  FamLaborMz_perMzHa,
   #MechanizEquipMz_perMzHa,  DraftAnimalsMz_perMzHa,  TractorsMz_perMzHa,
   
-  AvgArea_Maize, AvgPctArea_ofTotal, AvgPctArea_ofArable, AvgPctMaizeArea_Irrig, AvgPctMaizeArea_Temp, AvgPctArea_Irrig, AvgPctArea_Temp,
+   AvgPctArea_ofTotal, AvgPctArea_ofArable, #AvgArea_Maize,AvgPctMaizeArea_Irrig, AvgPctMaizeArea_Temp, AvgPctArea_Irrig, AvgPctArea_Temp,
   
-  LU_Total_DensArable, AG_Workers_DensArable, PrimaryEmploy_DensArable, TotalLabor_DensArable, Pop_DensArable, PopRural_DensArable, PctMun_Arable
+  LU_Total_DensArable, AG_Workers_DensArable, PrimaryEmploy_DensArable, TotalLabor_DensArable, Pop_DensArable, PopRural_DensArable, #PctMun_Arable
   #MechanizEquip_DensArable, DraftAnimals_DensArable, PctMun_Settlement, AvgMunSettlementDens
   )
+Train_df = cbind(Train_df, y)
+rm(y)
 ```
 Fertilizer
 AvgPctArea_ofTotal
@@ -1457,9 +1542,13 @@ S_HIDALGO = c("Mixquiahuala de Juarez, Hidalgo", "Tezontepec de Aldama, Hidalgo"
 
 Remove_Temporal = c("Milpa Alta, Distrito Federal", "Tlalpan, Distrito Federal", "Xochimilco, Distrito Federal", "Tlahuac, Distrito Federal", "La Magdalena Contreras, Distrito Federal", "Alvaro Obregon, Distrito Federal", "Cuajimalpa de Morelos, Distrito Federal", "Jilotzingo, Mexico", "Naucalpan de Juarez, Mexico", "Atizapan de Zaragoza, Mexico", "Tlalnepantla de Baz, Mexico", "Coacalco de Berriozabal, Mexico", "Jaltenco, Mexico", "Coyotepec, Mexico", "La Paz, Mexico", "Chimalhuacan, Mexico", "Domingo Arenas, Puebla", "San Felipe Teotlalcingo, Puebla", "Puebla, Puebla") #"Chicoloapan, Mexico", "Ixtapaluca, Mexico"
 
+
+
 Train_df = Train_df %>% 
   
-  filter(!(EstadoMunicipio %in% c("Ixtapaluca, Mexico", "Valle de Chalco Solidaridad, Mexico", "Milpa Alta, Distrito Federal", "Tlahuac, Distrito Federal", "Xochimilco, Distrito Federal", "Axapusco, Mexico") & AGType %in% "Riego")) %>% 
+  filter(!(EstadoMunicipio %in% c("Ixtapaluca, Mexico", "Axapusco, Mexico") & AGType %in% "Riego")) %>% 
+  
+  filter(!(EstadoMunicipio %in% S_HIDALGO)) %>% 
   
   filter(!(EstadoMunicipio %in% E_TLAXCALA & AGType %in% "Riego")) %>% 
   
@@ -1467,7 +1556,7 @@ Train_df = Train_df %>%
   
   filter(!(EstadoMunicipio %in% Remove_Temporal & AGType %in% "Temporal")) %>% 
   
-  left_join(y, by = c("EstadoMunicipio", "AGType")) %>% 
+  ###left_join(y, by = c("EstadoMunicipio", "AGType")) %>% 
   
   mutate(AGType = factor(AGType, levels = c("Temporal", "Riego")))
 
@@ -1477,7 +1566,7 @@ Train_df = Train_df %>%
 
 #Train_df_Irrig_AvgYield = Train_df %>% filter(AGType == "Riego") %>% select(-AGType, -cvYield, -Pct_Rest_ha, -Pct_Fallow_ha, -Pct_ControlledBurn_ha, -AvgPctArea_Temp, -AvgPctMaizeArea_Temp) %>% filter(complete.cases(.))
 
-Train_df_Both_AvgYield = Train_df %>% select(-AvgPctArea_Temp, -cvYield, -AvgPctMaizeArea_Temp) %>% filter(complete.cases(.))
+Train_df_Both_AvgYield = Train_df %>% select( -cvYield) #%>% filter(complete.cases(.))-AvgPctArea_Temp,, -AvgPctMaizeArea_Temp
 
 #Train_df_Temp_cvYield = Train_df %>% filter(AGType == "Temporal") %>% select(-AGType, -AvgYield, -IrrigPU_EarthenCanals, -IrrigPU_CoatedCanals, -IrrigPU_CanalsTotal, -IrrigPU_Modern, -IrrigPU_Other, -IrrigPUWater_River, -IrrigPUWater_Spring, -IrrigPUWater_Dam, -IrrigPUWater_Modern, -IrrigPUWater_Other, -AvgPctArea_Irrig, -AvgPctMaizeArea_Irrig) %>% filter(complete.cases(.))
 
@@ -1485,7 +1574,7 @@ Train_df_Both_AvgYield = Train_df %>% select(-AvgPctArea_Temp, -cvYield, -AvgPct
 
 Train_df_Both_cvYield = Train_df %>% select(-AvgPctArea_Temp, -AvgYield, -AvgPctMaizeArea_Temp) %>% filter(complete.cases(.))
 
-rm(y)
+
 
 
 ```
@@ -1497,7 +1586,7 @@ rm(y)
 
 
 ```{r}
-Train_df = st_drop_geometry(Data2000s_poly_rs) %>% select(
+Train_df = st_drop_geometry(Pred_Poly_ModLU) %>% select(
   
   EstadoMunicipio, Estado, Municipio, AvgYield, cvYield, AGType, 
   
@@ -1529,37 +1618,6 @@ Train_df = st_drop_geometry(Data2000s_poly_rs) %>% select(
 
 
 
-### High Elevations
-
-
-```{r, label='High Elevations', message=FALSE,warning=FALSE}
-
-DEM <- raster(paste0(wd$data_r,"DEM_r.tif"))
-
-#high_elev <- rast(high_elev)
-
-high_elev[high_elev < 3100] <- NA
-
-high_elev[high_elev >= 3100] <- 1
-
-#### EDIT FROM HERE ####
-
-
-high_elev <- rasterToPoints(high_elev,spatial=TRUE)
-
-rand <- sample(nrow(high_elev), nrow(points)/4, replace=FALSE)
-
-high_elev <- high_elev[rand,]
-high_elev$Irr <- sample(0:1,nrow(high_elev),replace=TRUE)
-set.seed(54865132)
-high_elev$Fert <- sample(0:1,nrow(high_elev),replace=TRUE)
-high_elev$MUNICIPIO <- "HIGH"
-high_elev$X <- high_elev@coords[,'x']
-high_elev$Y <- high_elev@coords[,'y']
-high_elev$Suit <- 0
-high_elev$Maize <- 0
-high_elev <- high_elev[,which(names(high_elev) != "DEM")]
-```
 
 # Construct RF Prediction Dataset
 
@@ -1573,15 +1631,7 @@ high_elev <- high_elev[,which(names(high_elev) != "DEM")]
 ```{r}
 
 
-Pred_Poly_ModLU <- Data2000s_poly_rs %>%  mutate(
-    AvgPctArea_ofTotal = case_when(
-      EstadoMunicipio == "Ixtapaluca, Mexico" & AGType == "Riego" ~ 0.012594759,
-      EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" ~ 0.012594759,
-      EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" ~ 0.012594759,
-      EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" ~ 0.012594759,
-      EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" ~ 0.012594759,
-      EstadoMunicipio == "Axapusco, Mexico" & AGType == "Riego" ~ 0.006730203,
-	  .default = AvgPctArea_ofTotal))
+
 
 Municipios2000s <- st_read(paste0(wd$data_p, "Municipios2000s_Data.gpkg")) %>% select(EstadoMunicipio, Estado, Municipio)
 
@@ -1831,7 +1881,7 @@ Train_df_Irrig_cvYield
 Train_df_Both_cvYield
 
 ```{r, label='Avg Yield Variable Selection', message=FALSE,warning=FALSE}
-
+Train_df_Both_AvgYield = Train_df_Both_AvgYield %>% select(-mean.ElevAboveStreams2)
 #par(mar = c(11, 4, 4, 2))
 
 #boruta = readRDS(paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
@@ -1861,8 +1911,8 @@ saveRDS(boruta_Bavg, file = paste0(wd$data_p,"AvgYield_RFModel_boruta.rda"))
 #loading the model
 #boruta = readRDS(paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
 rm(Bavg_atts, boruta_Bavg)
-
-Train_df_Both_AvgYield = Train_df_Both_AvgYield %>% select(-AvgPctArea_ofArable, -AvgArea_Maize, -mean.ElevAboveStreams2, -Pop_Rural, -LU_Total_DensArable, -PrimaryEmploy_DensArable, -PopDens, -Pct_Herbicides_ha, -mean.DistStreams2, -PopRuralMz_perMzHa,  -PrimaryMz_perMzHa,  -AGWorkersMz_perMzHa,  -TotalLaborMz_perMzHa,  -LUTotalMz_perMzHa, -PopRural_DensArable, -AvgPctMaizeArea_Irrig, -PopDensRural, -Pop_Urban, -UrbRatio, -PctMun_Arable, -AvgPctArea_Irrig, -TotalLabor_DensArable, -mean.BDTICM, -mean.curv_min, -mean.FloodOrder_Rel, -mean.elev_watershed, -mean.STI, -mean.pet_summer, -mean.BD, -mean.curv_mean, -mean.rsds_summer, -mean.pet_fall, -mean.Z, -mean.pet_spring, -mean.CF, -mean.SPI)
+#-AvgArea_Maize,-mean.ElevAboveStreams2, -Pop_Rural,-PopDens, -Pct_Herbicides_ha, -PopRuralMz_perMzHa,  -PrimaryMz_perMzHa,  -AGWorkersMz_perMzHa,  -TotalLaborMz_perMzHa,  -LUTotalMz_perMzHa,-AvgPctMaizeArea_Irrig,-PopDensRural,  -Pop_Urban,  -UrbRatio,-PctMun_Arable,-AvgPctArea_Irrig,
+Train_df_Both_AvgYield = Train_df_Both_AvgYield %>% select(-AvgPctArea_ofArable,   -LU_Total_DensArable, -PrimaryEmploy_DensArable, -mean.DistStreams2,  -PopRural_DensArable,   -TotalLabor_DensArable, -mean.BDTICM, -mean.curv_min, -mean.FloodOrder_Rel, -mean.elev_watershed, -mean.STI, -mean.pet_summer, -mean.BD, -mean.curv_mean, -mean.rsds_summer, -mean.pet_fall, -mean.Z, -mean.pet_spring, -mean.CF, -mean.SPI)
 ```
 5.1 4.1 4.1 2.1
 
@@ -1888,9 +1938,9 @@ Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_
 
 # Setup Ranger Random Forest Regression Model (= "Learner") for tuning the hyperparameters
 RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
-            num.trees  = to_tune(c(100,300,500)), mtry = to_tune(c(4,6,8)), min.node.size = to_tune(c(4,6,8)),
+            num.trees  = to_tune(c(100,300,500)), mtry = to_tune(c(6,8,10)), min.node.size = 4,#to_tune(c(4,6,8)),
             #regularization.usedepth = T, regularization.factor = to_tune(c(0.25,0.5,0.75)),#to_tune(seq(0.1,1,0.1))
-            max.depth = to_tune(c(6,8,10)))
+            max.depth = to_tune(c(5,10,15)))
 
 # Setup Tuning using grid search (hyperparameter space specified in the RF model above)
 
@@ -1946,29 +1996,105 @@ rbind(generalization,insample,outsample)
 ###### Benchmarking
 
 tasks = list(Both_AvgYield)
-learners = list(RegRF_tuned, lrn("regr.featureless"), lrn("regr.ranger"))
+learners = list(RegRF_tuned, lrn("regr.rpart"), lrn("regr.ranger"))
 resamplings = list(rsmp("cv", folds = 5))
 
 grid = benchmark_grid(tasks, learners, resamplings)
 head(grid)
-bmr = benchmark(grid, msr("regr.mae"))
+bmr = benchmark(grid)
 bmr
 bmr$aggregate(msrs(c("regr.mse", "regr.mae", "regr.rsq")))[, .(task_id, learner_id, regr.mse, regr.mae, regr.rsq)]
 
-autoplot(bmr, measure = msr("regr.rsq"))
+autoplot(bmr, measure = msr("regr.mae"))
+
+
+####################
+
+# Train model on full data for predictions
+
+RegRF_trained <- RegRF_tuned$train(Both_AvgYield)
 ```
 
 RF_df_Temp
 RF_df_Irrig
 
+# Predict Polygons
 
 ```{r}
-RegRF_trained <- RegRF_tuned$train(Both_AvgYield)
 
-RegRF_pred = RegRF_tuned$predict(task = Both_AvgYield)
-pred = as.data.frame(RegRF_pred)
+#u = Pred_Poly_ModLU
+#new_geometry <- st_geometry(u)
+#u = st_drop_geometry(Pred_Poly_ModLU) %>% select(intersect(names(.), c(names(Train_df_Both_AvgYield), "geom"))) 
 
-Train_df_Both_AvgYield$pred <- pred$response
+u = Pred_Poly_ModLU %>% select(intersect(names(.), c(names(Train_df_Both_AvgYield), "geom"))) 
+y = env_vals %>% select(-Estado, -Municipio, -mean.AWCtS, -EstadoMunicipio, -AGType)
+u = cbind(u, y)
+u = u %>% mutate(AGType = factor(AGType, levels = c("Temporal", "Riego"))) %>% 
+  filter(complete.cases(across(AvgYield:mean.rsds_fall))) #%>% mutate(AvgPctArea_ofTotal = 0.8)
+names(u) = sub("^mean\\.", "", names(u))
+#st_set_geometry(u, new_geometry)
+u2 <- st_drop_geometry(u)
+utask = as_task_regr(x = u2[,c(1, 5:ncol(u2))], target="AvgYield", id = "Pred_Poly_ModLU")
+
+
+
+RegRF_pred = RegRF_trained$predict(task = utask)
+pred = as.data.frame(as.data.table(RegRF_pred))
+pred$resid = pred$response - pred$truth
+hist(pred$resid)
+qqnorm(pred$resid, pch = 1, frame = FALSE)
+qqline(pred$resid, col = "steelblue", lwd = 2)
+pred = pred %>% select(-row_ids, -truth)
+names(pred) <- c("AvgYieldRF_Predict", "AvgYieldRF_Resid")
+u <- cbind(u, pred)
+zzz <- u %>% select(EstadoMunicipio, Estado, Municipio, AvgYield, AGType, AvgYieldRF_Predict, AvgYieldRF_Resid)
+
+plot(zzz["AvgYieldRF_Resid"])
+plot(zzz["AvgYieldRF_Predict"])
+
+
+st_write(zzz, paste0(wd$data_p, "zzz.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
+
+zzz <- Pred_Poly_ModLU %>% select(intersect(names(.), names(Train_df_Both_AvgYield))) %>% mutate(AGType = factor(AGType, levels = c("Temporal", "Riego"))) 
+zzz <- cbind(zzz, y)
+zzz <- zzz %>% filter(complete.cases(across(AvgYield:AvgPctArea_ofTotal)))
+
+
+
+
+
+
+
+
+
+
+#####################################################################
+#####################################################################\
+
+
+
+
+```
+
+# Predict Raster
+
+```{r}
+y = RF_df_Temp %>% select(-ElevAboveStreams2) %>% filter(complete.cases(.))
+
+RegRF_pred = predict(RegRF_trained, newdata = y[,c(2:ncol(y))])
+
+AvgYield_PredictRast <- ArableAreaMask
+values(AvgYield_PredictRast) <- -9999
+names(AvgYield_PredictRast) <- "AvgYield_Predict"
+AvgYield_PredictRast[y$Cells] <- as.numeric(RegRF_pred)
+AvgYield_PredictRast <- ifel(AvgYield_PredictRast == -9999, NA, AvgYield_PredictRast)
+
+writeRaster(Clim_sub, filename = paste0(wd$data_p, "AvgYield_PredictRast2.tif"), overwrite=TRUE)
+
+
+
+RegRF_pred = RegRF_trained$predict(task = utask)
+
 
 
 
@@ -1976,6 +2102,8 @@ Train_df_Both_AvgYield$pred <- pred$response
 
 
 ```
+
+
 
 
 The mtry parameter controls the number of randomly selected features to consider at each split
