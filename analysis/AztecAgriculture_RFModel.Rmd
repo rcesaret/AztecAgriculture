@@ -86,7 +86,8 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "tableone", "mlr3", "mlr3verse", "mlr3learners", "mlr3measures", 
               "mlr3tuning", "mlr3mbo", "mlr3misc", "mlr3viz", "mlr3tuningspaces", 
               "mlr3pipelines", "mlr3hyperband", "mlr3fselect", "mlr3filters", 
-              "mlr3cluster", "FSelectorRcpp", "praznik", "care", "genalg")
+              "mlr3cluster", "FSelectorRcpp", "mlr3extralearners", "mlr3spatial", 
+              "mlr3spatiotempcv", "praznik", "care", "genalg")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -2089,7 +2090,7 @@ names(AvgYield_PredictRast) <- "AvgYield_Predict"
 AvgYield_PredictRast[y$Cells] <- as.numeric(RegRF_pred)
 AvgYield_PredictRast <- ifel(AvgYield_PredictRast == -9999, NA, AvgYield_PredictRast)
 
-writeRaster(Clim_sub, filename = paste0(wd$data_p, "AvgYield_PredictRast2.tif"), overwrite=TRUE)
+writeRaster(AvgYield_PredictRast, filename = paste0(wd$data_p, "AvgYield_PredictRast2.tif"), overwrite=TRUE)
 
 
 
