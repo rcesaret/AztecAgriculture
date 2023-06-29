@@ -227,7 +227,6 @@ LU2000d <- LU2000c %>%
     EstadoMunicipio == "Ocuilan, Mexico" & Type == "Riego" ~ "Temporal", #############################
     EstadoMunicipio == "Cocotitlan, Mexico" & Type == "Riego" ~ "Temporal", #############################
     EstadoMunicipio == "Villa Guerrero, Mexico" & Type == "Riego" ~ "Temporal", #############################
-    EstadoMunicipio == "Tonanitla, Mexico" & Type == "Riego" ~ "Temporal", #############################
     EstadoMunicipio == "Cuautitlan, Mexico" & Type == "Temporal" ~ "Riego", #############################
     .default = Type)) %>% select(-Type)
 
@@ -690,17 +689,21 @@ SIAP_5 = SIAP_4 %>%
   ungroup() %>% 
   mutate(
     # irrigated maize % of total maize cultivation
-    AvgPctMaizeArea_Irrig = AvgArea_Irrig_Maize / AvgArea_Total_Maize,
+    AvgPctMaizeArea_Irrig = AvgArea_Maize_Irrig / AvgArea_Maize_Total,
     AvgPctMaizeArea_Irrig = ifelse(is.nan(AvgPctMaizeArea_Irrig), 0, AvgPctMaizeArea_Irrig),
+    AvgPctMaizeArea_Irrig = ifelse(is.na(AvgPctMaizeArea_Irrig), 0, AvgPctMaizeArea_Irrig),
     # temporal maize % of total maize cultivation 
-    AvgPctMaizeArea_Temp = AvgArea_Temp_Maize / AvgArea_Total_Maize,
+    AvgPctMaizeArea_Temp = AvgArea_Maize_Temp / AvgArea_Maize_Total,
     AvgPctMaizeArea_Temp = ifelse(is.nan(AvgPctMaizeArea_Temp), 0, AvgPctMaizeArea_Temp),
+    AvgPctMaizeArea_Temp = ifelse(is.na(AvgPctMaizeArea_Temp), 0, AvgPctMaizeArea_Temp),
     # irrigated % of total cultivation 
     AvgPctArea_Irrig = AvgArea_Irrig / AvgArea_Total,#BY MUNICIPIO (both AGTypes have same value!)
     AvgPctArea_Irrig = ifelse(is.nan(AvgPctArea_Irrig), 0, AvgPctArea_Irrig),
+    AvgPctArea_Irrig = ifelse(is.na(AvgPctArea_Irrig), 0, AvgPctArea_Irrig),
     # temporal % of total cultivation 
     AvgPctArea_Temp = AvgArea_Temp / AvgArea_Total,
-    AvgPctArea_Temp = ifelse(is.nan(AvgPctArea_Temp), 0, AvgPctArea_Temp)) %>% 
+    AvgPctArea_Temp = ifelse(is.nan(AvgPctArea_Temp), 0, AvgPctArea_Temp),
+    AvgPctArea_Temp = ifelse(is.na(AvgPctArea_Temp), 0, AvgPctArea_Temp)) %>% 
   rowwise() %>%
   # Remove NaN values from affected variables
   mutate(cvYieldLoss = ifelse(is.nan(cvYieldLoss), 0, cvYieldLoss),
@@ -913,15 +916,19 @@ SIAP_6 = SIAP_4 %>%
     # irrigated maize % of total maize cultivation
     AvgPctMaizeArea_Irrig = AvgArea_Maize_Irrig / AvgArea_Maize_Total,
     AvgPctMaizeArea_Irrig = ifelse(is.nan(AvgPctMaizeArea_Irrig), 0, AvgPctMaizeArea_Irrig),
+    AvgPctMaizeArea_Irrig = ifelse(is.na(AvgPctMaizeArea_Irrig), 0, AvgPctMaizeArea_Irrig),
     # temporal maize % of total maize cultivation 
     AvgPctMaizeArea_Temp = AvgArea_Maize_Temp / AvgArea_Maize_Total,
     AvgPctMaizeArea_Temp = ifelse(is.nan(AvgPctMaizeArea_Temp), 0, AvgPctMaizeArea_Temp),
+    AvgPctMaizeArea_Temp = ifelse(is.na(AvgPctMaizeArea_Temp), 0, AvgPctMaizeArea_Temp),
     # irrigated % of total cultivation 
     AvgPctArea_Irrig = AvgArea_Irrig / AvgArea_Total,#BY MUNICIPIO (both AGTypes have same value!)
     AvgPctArea_Irrig = ifelse(is.nan(AvgPctArea_Irrig), 0, AvgPctArea_Irrig),
+    AvgPctArea_Irrig = ifelse(is.na(AvgPctArea_Irrig), 0, AvgPctArea_Irrig),
     # temporal % of total cultivation 
     AvgPctArea_Temp = AvgArea_Temp / AvgArea_Total,
-    AvgPctArea_Temp = ifelse(is.nan(AvgPctArea_Temp), 0, AvgPctArea_Temp))
+    AvgPctArea_Temp = ifelse(is.nan(AvgPctArea_Temp), 0, AvgPctArea_Temp),
+    AvgPctArea_Temp = ifelse(is.na(AvgPctArea_Temp), 0, AvgPctArea_Temp))
 
 rm(x)
 
@@ -967,9 +974,10 @@ SIAP_5_remove_cases = SIAP_5 %>%
                                   "San Francisco Tetlanohcan, Tlaxcala", 
                                   "San Pablo del Monte, Tlaxcala", 
                                   "Tolcayuca, Hidalgo", 
-                                  "Tonanitla, Mexico", 
                                   "Amaxac de Guerrero, Tlaxcala", 
-                                  "Jaltenco, Mexico") & AGType %in% "Riego"))
+                                  "Jaltenco, Mexico") & AGType %in% "Riego")) %>% 
+# remove Temporal maize yield cases for  municipalities that lack Temporal agriculture in the land use data
+  filter(!(EstadoMunicipio %in% c("Tonanitla, Mexico") & AGType %in% "Temporal"))
 ```
 
 
@@ -1144,28 +1152,23 @@ Census2000s <- Census2000s %>% mutate(
                                                               "Atltzayanca" = "Altzayanca")))
 
 
-```
-
-```{r}
 # Arable Area
 
-#Municipios2000s <- st_read(paste0(wd$data_p, "Municipios2000s_Data.gpkg"))
-
-ArableArea_100m <- rast(paste0(wd$data_p, "ArableArea_100m.tif"))
-ArableArea_100m <- as.numeric(ArableArea_100m)
-ArableArea_100m <- ifel(ArableArea_100m < 2, 0, 1)
+ArableArea_30m <- rast(paste0(wd$data_p, "ArableArea.tif"))
+ArableArea_30m <- as.numeric(ArableArea_30m)
+ArableArea_30m <- ifel(ArableArea_30m < 2, 0, 1)
 
 temp = vect(LU2000e)
-temp <- terra::rasterize(temp, ArableArea_100m, values = 1, background = 0)
+temp <- terra::rasterize(temp, ArableArea_30m, values = 1, background = 0)
 
-ArableArea_100m = ArableArea_100m + temp
-ArableArea_100m <- ifel(ArableArea_100m > 0, 1, 0)
+ArableArea_30m = ArableArea_30m + temp
+ArableArea_30m <- ifel(ArableArea_30m > 0, 1, 0)
 
-Arable <- exact_extract(x = ArableArea_100m, y = Municipios2000s, fun = "sum", 
+Arable <- exact_extract(x = ArableArea_30m, y = Municipios2000s, fun = "sum", 
                            max_cells_in_memory = 8e+08, stack_apply=T, 
                            append_cols = c("EstadoMunicipio","Estado", "Municipio", "Area_ha"))
 
-Arable <- Arable %>% mutate(Arable_ha = sum*res(ArableArea_100m)[1]*res(ArableArea_100m)[2]/10000,
+Arable <- Arable %>% mutate(Arable_ha = sum*res(ArableArea_30m)[1]*res(ArableArea_30m)[2]/10000,
                             PctMun_Arable = Arable_ha / Area_ha) %>% 
                      rename(AreaMun_ha = Area_ha) %>% select(-sum)
 
@@ -1173,30 +1176,32 @@ Census2000s <- Census2000s %>%
   left_join(Arable, by = c("EstadoMunicipio","Estado", "Municipio"))
   
   
-rm(Arable, ArableArea_100m, temp)
+rm(Arable, ArableArea_30m, temp)
 
 #########################################################################
 
 # Settled Area
-
+#Topo <- rast(paste0(wd$data_p, "Topo_r_resampled.tif"))
 CONABIO_2015_LandUse_30m <- rast(paste0(wd$data_r,"CONABIO_2015_LandUse_30m.tif"))
 
-LandUse_100m <- resample(CONABIO_2015_LandUse_30m, Topo[[1]], method = "near")
-LandUse_100m <- crop(LandUse_100m, Topo[[1]])
-LandUse_100m <- ifel(LandUse_100m == 17, 1, 0)
+#LandUse_100m <- resample(CONABIO_2015_LandUse_30m, Topo[[1]], method = "near")
+#LandUse_100m <- crop(LandUse_100m, Topo[[1]])
+CONABIO_2015_LandUse_30m <- ifel(CONABIO_2015_LandUse_30m == 17, 1, 0)
 
-Settlement <- exact_extract(x = LandUse_100m, y = Municipios2000s, fun = "sum", 
+Settlement <- exact_extract(x = CONABIO_2015_LandUse_30m, y = Municipios2000s, fun = "sum", 
                            max_cells_in_memory = 8e+08, stack_apply=T, 
                            append_cols = c("EstadoMunicipio","Estado", "Municipio"))
 
+Settlement$sum <- Settlement$sum * 11.11446
+  
 Census2000s <- Census2000s %>% 
   left_join(Settlement, by = c("EstadoMunicipio","Estado", "Municipio")) %>% 
-  mutate(Settlement_ha = sum*res(LandUse_100m)[1]*res(LandUse_100m)[2]/10000,
-         PctMun_Settlement = Settlement_ha / AreaMun_ha,
+  mutate(Settlement_ha = sum*res(CONABIO_2015_LandUse_30m)[1]*res(CONABIO_2015_LandUse_30m)[2]/10000,
+         PctMun_Settlement = Settlement_ha / Area_ha,
          AvgMunSettlementDens = Pop_Total / Settlement_ha) %>% 
   select(-sum)
 
-rm(Settlement, LandUse_100m, CONABIO_2015_LandUse_30m)
+rm(Settlement, CONABIO_2015_LandUse_30m)
 
 #########################################################################
 
@@ -1233,7 +1238,6 @@ write.csv(Census2000s, paste0(wd$data_p,"CensusData2000s.csv"))
 rm(AGCensus2007, PopCensus2010)
 
 ```
-
 
 
 # Merge Data
@@ -1293,8 +1297,98 @@ Data2000s_poly = SIAP_LU_poly %>% left_join(Census2000s,
 #setdiff(Data2000s_poly$EstadoMunicipio, SIAP_LU_poly$EstadoMunicipio)
 #setdiff(SIAP_LU_poly$EstadoMunicipio, Data2000s_poly$EstadoMunicipio)
 
-#save(Data2000s_poly, file = paste0(wd$data_r, "Data2000s_poly.rData"))
+```
 
+
+### Calculate a few more Variables
+
+```{r, 'Calculate a few more Variables', message=FALSE, warning=FALSE}
+
+Data2000s_poly <- Data2000s_poly %>% mutate(
+  LU_Total_DensArable = ifelse(LU_Total_DensArable > 3.5, 3.5, LU_Total_DensArable),
+  AG_Workers_DensArable = ifelse(AG_Workers_DensArable > 1, 1, AG_Workers_DensArable),
+  #MechanizEquip_DensArable = MechanizEquip / Arable_ha,
+  #DraftAnimals_DensArable = DraftAnimals_Total / Arable_ha,
+  PrimaryEmploy_DensArable = ifelse(PrimaryEmploy_DensArable > 1.3, 1.3, PrimaryEmploy_DensArable),
+  TotalLabor_DensArable = ifelse(TotalLabor_DensArable > 2.5, 2.5, TotalLabor_DensArable),
+  Pop_DensArable = ifelse(Pop_DensArable > 100, 100, Pop_DensArable),
+  PopRural_DensArable = ifelse(PopRural_DensArable > 7, 7, PopRural_DensArable))
+
+
+# calculate variable for the area of each Land Use polygon in square meters
+Data2000s_poly$LUPoly_Area_m2 <- st_area(Data2000s_poly)
+# calculate variable for the area of each municipality in hectares
+Data2000s_poly$LUPoly_Area_ha <- as.numeric(Data2000s_poly$Area_m2)/10000
+
+
+# Labor and laboresque capital input metrics modified by percent total area planted in maize by AGType &
+# Intensive labor and laboresque capital input metrics using SIAP Maize planted area by AGType as denominator
+
+Data2000s_poly_rs <- Data2000s_poly_rs %>% rowwise() %>% mutate(
+
+  # Modify labor and laboresque capital input metrics by the percentage of average total cultivated area planted in maize
+  # This is done by agriculture type, so that the value for each row reflects its average % of cultivated area (either irrigated or temporal), rather than the municipal total
+  # This assumes that the percent of total labor devoted to maize cultivation is directly proportional to its fraction of total cultivation (i.e. that average labor allocation to a crop is proportional to its proportion of the average cultivated area)
+  PctAGPU_Temp = Temporal_PU / Primary_PU,
+  PctAGPU_Irrig = Riego_PU / Primary_PU,
+  Resid_AvgPctMaizeArea_Temp = AvgPctMaizeArea_Temp - AvgPctArea_Temp,
+  Resid_AvgPctMaizeArea_Irrig = AvgPctMaizeArea_Irrig - AvgPctArea_Irrig,
+  PctMaizePU_Temp = PctAGPU_Temp + Resid_AvgPctMaizeArea_Temp,
+  PctMaizePU_Irrig = PctAGPU_Irrig + Resid_AvgPctMaizeArea_Irrig,
+  PU_Maize_Temp = PctMaizePU_Temp * PU_Maize,
+  PU_Maize_Irrig = PctMaizePU_Irrig * PU_Maize,
+  PctPU_Maize_Temp = PU_Maize_Temp / Primary_PU,
+  PctPU_Maize_Irrig = PU_Maize_Irrig / Primary_PU,
+  
+  AvgPctArea_ofTotal = AvgArea_Maize / AvgArea_Total,
+  AvgPctArea_ofArable = AvgArea_Maize / Arable_ha,
+  #AvgPctArea_ofTotal = case_when(
+  #  EstadoMunicipio == "High Elevation" ~ 0.4700912,
+  #  .default = AvgPctArea_ofTotal),
+  #AvgPctArea_ofArable = case_when(
+  #  EstadoMunicipio == "High Elevation" ~ 0.2847692,
+  #  .default = AvgPctArea_ofArable),
+  PopRuralMz = ifelse(AGType == "Temporal", (Pop_Rural * PctPU_Maize_Temp), (Pop_Rural * PctPU_Maize_Irrig)),
+  PrimaryMz = ifelse(AGType == "Temporal", (Primary * PctPU_Maize_Temp), (Primary * PctPU_Maize_Irrig)),
+  AGWorkersMz = ifelse(AGType == "Temporal", (AG_Workers * PctPU_Maize_Temp), (AG_Workers * PctPU_Maize_Irrig)),
+  TotalLaborMz = ifelse(AGType == "Temporal", (TotalLabor * PctPU_Maize_Temp), (TotalLabor * PctPU_Maize_Irrig)),
+  LUTotalMz = ifelse(AGType == "Temporal", (LU_Total * PctPU_Maize_Temp), (LU_Total * PctPU_Maize_Irrig)), 
+  ContractLaboTotMz = ifelse(AGType == "Temporal", (ContractLabor_Tot * PctPU_Maize_Temp), (ContractLabor_Tot * PctPU_Maize_Irrig)), 
+  ContractLaborFullMz = ifelse(AGType == "Temporal", (ContractLabor_More6Mo * PctPU_Maize_Temp), (ContractLabor_More6Mo * PctPU_Maize_Irrig)), 
+  ContractLaboPartMz = ifelse(AGType == "Temporal", (ContractLabor_Less6Mo * PctPU_Maize_Temp), (ContractLabor_Less6Mo * PctPU_Maize_Irrig)), 
+  FamLaborMz = ifelse(AGType == "Temporal", (FamLabor_Tot * PctPU_Maize_Temp), (FamLabor_Tot * PctPU_Maize_Irrig)), 
+  MechanizEquipMz = ifelse(AGType == "Temporal", (MechanizEquip * PctPU_Maize_Temp), (MechanizEquip * PctPU_Maize_Irrig)), 
+  DraftAnimalsMz = ifelse(AGType == "Temporal", (DraftAnimals_Total * PctPU_Maize_Temp), (DraftAnimals_Total * PctPU_Maize_Irrig)), 
+  TractorsMz = ifelse(AGType == "Temporal", (Tractors * PctPU_Maize_Temp), (Tractors * PctPU_Maize_Irrig)),
+  
+  # Calculate the intensity of maize labor and laboresque capital input metrics per unit area (hectares)
+  # This is done by agriculture type, so that the value for each row reflects its average % of cultivated area (either irrigated or temporal), rather than the municipal total
+  # This assumes that the inter-annual average cultivated area for maize (by AGType) is representative
+  
+  PopRuralMz_perMzHa = PopRuralMz / AvgPctArea_ofTotal,
+  #PopRuralMz_perMzHa = ifelse(PopRuralMz_perMzHa > 150, 150, PopRuralMz_perMzHa),
+  PrimaryMz_perMzHa = PrimaryMz / AvgPctArea_ofTotal,
+  AGWorkersMz_perMzHa = AGWorkersMz / AvgPctArea_ofTotal,
+  TotalLaborMz_perMzHa = TotalLaborMz / AvgPctArea_ofTotal,
+  LUTotalMz_perMzHa = LUTotalMz / AvgPctArea_ofTotal,
+  ContractLaboTotMz_perMzHa = ContractLaboTotMz / AvgPctArea_ofTotal,
+  ContractLaborFullMz_perMzHa = ContractLaborFullMz / AvgPctArea_ofTotal,
+  ContractLaboPartMz_perMzHa = ContractLaboPartMz / AvgPctArea_ofTotal,
+  FamLaborMz_perMzHa = FamLaborMz / AvgPctArea_ofTotal,
+  MechanizEquipMz_perMzHa = MechanizEquipMz / AvgPctArea_ofTotal,
+  DraftAnimalsMz_perMzHa = DraftAnimalsMz / AvgPctArea_ofTotal,
+  TractorsMz_perMzHa = TractorsMz / AvgPctArea_ofTotal) %>% ungroup()
+
+
+```
+
+
+
+### Export Data
+
+```{r, 'Export Data', message=FALSE, warning=FALSE}
+
+#save(Data2000s_poly, file = paste0(wd$data_r, "Data2000s_poly.rData"))
 
 st_write(Data2000s_poly, paste0(wd$data_p, "Data2000s_poly.gpkg"), driver = "GPKG", overwrite=TRUE, append=FALSE)
 
@@ -1303,5 +1397,25 @@ write.csv(Data2000s_cases, paste0(wd$data_p,"Data2000s_poly.csv"))
 rm(LU_Cases, SIAP_Cases, LU2000e, SIAP_LU_poly, SIAP_LU_poly, SIAP_LU_poly_Cases)
 
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
  

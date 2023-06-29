@@ -159,92 +159,70 @@ Chalco <- SIAP_2 %>% filter(EstadoMunicipio == "Chalco, Mexico" & AGType == "Rie
   mutate(Yield=Yield*1000, ZYield = (Yield - mean(Yield)) / sd(Yield))
 
 
-MilpaAlta <- SIAP_2 %>% filter(EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" & Cycle == "Perennes") %>% mutate(Cultigen = "Maiz grano", AGType = "Riego", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +20, Harvested = Harvested + 20) 
-MilpaAlta$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(400 +runif(1, min = -100, max = 200))+3800
+MilpaAlta <- SIAP_2 %>% filter(EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" & Cycle == "Perennes") %>% mutate(Cultigen = "Maiz grano", Cultigen_ID = 7490000, AGType = "Riego", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +20, Harvested = Harvested + 20) 
+MilpaAlta$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(150 +runif(1, min = 0, max = 50))+3800
 MilpaAlta$Product = MilpaAlta$Yield*MilpaAlta$Harvested
 
 
-Xochimilco <- SIAP_2 %>% filter(EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" & Cultigen == "Lechuga") %>% mutate(Cultigen = "Maiz grano", AGType = "Riego", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +100, Harvested = Harvested + 100) 
-Xochimilco$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(400 +runif(1, min = -100, max = 200))+4050
+Xochimilco <- SIAP_2 %>% filter(EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" & Cultigen == "Lechuga") %>% mutate(Cultigen = "Maiz grano", Cultigen_ID = 7490000, AGType = "Riego", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +100, Harvested = Harvested + 100) 
+Xochimilco$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(150 +runif(1, min = 0, max = 50))+4050
 Xochimilco$Product = Xochimilco$Yield*Xochimilco$Harvested
 
 
-Tlahuac <- SIAP_2 %>% filter(EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" & Cultigen == "Brocoli" & Cycle == "Primavera-Verano") %>% mutate(Cultigen = "Maiz grano", AGType = "Riego", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA) 
-Tlahuac$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(400 +runif(1, min = -100, max = 200))+4000
+Tlahuac <- SIAP_2 %>% filter(EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" & Cultigen == "Brocoli" & Cycle == "Primavera-Verano") %>% mutate(Cultigen = "Maiz grano", Cultigen_ID = 7490000, AGType = "Riego", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA) 
+Tlahuac$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(150 +runif(1, min = 0, max = 50))+4000
 Tlahuac$Product = Tlahuac$Yield*Tlahuac$Harvested
 
 
-ValleChalco <- SIAP_2 %>% filter(EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" & Cycle == "Primavera-Verano" & Cultigen == "Lechuga") %>% mutate(Cultigen = "Maiz grano", AGType = "Riego", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA) 
-ValleChalco$Yield = (Chalco$ZYield[(length(Chalco$ZYield)-nrow(ValleChalco)):length(Chalco$ZYield)] + runif(1, min = -0.5, max = 0.5))*(400 +runif(1, min = -100, max = 200))+3900
+ValleChalco <- SIAP_2 %>% filter(EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" & Cycle == "Primavera-Verano" & Cultigen == "Lechuga") %>% mutate(Cultigen = "Maiz grano", Cultigen_ID = 7490000, AGType = "Riego", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA) 
+ValleChalco$Yield = (Chalco$ZYield[(length(Chalco$ZYield)-nrow(ValleChalco)):length(Chalco$ZYield)] + runif(1, min = -0.5, max = 0.5))*(150 +runif(1, min = 0, max = 50))+3900
 ValleChalco$Product = ValleChalco$Yield*ValleChalco$Harvested
 runif(1, min = 0.01, max = 0.5)
 
-######################################################
-########## NOT FINISHED
 
-Ixtapaluca <- SIAP_2 %>% filter(EstadoMunicipio == "Ixtapaluca, Mexico" & AGType == "Riego" & Cycle == "Perennes") %>% mutate(Cultigen = "Maiz grano", AGType = "Riego", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +20, Harvested = Harvested + 20) 
-Ixtapaluca$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(400 +runif(1, min = -100, max = 200))+3800
+
+Ixtapaluca <- SIAP_2 %>% filter(EstadoMunicipio == "Ixtapaluca, Mexico" & AGType == "Riego" & Cultigen == "Maiz forrajero en verde") %>% mutate(Cultigen = "Maiz grano", Cultigen_ID = 7490000, AGType = "Riego", Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +50, Harvested = Harvested + 50) 
+Ixtapaluca$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(200 +runif(1, min = -10, max = 20))+2300
 Ixtapaluca$Product = Ixtapaluca$Yield*Ixtapaluca$Harvested
 
-Axapusco <- SIAP_2 %>% filter(EstadoMunicipio == "Axapusco, Mexico" & AGType == "Riego" & Cycle == "Perennes") %>% mutate(Cultigen = "Maiz grano", AGType = "Riego", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +20, Harvested = Harvested + 20) 
-Axapusco$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(400 +runif(1, min = -100, max = 200))+3800
-Axapusco$Product = Axapusco$Yield*Axapusco$Harvested
 
-Nextlalpan <- SIAP_2 %>% filter(EstadoMunicipio == "Nextlalpan, Mexico" & AGType == "Riego" & Cycle == "Perennes") %>% mutate(Cultigen = "Maiz grano", AGType = "Riego", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +20, Harvested = Harvested + 20) 
-Nextlalpan$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(400 +runif(1, min = -100, max = 200))+3800
+
+Nextlalpan <- SIAP_2 %>% filter(EstadoMunicipio == "Nextlalpan, Mexico" & AGType == "Riego" & Cultigen == "Maiz grano") %>% mutate(Cultigen = "Maiz grano", Cultigen_ID = 7490000, AGType = "Riego", Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +20, Harvested = Harvested + 20) 
+Nextlalpan$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(200 +runif(1, min = -10, max = 20))+3800
 Nextlalpan$Product = Nextlalpan$Yield*Nextlalpan$Harvested
 
-## Other two Xaltocan area chinampas????
-
-ADDEDCASES <- rbind(MilpaAlta, Xochimilco, Tlahuac, ValleChalco, Ixtapaluca, Axapusco, Nextlalpan)
-
-rm(Chalco, MilpaAlta, Xochimilco, Tlahuac, ValleChalco, Ixtapaluca, Axapusco, Nextlalpan, Otumba, , , , )
+Tonanitla <- SIAP_2 %>% filter(EstadoMunicipio == "Tonanitla, Mexico" & AGType == "Riego" & Cultigen == "Maiz grano") %>% mutate(Cultigen = "Maiz grano", Cultigen_ID = 7490000, AGType = "Riego", Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +20, Harvested = Harvested + 20) 
+Tonanitla$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(200 +runif(1, min = -10, max = 20))+3800
+Tonanitla$Product = Tonanitla$Yield*Tonanitla$Harvested
 
 ##############################################################
 
-##### This goes down below to delete the modified rows
 
-filter(!(EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" & Cycle == "Perrenes")) %>%
-  filter(!(EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" & Cultigen == "Lechuga")) %>%
-  filter(!(EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" & Cultigen == "Brocoli" & Cycle == "Primavera-Verano")) %>%
-  filter(!(EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" & Cycle == "Primavera-Verano" & Cultigen == "Lechuga")) %>%
-  
-```
+Otumba <- SIAP_2 %>% filter(EstadoMunicipio == "Otumba, Mexico" & AGType == "Riego" & Cultigen == "Maiz grano") %>% 
+  mutate(Yield=Yield*1000, ZYield = (Yield - mean(Yield)) / sd(Yield))
 
-"Valle de Chalco Solidaridad, Mexico", ", Distrito Federal", "Tlahuac, Distrito Federal", "Xochimilco, Distrito Federal",
-```{r}
+Axapusco <- SIAP_2 %>% filter(EstadoMunicipio == "Otumba, Mexico" & AGType == "Riego" & Cultigen == "Maiz grano") %>% 
+  mutate(EstadoMunicipio = "Axapusco, Mexico", Municipio_ID = 16, Municipio = "Axapusco", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = 50)
+Axapusco$Yield = (Otumba$ZYield + runif(1, min = -0.5, max = 0.5))*(285 +runif(1, min = -10, max = 20))+2200
+Axapusco$Planted = Axapusco$Planted + runif(1, min = -3, max = 5)
+Axapusco$Harvested = Axapusco$Harvested
+Axapusco$Product = Axapusco$Yield*Axapusco$Harvested
 
-#Pred_Poly_ModLU <- Data2000s_poly_rs %>%  mutate(
-   # AvgPctArea_ofTotal = case_when(
-      EstadoMunicipio == "Ixtapaluca, Mexico" & AGType == "Riego" ~ 0.012594759,
-     # EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" ~ 0.012594759,
-     # EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" ~ 0.012594759,
-     # EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" ~ 0.012594759,
-     # EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" ~ 0.012594759,
-      EstadoMunicipio == "Axapusco, Mexico" & AGType == "Riego" ~ 0.006730203,
-	#  .default = AvgPctArea_ofTotal),
-  #  cvYield = case_when(
-   #   EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" ~ 5,
-   #   EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" ~ 5,
-   #   EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" ~ 5,
-   #   EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" ~ 5,
-	#  .default = cvYield),
-  #  AvgYield = case_when(
-    #  EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" ~ 4000,
-    #  EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" ~ 4000,
-    #  EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" ~ 4000,
-     # EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" ~ 4000,
-      EstadoMunicipio == "Nextlalpan, Mexico" & AGType == "Riego" ~ 3500,
-	#  .default = AvgYield),
-  #  AvgPctArea_ofArable = case_when(
-    #  EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" ~ 0.2847692,
-    #  EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" ~ 0.2847692,
-   #   EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" ~ 0.2847692,
-   #   EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" ~ 0.2847692,
-	#  .default = AvgYield))
+
+ADDEDCASES <- rbind(MilpaAlta, Xochimilco, Tlahuac, ValleChalco, Ixtapaluca, Axapusco, Nextlalpan, Tonanitla)
+
+rm(Chalco, MilpaAlta, Xochimilco, Tlahuac, ValleChalco, Ixtapaluca, Axapusco, Nextlalpan, Otumba, Tonanitla)
+
+
+
+
+
 
 ```
 
+
+
+## Create Data
 
 
 ```{r}
@@ -263,18 +241,23 @@ SIAP_2b = SIAP_2 %>% mutate(
     # we want to change the reported yield to == Product (tons) / hectares planted
     # to account for yield loss over the course of the growing season
     Yield = Product / Planted, 
+    # Save old SIAP yields as a variable
     Yield_SIAP = Yield,
     Yield = RescaleYields(Yield, method = METHOD, a = A_PAR, b = B_PAR))
 
+# delete the modified rows
 SIAP_2b = SIAP_2b %>% 
   filter(!(EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" & Cycle == "Perrenes")) %>%
-  #filter(!(EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" & Cycle == "Perrenes")) %>%
-  #filter(!(EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" & Cycle == "Perrenes")) %>%
-  #filter(!(EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" & Cycle == "Perrenes")) %>%
+  filter(!(EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" & Cultigen == "Lechuga")) %>%
+  filter(!(EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" & Cultigen == "Brocoli" & Cycle == "Primavera-Verano")) %>%
+  filter(!(EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" & Cycle == "Primavera-Verano" & Cultigen == "Lechuga")) %>%
+  filter(!(EstadoMunicipio == "Ixtapaluca, Mexico" & AGType == "Riego" & Cultigen == "Maiz forrajero en verde"))
 
+# Add the new rows
 SIAP_2b = cbind(SIAP_2b, ADDEDCASES) 
 
 SIAP_2b = SIAP_2b %>% 
+  select(-X) %>%
     # only consider Spring-Summer crop cycle yields (exclude Autumn-Winter yields)
   filter(Cycle %in% c("Primavera-Verano", "Perennes")) %>%
   mutate(CultigenGroup = case_when(
@@ -324,7 +307,7 @@ SIAP_3_rs <- SIAP_2b %>% mutate(
            TotYieldLoss = TotYield_orig - TotYield,
            TotPctYieldLoss = (1-(TotYield/TotYield_orig))*100) %>% ungroup()
 
-rm(SIAP_2)
+rm(SIAP_2, ADDEDCASES)
 
 SIAP_4_rs = SIAP_3_rs %>% 
   # group the data by state-municipality and agriculture type
@@ -801,6 +784,8 @@ rm(x)
 
 rm(x)
 
+write.csv(SIAP_2b, paste0(wd$data_r,"SIAP_2_rescale.csv"))
+
 write.csv(SIAP_3_rs, paste0(wd$data_r,"SIAP_3_rescale.csv"))
 
 write.csv(SIAP_4_rs, paste0(wd$data_r,"SIAP_4_rescale.csv"))
@@ -825,9 +810,10 @@ SIAP_5_remove_cases_rs = SIAP_5_rs %>%
                                   "San Francisco Tetlanohcan, Tlaxcala", 
                                   "San Pablo del Monte, Tlaxcala", 
                                   "Tolcayuca, Hidalgo", 
-                                  "Tonanitla, Mexico", 
                                   "Amaxac de Guerrero, Tlaxcala", 
-                                  "Jaltenco, Mexico") & AGType %in% "Riego"))
+                                  "Jaltenco, Mexico") & AGType %in% "Riego")) %>% 
+# remove Temporal maize yield cases for  municipalities that lack Temporal agriculture in the land use data
+  filter(!(EstadoMunicipio %in% c("Tonanitla, Mexico") & AGType %in% "Temporal"))
 
 LU2000e <- st_read(paste0(wd$data_r, "LU2000e.gpkg")) 
 
