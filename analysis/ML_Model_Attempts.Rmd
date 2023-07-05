@@ -1,0 +1,1250 @@
+---
+title: "Untitled"
+author: "Rudolf Cesaretti"
+date: "2023-07-02"
+output: html_document
+---
+
+
+# Setup
+
+
+```{r, setup, include=FALSE,echo=FALSE, message=FALSE,warning=FALSE}
+require(knitr)
+# Set so that long lines in R will be wrapped:
+opts_chunk$set(tidy.opts=list(width.cutoff=75),tidy=TRUE)
+#
+rm(list = ls())
+```
+
+### Directories
+
+```{r, label='Set Local Directory Location', message=FALSE,warning=FALSE}
+
+wd <- list()
+
+#SET YOUR LOCAL DIRECTORY LOCATION HERE:
+wd$dir <- "D:/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
+#wd$dir <- "C:/Users/TJ McMote/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
+
+wd$analysis <- paste0(wd$dir,"analysis/")
+wd$data_r <- paste0(wd$dir,"data-raw/")
+wd$data_p <- paste0(wd$dir,"data-processed/")
+wd$data_f <- paste0(wd$dir,"data-final-outputs/")
+wd$figs <- paste0(wd$dir,"figures/")
+wd$funcs <- paste0(wd$dir,"functions/")
+
+```
+
+### Load Packages
+
+```{r, label='Load Libraries', message=FALSE,warning=FALSE}
+# Package names
+packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster", 
+              "Matrix", "terra","gdistance", "lwgeom", "tidyr", "stars", 
+              "dismo", "purrr", "spatialEco", "whitebox", "classInt",
+              "ggnewscale", "lbmech", "data.table", "tidyterra","gridExtra", 
+              "cowplot", "scam", "rmarkdown", "spatialreg","spdep", "ggridges", 
+              "ggnewscale", "scales", "ggstatsplot", "stringi", "fuzzyjoin", 
+              "mgcv", "randomForest", "ranger", "exactextractr", "kableExtra",
+              "goft", "MASS", "NSM3", "ggsn", "rlang", "FSA", "philentropy", 
+              "sfdep","spdep", "Boruta", "mlbench", "caret", "DataExplorer", 
+              "tableone", "mlr3", "mlr3verse", "mlr3learners", "mlr3measures", 
+              "mlr3tuning", "mlr3mbo", "mlr3misc", "mlr3viz", "mlr3tuningspaces", 
+              "mlr3pipelines", "mlr3hyperband", "mlr3fselect", "mlr3filters", 
+              "mlr3cluster", "FSelectorRcpp", "mlr3extralearners", "mlr3spatial", 
+              "mlr3spatiotempcv", "praznik", "care", "genalg")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# load packages
+invisible(lapply(packages, library, character.only = TRUE))
+
+rm(packages,installed_packages)
+
+#Read in custom R functions located in the wd$funcs directory folder
+FUNCS <- list("RescaleSpatRast.R", "Terra_df.R", "RF_ImputeRast.R", "linear_rescale.R", "CMex_AG_Map.R")
+invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
+rm(FUNCS)
+
+```
+
+
+### Load Data 
+
+
+```{r}
+Data2000s_poly_rs <- st_read(paste0(wd$data_p, "Data2000s_poly_rescale.gpkg"))
+
+Env_sub <- rast(paste0(wd$data_p, "Env_sub_RF.tif"))
+
+vv = as.data.frame(Env_sub[[1]])
+vv = vv %>% mutate(DEM = ifelse(DEM >= 3100, 0, 1))
+vv = as.numeric(floor((1-sum(vv$DEM)/nrow(vv))*460))
+
+high_elev <- st_read(paste0(wd$data_r, "HighElev.gpkg"))
+high_elev <- high_elev %>% sample_n(vv)
+
+qqq = Data2000s_poly_rs 
+
+qqq = qqq[1:vv,]
+
+new_geometry <- st_geometry(high_elev)
+
+qqq <- st_set_geometry(qqq, new_geometry)
+qqq[,c(1:218)] <- NA
+
+high_elev <- qqq %>% mutate(
+  EstadoMunicipio = "High Elevation",
+  Estado = "High Elevation",
+  Municipio = "High Elevation",
+  AGType = "Temporal",
+  AvgYield = 0,
+  cvYield = NA,
+  LU_Total_DensArable = 0,
+  AG_Workers_DensArable = 0,
+  PrimaryEmploy_DensArable = 0,
+  TotalLabor_DensArable = 0,
+  Pop_DensArable = 0,
+  PopRural_DensArable = 0,
+  AvgPctArea_ofTotal = 0,
+  
+  Fertilizer = 0)
+
+Data2000s_poly_rs = rbind(Data2000s_poly_rs, high_elev)
+Data2000s_poly_rs = Data2000s_poly_rs %>% mutate(AGType = factor(AGType, levels = c("Temporal", "Riego")))
+
+env_vals <- exact_extract(x = Env_sub, y = Data2000s_poly_rs, fun = "mean", 
+                           max_cells_in_memory = 8e+08, stack_apply=T, 
+                           append_cols = c("EstadoMunicipio","Estado", "Municipio", "AGType"))
+```
+
+```{r}
+y = env_vals %>% select(-Estado, -Municipio, -EstadoMunicipio, -AGType)
+
+Train_sf_full = Data2000s_poly_rs %>% select(
+  EstadoMunicipio, Estado, Municipio, AvgYield, cvYield, AGType, 
+  
+  PopDens, Pop_Urban, Pop_Rural, PopDensRural, UrbRatio,
+  
+  Pct_Primary, Pct_AG_Workers, 
+  
+  Pct_Rest_ha, Pct_Fallow_ha, 
+  
+  Pct_Tract_Mechaniz_pu, Pct_Tract_Animal_pu, Pct_Tract_Manual_pu, 
+  
+  Pct_Herbicides_ha, #Pct_FertilChem_ha, Pct_FertilManure_ha, Pct_ImprovSeed_ha, Pct_Insecticides_ha, Pct_ControlledBurn_ha, 
+  
+  Fertilizer, #Techniques, 
+  
+  #IrrigPU_EarthenCanals, IrrigPU_CoatedCanals, IrrigPU_CanalsTotal, IrrigPU_Modern, IrrigPU_Other, IrrigPUWater_River, IrrigPUWater_Spring, IrrigPUWater_Dam, IrrigPUWater_Modern, IrrigPUWater_Other,
+  
+  PopRuralMz_perMzHa,  PrimaryMz_perMzHa,  AGWorkersMz_perMzHa,  TotalLaborMz_perMzHa,  LUTotalMz_perMzHa,
+  ContractLaboTotMz_perMzHa,  ContractLaborFullMz_perMzHa,  ContractLaboPartMz_perMzHa,  FamLaborMz_perMzHa,
+  MechanizEquipMz_perMzHa,  DraftAnimalsMz_perMzHa,  TractorsMz_perMzHa,
+  
+   AvgPctArea_ofTotal, AvgPctArea_ofArable, #AvgArea_Maize,AvgPctMaizeArea_Irrig, AvgPctMaizeArea_Temp, AvgPctArea_Irrig, AvgPctArea_Temp,
+  
+  LU_Total_DensArable, AG_Workers_DensArable, PrimaryEmploy_DensArable, TotalLabor_DensArable, Pop_DensArable, PopRural_DensArable #PctMun_Arable
+  #MechanizEquip_DensArable, DraftAnimals_DensArable, PctMun_Settlement, AvgMunSettlementDens
+  ) %>% mutate(Pop_Urban = as.numeric(Pop_Urban), Pop_Rural = as.numeric(Pop_Rural))
+
+
+Train_sf_full = cbind(Train_sf_full, y)
+
+rm(y)
+```
+
+
+```{r}
+
+E_TLAXCALA = c("Emiliano Zapata, Tlaxcala", "Lazaro Cardenas, Tlaxcala", "Terrenate, Tlaxcala", "Xaloztoc, Tlaxcala", "Tzompantepec, Tlaxcala", "Tocatlan, Tlaxcala", "Huamantla, Tlaxcala", "Altzayanca, Tlaxcala", "Cuapiaxtla, Tlaxcala", "El Carmen Tequexquitla, Tlaxcala", "Zitlaltepec de Trinidad Sanchez Santos, Tlaxcala", "Ixtenco, Tlaxcala", "Nopalucan, Puebla", "Rafael Lara Grajales, Puebla", "Soltepec, Puebla", "Mazapiltepec de Juarez, Puebla","San Jose Chiapa, Puebla")
+
+Remove_Irrigation = c("Chicoloapan, Mexico", "Chimalhuacan, Mexico", "Atenco, Mexico", "Chiconcuac, Mexico", "Ecatepec de Morelos, Mexico", "Coacalco de Berriozabal, Mexico", "Papalotla, Mexico")
+
+#RESCALE Irrigation
+S_HIDALGO = c("Mixquiahuala de Juarez, Hidalgo", "Tezontepec de Aldama, Hidalgo", "Tepetitlan, Hidalgo", "Tula de Allende, Hidalgo", "Tepeji del Rio de Ocampo, Hidalgo", "Tlaxcoapan, Hidalgo", "Tlahuelilpan, Hidalgo", "Atitalaquia, Hidalgo", "Atotonilco de Tula, Hidalgo", "Francisco I. Madero, Hidalgo", "Tetepango, Hidalgo", "Ajacuba, Hidalgo", "Tetepango, Hidalgo")
+
+Remove_Temporal = c("Milpa Alta, Distrito Federal", "Tlalpan, Distrito Federal", "Xochimilco, Distrito Federal", "Tlahuac, Distrito Federal", "La Magdalena Contreras, Distrito Federal", "Alvaro Obregon, Distrito Federal", "Cuajimalpa de Morelos, Distrito Federal", "Jilotzingo, Mexico", "Naucalpan de Juarez, Mexico", "Atizapan de Zaragoza, Mexico", "Tlalnepantla de Baz, Mexico", "Coacalco de Berriozabal, Mexico", "Jaltenco, Mexico", "Coyotepec, Mexico", "La Paz, Mexico", "Chimalhuacan, Mexico", "Domingo Arenas, Puebla", "San Felipe Teotlalcingo, Puebla", "Puebla, Puebla") #"Chicoloapan, Mexico", "Ixtapaluca, Mexico"
+
+Train_sf = Train_sf_full %>% 
+  
+  #filter(!(EstadoMunicipio %in% c("Ixtapaluca, Mexico", "Axapusco, Mexico") & AGType %in% "Riego")) %>% 
+  
+  filter(!(EstadoMunicipio %in% S_HIDALGO)) %>% 
+  
+  filter(!(EstadoMunicipio %in% E_TLAXCALA & AGType %in% "Riego")) %>% 
+  
+  filter(!(EstadoMunicipio %in% Remove_Irrigation & AGType %in% "Riego")) %>% 
+  
+  filter(!(EstadoMunicipio %in% Remove_Temporal & AGType %in% "Temporal")) %>% 
+  
+  ###left_join(y, by = c("EstadoMunicipio", "AGType")) %>% 
+  
+  mutate(AGType = factor(AGType, levels = c("Temporal", "Riego")))
+
+Train_sf_Temp_AvgYield = Train_sf %>% filter(AGType == "Temporal") %>% select(-AGType, -cvYield)
+
+Train_sf_Irrig_AvgYield = Train_sf %>% filter(AGType == "Riego") %>% select(-AGType, -cvYield)
+
+Train_sf_Both_AvgYield = Train_sf %>% select(-cvYield)
+
+#Train_sf_Both_cvYield = Train_sf %>% select(-AvgYield)
+
+
+
+```
+
+
+# Rasterize AG Data
+
+
+```{r}
+Municipios2000s <- st_read(paste0(wd$data_p, "Municipios2000s_Data.gpkg")) %>% select(EstadoMunicipio, Estado, Municipio)
+
+temp <- st_drop_geometry(Data2000s_poly_rs) %>% 
+  select(EstadoMunicipio, Estado, Municipio, AvgPctArea_ofTotal, TotalLabor_DensArable, Fertilizer, AGType) %>% 
+  group_by(EstadoMunicipio, Estado, Municipio) %>%
+  summarise(AvgPctArea_ofTotal_T = mean(AvgPctArea_ofTotal[AGType == "Temporal"], na.rm=T),
+            AvgPctArea_ofTotal_I = mean(AvgPctArea_ofTotal[AGType == "Riego"], na.rm=T),
+            TotalLabor_DensArable = mean(TotalLabor_DensArable, na.rm=T),
+            Fertilizer = mean(Fertilizer, na.rm=T)) %>% ungroup()
+
+Pred_Poly_ModMun = Municipios2000s %>% left_join(temp, by = c("EstadoMunicipio", "Estado", "Municipio"))
+
+AvgPctArea_ofTotal_T <- terra::rasterize(Pred_Poly_ModMun, Env_sub[[1]], 
+                                       field = "AvgPctArea_ofTotal_T", background = NA)
+names(AvgPctArea_ofTotal_T) <- "AvgPctArea_ofTotal"
+AvgPctArea_ofTotal_I <- terra::rasterize(Pred_Poly_ModMun, Env_sub[[1]], 
+                                       field = "AvgPctArea_ofTotal_I", background = NA)
+names(AvgPctArea_ofTotal_I) <- "AvgPctArea_ofTotal"
+
+TotalLabor_DensArable <- terra::rasterize(Pred_Poly_ModMun, Env_sub[[1]], 
+                                          field = "TotalLabor_DensArable", background = NA)
+names(TotalLabor_DensArable) <- "TotalLabor_DensArable"
+  
+Fertilizer <- terra::rasterize(Pred_Poly_ModMun, Env_sub[[1]], field = "Fertilizer", background = NA)
+names(Fertilizer) <- "Fertilizer"
+
+AGType_Temp <- ifel(Env_sub[[1]] > -99, 1, NA)
+AGType_Temp <- as.factor(AGType_Temp)
+names(AGType_Temp) = "AGType"
+levels(AGType_Temp) = data.frame(ID = c(1,2), AGType = c("Temporal", "Riego"))
+  
+AGType_Irrig <- ifel(Env_sub[[1]] > -99, 2, NA)
+AGType_Irrig <- as.factor(AGType_Irrig)
+names(AGType_Irrig) = "AGType"
+levels(AGType_Irrig) = data.frame(ID = c(1,2), AGType = c("Temporal", "Riego"))
+
+Pred_Rast_Modern_Temp = c(AvgPctArea_ofTotal_T, TotalLabor_DensArable, Fertilizer, AGType_Temp, Env_sub)
+Pred_Rast_Modern_Irrig = c(AvgPctArea_ofTotal_I, TotalLabor_DensArable, Fertilizer, AGType_Irrig, Env_sub)
+
+
+Fertilizer <- ifel(Env_sub[[1]] > -99, 1.8, NA)
+names(Fertilizer) <- "Fertilizer"
+
+# Need to modify this using AGType Predictions
+
+AvgPctArea_ofTotal_T = ifel(is.na(AvgPctArea_ofTotal_T), 0, AvgPctArea_ofTotal_T)
+AvgPctArea_ofTotal_I = ifel(is.na(AvgPctArea_ofTotal_I), 0, AvgPctArea_ofTotal_I)
+
+AvgPctArea_ofTotal_T_Az = AvgPctArea_ofTotal_T / (AvgPctArea_ofTotal_T + AvgPctArea_ofTotal_I)
+AvgPctArea_ofTotal_T_Az = ifel(is.nan(AvgPctArea_ofTotal_T_Az), 0.85, AvgPctArea_ofTotal_T_Az)
+names(AvgPctArea_ofTotal_T_Az) <- "AvgPctArea_ofTotal"
+
+AvgPctArea_ofTotal_I_Az = AvgPctArea_ofTotal_I / (AvgPctArea_ofTotal_T + AvgPctArea_ofTotal_I)
+AvgPctArea_ofTotal_I_Az = ifel(is.nan(AvgPctArea_ofTotal_I_Az), 0.85, AvgPctArea_ofTotal_I_Az)
+names(AvgPctArea_ofTotal_I_Az) <- "AvgPctArea_ofTotal"
+
+# Need to calculate Aztec Demog Density per arable Area
+
+Pred_Rast_Aztec_Temp = c(AvgPctArea_ofTotal_T_Az, TotalLabor_DensArable, Fertilizer, AGType_Temp, Env_sub)
+Pred_Rast_Aztec_Irrig = c(AvgPctArea_ofTotal_I_Az, TotalLabor_DensArable, Fertilizer, AGType_Irrig, Env_sub)
+
+Municipios2000s = Municipios2000s %>% mutate(Mask = 1)
+MASK = vect(Municipios2000s)
+#MASK <- terra::rasterize(Municipios2000s, Env_sub[[1]], field = "Mask", background = NA)
+Pred_Rast_Modern_Temp = mask(Pred_Rast_Modern_Temp, MASK)
+Pred_Rast_Modern_Irrig = mask(Pred_Rast_Modern_Irrig, MASK)
+Pred_Rast_Aztec_Temp = mask(Pred_Rast_Aztec_Temp, MASK)
+Pred_Rast_Aztec_Irrig = mask(Pred_Rast_Aztec_Irrig, MASK)
+
+rm(Municipios2000s, AvgPctArea_ofTotal_I_Az, AvgPctArea_ofTotal_T_Az, TotalLabor_DensArable, Fertilizer, AGType_Temp, AGType_Irrig, AvgPctArea_ofTotal_T, AvgPctArea_ofTotal_I, Pred_Poly_ModMun, temp)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Set 1: Average Yield -- Both AGTypes
+
+
+```{r}
+Data_sf <- st_centroid(Train_sf_Both_AvgYield) %>% select(-Estado, -Municipio, -EstadoMunicipio)
+
+Data_df = st_drop_geometry(Data_sf)
+```
+
+1. Remove redundant variables
+
+## Random Forest
+
+
+### Model 1: Boruta Vars
+
+
+
+
+#### Filter Variable Selection
+
+```{r}
+Data_sf = Data_sf %>% select(AvgYield, AGType, AvgPctArea_ofTotal, TotalLabor_DensArable, Fertilizer, mean.DEM:mean.rsds_fall)
+                                              
+Data_df = st_drop_geometry(Data_sf)
+```
+
+
+
+```{r}
+boruta <- Boruta(AvgYield ~ ., data = Data_df, maxRuns = 500)#, doTrace = 2
+boruta_atts <- attStats(boruta)
+boruta_atts$Boruta <- scales::rescale(rank(boruta_atts$meanImp)/nrow(boruta_atts))
+boruta_atts$feature = row.names(boruta_atts)
+FeatSelect = boruta_atts %>% rowid_to_column(var = "ORD") %>% select(ORD, feature, meanImp, decision, Boruta)
+
+Data_sf_tsk = as_task_regr_st(Data_sf, target = "AvgYield", id = "Data_sf")
+
+methodz <- c("jmi", "mrmr", "njmim", "cmim", "disr")
+
+for (i in 1:length(methodz)){
+  temp = flt(methodz[i])
+  temp$calculate(Data_sf_tsk)
+  temp = as.data.table(temp)
+  temp = as.data.frame(temp)
+  names(temp)[2] <- methodz[i]
+  FeatSelect = FeatSelect %>% left_join(temp, by="feature")
+}
+
+FeatSelect = FeatSelect %>% rowwise() %>%
+  mutate(Arith_Mean = (jmi + mrmr + njmim + cmim + disr)/5,
+         Geom_Mean = (jmi * mrmr * njmim * cmim * disr)^(1/5)) %>% ungroup()
+
+
+
+```
+
+```{r}
+temp = Data_df %>% select(-AGType)
+
+cor_mat = cor(temp)
+# Perform hierarchical clustering
+hc <- hclust(as.dist(1 - cor_mat))
+plot(hc)
+# Determine the order of rows
+order <- cutree(hc, k = 7)
+permuted_matrix <- cor_mat[order, order]
+```
+
+
+
+
+#### Model Selection: Benchmark Rival ML Models
+
+
+```{r}
+Data_sf_set1 = Data_sf %>% select(AvgYield, AGType, AvgPctArea_ofTotal, TotalLabor_DensArable, Fertilizer, mean.DEM, mean.Slope, mean.Accum, mean.TWI, mean.STI, mean.DistStreams, mean.ElevAboveStreams, mean.elev_watershed, mean.FloodOrder_Rel, mean.BDRICM, mean.AWCtS_2m, mean.S, mean.Z, mean.CF, mean.CEC, mean.OCD, mean.N, mean.swb, mean.gdd10, mean.cmi_april, mean.cmi_may,mean.pr_june, mean.cmi_summer78, mean.pr_sept, mean.cmi_oct, mean.pet_april, mean.rsds_may, mean.pet_june, mean.rsds_summer78, mean.pet_sept, mean.pet_oct)
+Data_sf_set1_tsk = as_task_regr_st(Data_sf_set1, target = "AvgYield", id = "Data_sf_set1")
+#Data_df_set1 = st_drop_geometry(Data_sf_set1)
+#Data_df_set1_tsk = as_task_regr(Data_df_set1, target = "AvgYield", id = "Data_df_set1")
+
+Data_sf_set2 = Data_sf %>% select(AvgYield, AGType, AvgPctArea_ofTotal, TotalLabor_DensArable, Fertilizer, mean.DEM, mean.Slope_sqrt, mean.Accum, mean.TWI, mean.STI, mean.DistStreams, mean.ElevAboveStreams2, mean.elev_watershed, mean.FloodOrder_Rel, mean.BDTICM, mean.AWCtS_2m, mean.C, mean.Z, mean.CF, mean.CEC, mean.OCD, mean.N, mean.swb, mean.gdd10, mean.cmi_april, mean.cmi_may,mean.pr_june, mean.cmi_summer78, mean.pr_sept, mean.cmi_oct, mean.pet_april, mean.rsds_may, mean.pet_june, mean.rsds_summer78, mean.pet_sept, mean.pet_oct)
+Data_sf_set2_tsk = as_task_regr_st(Data_sf_set2, target = "AvgYield", id = "Data_sf_set2")
+#Data_df_set2 = st_drop_geometry(Data_sf_set2)
+#Data_df_set2_tsk = as_task_regr(Data_df_set2, target = "AvgYield", id = "Data_df_set2")
+
+Data_sf_set3 = Data_sf %>% select(AvgYield, AGType, AvgPctArea_ofTotal, TotalLabor_DensArable, Fertilizer, mean.DEM, mean.Slope_sqrt, mean.Slope, mean.Accum, mean.TWI, mean.STI, mean.DistStreams, mean.ElevAboveStreams, mean.ElevAboveStreams2, mean.elev_watershed, mean.FloodOrder_Rel, mean.BDRICM, mean.BDTICM, mean.AWCtS_2m, mean.AWCtS, mean.S, mean.Z, mean.C, mean.CF, mean.CEC, mean.OCD, mean.N, mean.swb, mean.gdd10, mean.cmi_april, mean.cmi_may,mean.pr_june, mean.cmi_summer78, mean.pr_sept, mean.cmi_oct, mean.pet_april, mean.rsds_may, mean.pet_june, mean.rsds_summer78, mean.pet_sept, mean.pet_oct)
+Data_sf_set3_tsk = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3")
+```
+Data_df_set1_tsk, Data_df_set2_tsk
+Data_sf_set1_tsk, Data_sf_set2_tsk
+```{r}
+tasks = list(Data_sf_set1_tsk, Data_sf_set2_tsk, Data_sf_set3_tsk)
+learners = list(lrn("regr.ranger"), lrn("regr.randomForest"),  lrn("regr.bart"),  lrn("regr.ksvm"))
+resamplings = list(rsmp("cv", folds = 5))
+
+grid = benchmark_grid(tasks, learners, resamplings)
+head(grid)
+bmr = benchmark(grid)
+bmr
+bmr$aggregate(msrs(c("regr.mse", "regr.mae", "regr.rsq")))[, .(task_id, learner_id, regr.mse, regr.mae, regr.rsq)]
+
+autoplot(bmr, measure = msr("regr.rsq"))
+```
+
+
+#### Tune Model
+
+```{r}
+
+# Partition the data with the default 2/3 split (== 2/3 data for training, 1/3 for testing)
+Data_sf_set3_tsk = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3")
+Data_sf_set3_train = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_train")
+Data_sf_set3_test = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_test")
+splits = partition(Data_sf_set3_tsk, ratio=0.67)
+Data_sf_set3_train = Data_sf_set3_train$filter(splits$train)
+Data_sf_set3_test = Data_sf_set3_test$filter(splits$test)
+
+
+# Setup Ranger Random Forest Regression Model (= "Learner") for tuning the hyperparameters
+RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(p_int(50, 500, tags = "budget")), mtry.ratio = to_tune(0.1,0.5),#mtry = to_tune(6,12), 
+            min.node.size = 4, max.depth = to_tune(7,20), sample.fraction = to_tune(0.75,1.0),
+            num.random.splits = to_tune(1,12), num.threads = 2)
+#p_int(100, 500, tags = "budget")
+RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(p_int(50, 750, tags = "budget")), mtry = to_tune(4,12), 
+            min.node.size = to_tune(2,8), max.depth = to_tune(3,20))
+			
+# Setup Tuning using grid search (hyperparameter space specified in the RF model above)
+
+termz = trm("combo", list(trm("run_time", secs = 60*60), trm("evals", n_evals = 3000)), any = T)
+#tuner_grid = tnr("grid_search", resolution = 1, batch_size = 1)
+rsmp_holdout = rsmp("holdout")
+
+hyperband_tuner = tnr("hyperband", eta = 1.25, repetitions = 3)
+
+ff = hyperband_schedule(r_min = 50, r_max = 500, eta = 1.25)
+
+hyperband_tuner$optimize(instance)
+
+
+# Results of Tuning via grid search:
+
+uu2 = as.data.table(instance$archive)
+autoplot(instance, type = "marginal")
+autoplot(instance, type = "pairs")
+insample = instance$result_y
+
+#autoplot(BoAvY_instance)
+
+at = auto_tuner(
+  tuner = hyperband_tuner,
+  learner = RegRF,
+  resampling = rsmp_holdout,
+  measure = msr("regr.rsq"),
+  terminator = termz
+)
+rsmp_cv3 = rsmp("cv", folds = 3)
+
+#rcv$instantiate(Both_AvgYield_train)
+instance = resample(Data_sf_set3_train, at, rsmp_cv3)
+
+instance$result$learner_param_vals
+
+outsample = instance$aggregate(msr("regr.rsq"))
+
+# setup another Ranger Random Forest Regression Model
+RegRF_tuned = lrn("regr.ranger")
+
+# Set the tuned parameter values
+RegRF_tuned$param_set$values = instance$result_learner_param_vals
+
+generalization = RegRF_tuned$train(Data_sf_set3_train)$
+  predict(Data_sf_set3_test)$score(msr("regr.rsq"))
+
+rbind(generalization,insample,outsample)
+
+
+
+
+```
+
+
+# Setup Ranger Random Forest Regression Model (= "Learner") for tuning the hyperparameters
+RegRF_Reg = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(c(100,300,500)), mtry = to_tune(c(6,8,10)), min.node.size = 4,#to_tune(c(4,6,8)),
+            regularization.usedepth = T, regularization.factor = to_tune(c(0.25,0.5,0.75)),#to_tune(seq(0.1,1,0.1))
+            max.depth = to_tune(5,15))
+
+writeRaster(Pred_Rast_Modern_Temp, filename = paste0(wd$data_p, "Pred_Rast_Modern_Temp.tif"), overwrite=TRUE)
+
+Pred_Rast_Modern_Temp
+
+#### Recursive Feature Elimination
+
+```{r}
+
+FFrac = c(1.0, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.55, 0.50, 0.45, 0.40, 0.35, 0.30)
+
+names(Data_sf_set3) = sub("^mean\\.", "", names(Data_sf_set3))
+Data_sf_set3 = Data_sf_set3 %>% select(-ElevAboveStreams2)
+Data_sf_set3_tsk = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3")
+#nnn = Data_sf_set3_tsk$ncol
+FEAT = ceiling(FFrac*length(Data_sf_set3_tsk$feature_names))
+
+results <- list()
+pred_df <- list()
+
+splits = partition(Data_sf_set3_tsk, ratio=0.67)
+
+Data_sf_set3_train = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_train")
+Data_sf_set3_test = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_test")
+Data_sf_set3_train = Data_sf_set3_train$filter(splits$train)
+Data_sf_set3_test = Data_sf_set3_test$filter(splits$test)
+
+names(Train_sf_full) = sub("^mean\\.", "", names(Train_sf_full))
+Data_sf_Full = st_centroid(Train_sf_full) %>% select(-Estado, -Municipio, -EstadoMunicipio, -cvYield) %>% mutate(AGType = factor(AGType, levels = c("Temporal", "Riego")))
+Data_sf_Full_tsk = as_task_regr_st(Data_sf_Full, target = "AvgYield", id = "Data_sf_Full")
+Data_sf_Full_tsk$select(Data_sf_set3_tsk$feature_names)
+
+RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(p_int(50, 500, tags = "budget")), mtry.ratio = to_tune(0.1,0.5),#mtry = to_tune(6,12), 
+            min.node.size = 4, max.depth = to_tune(7,20), sample.fraction = to_tune(0.75,1.0),
+            num.random.splits = to_tune(1,12), num.threads = 2)
+
+at = auto_tuner(
+  tuner = tnr("hyperband", eta = 1.20, repetitions = 2),
+  learner = RegRF,
+  resampling = rsmp("holdout"),
+  measure = msr("regr.rsq"),
+  terminator = trm("combo", list(trm("run_time", secs = 120*60), trm("evals", n_evals = 3000)), any = T)
+)
+
+rr = resample(Data_sf_set3_train, at, resampling = rsmp("cv", folds = 3), store_models = TRUE)
+
+outsample = as.numeric(rr$aggregate(msr("regr.rsq")))
+
+RegRF_tuned = lrn("regr.ranger")
+
+RegRF_tuned$param_set$values = rr$learners[[1]]$state$model$tuning_instance$result_learner_param_vals
+
+generalization = as.numeric(RegRF_tuned$train(temp_train)$predict(temp_test)$score(msr("regr.rsq")))
+
+# results output dataframe
+a <- data.frame(FeatSelect = c(1.0),n_Features = temp_task$ncol,Perform_General = generalization, Perform_Outsample = outsample)
+#b = as.data.frame(rr$learners[[1]]$state$model$fselect_instance$result) %>% rename(fselect_rsq = regr.rsq)
+
+b = as.data.frame(t(as.matrix(rep(TRUE, (Data_sf_set3_tsk$ncol-1)),nrow=1)))
+colnames(b) = Data_sf_set3_tsk$feature_names
+b$features = list(Data_sf_set3_tsk$feature_names)
+b$fselect_rsq = NA
+b$iterations = NA
+
+c = as.data.frame(rr$learners[[1]]$state$model$tuning_instance$result) %>% rename(tune_rsq = regr.rsq)
+df = cbind(a,b,c)
+results[[i]] <- df
+names(results) <- "Feat_1.0"
+
+# Train model on full data for predictions
+RegRF_trained <- RegRF_tuned$train(Data_sf_set3_tsk)
+
+# sf Polygon / dataframe predictions
+pred = RegRF_trained$predict(task = Data_sf_Full_tsk)
+pred = as.data.frame(as.data.table(pred))
+pred$resid = pred$response - pred$truth
+names(pred) <- c("AvgYield_Predict_1.0","AvgYield_Resid_1.0")
+pred_df[[i]] <- pred
+names(pred_df) <- "Feat_1.0"
+
+# raster / terra predictions
+prediction = predict_spatial(Pred_Rast_Modern_Temp, RegRF_trained, format = "terra")
+names(prediction) <- "AvgYield_Predict_1.0_Temp"
+AvgYield_Pred <- prediction
+prediction = predict_spatial(Pred_Rast_Modern_Irrig, RegRF_trained, format = "terra")
+names(prediction) <- "AvgYield_Predict_1.0_Irrig"
+AvgYield_Pred <- c(AvgYield_Pred, prediction)
+
+for (i in 2:length(FFrac)){
+  
+  afs = auto_fselector(
+    fselector = fs("rfecv", n_features = FEAT[i], feature_fraction = 0.95),
+    learner = at,
+    resampling = rsmp("holdout"),
+    measure = msr("regr.rsq")
+  )
+  
+  rr = resample(Data_sf_set3_train, afs, resampling = rsmp("holdout"), store_models = T)
+  
+  outsample = as.numeric(rr$aggregate(msr("regr.rsq")))
+    
+  temp_task = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_train")
+  temp_task$select(rr$learners[[1]]$state$model$fselect_instance$result_feature_set)
+  temp_train = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_train")
+  temp_train$select(rr$learners[[1]]$state$model$fselect_instance$result_feature_set)
+  temp_train = temp_train$filter(splits$train)
+  temp_test = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_train")
+  temp_test$select(rr$learners[[1]]$state$model$fselect_instance$result_feature_set)
+  temp_test = temp_test$filter(splits$test)
+    
+  # setup another Ranger Random Forest Regression Model
+  RegRF_tuned = lrn("regr.ranger")
+    
+  # Set the tuned parameter values
+  RegRF_tuned$param_set$values = rr$learners[[1]]$state$model$learner$tuning_instance$result_learner_param_vals
+  
+  generalization = as.numeric(RegRF_tuned$train(temp_train)$predict(temp_test)$score(msr("regr.rsq")))
+  
+  # results output dataframe
+  a <- data.frame(FeatSelect = FFrac[i],n_Features = temp_task$ncol,Perform_General = generalization, Perform_Outsample = outsample)
+  b = as.data.frame(rr$learners[[1]]$state$model$fselect_instance$result) %>% rename(fselect_rsq = regr.rsq)
+  c = as.data.frame(rr$learners[[1]]$state$model$learner$tuning_instance$result) %>% rename(tune_rsq = regr.rsq)
+    # Train model on full data for predictions
+  df = cbind(a,b,c)
+  results[[i]] <- df
+  names(results)[i] <- paste0("Feat_",FFrac[i])
+    
+  # Train model on full data for predictions
+  RegRF_trained <- RegRF_tuned$train(temp_task)
+  
+  # sf Polygon / dataframe predictions
+  pred = RegRF_trained$predict(task = Data_sf_Full_tsk)
+  pred = as.data.frame(as.data.table(pred))
+  pred$resid = pred$response - pred$truth
+  names(pred) <- c(paste0("AvgYield_Predict_",FFrac[i]),paste0("AvgYield_Resid_",FFrac[i]))
+  pred_df[[i]] <- pred
+  names(pred_df)[i] <- paste0("Feat_",FFrac[i])
+
+  # raster / terra predictions
+  prediction = predict_spatial(Pred_Rast_Modern_Temp, RegRF_trained, format = "terra")
+  names(prediction) <- paste0("AvgYield_Predict_Temp_",FFrac[i])
+  AvgYield_Pred <- c(AvgYield_Pred, prediction)
+  prediction = predict_spatial(Pred_Rast_Modern_Irrig, RegRF_trained, format = "terra")
+  names(prediction) <- paste0("AvgYield_Predict_Irrig_",FFrac[i])
+  AvgYield_Pred <- c(AvgYield_Pred, prediction)
+  #pred_rast[[i]] <- pred
+  #names(pred_rast) <- c(names(pred_rast),paste0("Feat_",FFrac[i]))
+  }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+FFrac = c(1.00, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.55, 0.50, 0.45, 0.40, 0.35, 0.30)
+
+Data_sf_set3_tsk = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3")
+#nnn = Data_sf_set3_tsk$ncol
+FEAT = ceiling(FFrac*Data_sf_set3_tsk$ncol)
+
+splits = partition(Data_sf_set3_tsk, ratio=0.67)
+
+Data_sf_set3_train = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_train")
+Data_sf_set3_test = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_test")
+Data_sf_set3_train = Data_sf_set3_train$filter(splits$train)
+Data_sf_set3_test = Data_sf_set3_test$filter(splits$test)
+
+# Setup Ranger Random Forest Regression Model (= "Learner") for tuning the hyperparameters
+RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(p_int(50, 500, tags = "budget")), mtry.ratio = to_tune(0.1,0.5),#mtry = to_tune(6,12), 
+            min.node.size = 4, max.depth = to_tune(7,20), sample.fraction = to_tune(0.75,1.0),
+            num.random.splits = to_tune(1,12), num.threads = 2)
+
+at = auto_tuner(
+  tuner = tnr("hyperband", eta = 1.25, repetitions = 3),
+  learner = RegRF,
+  resampling = rsmp("holdout"),
+  measure = msr("regr.rsq"),
+  terminator = trm("combo", list(trm("run_time", secs = 60*60), trm("evals", n_evals = 3000)), any = T)
+)
+
+results <- list()
+#params <- list()
+#metrics <- list()
+#outsample
+#generalization
+#params <- list()
+pred_df <- list()
+pred_rast <- list()
+
+
+for (i in 1:length(FFrac)){
+  
+  afs = auto_fselector(
+    fselector = fs("rfecv", n_features = ceiling(0.9*nnn), feature_fraction = 0.95),
+    learner = at,
+    resampling = rsmp("holdout"),
+    measure = msr("regr.rsq")
+)
+
+rr = resample(Data_sf_set3_train, afs, resampling = rsmp("cv", folds = 3), store_models = TRUE)
+  
+  outsample = instance$aggregate(msr("regr.rsq"))
+
+# setup another Ranger Random Forest Regression Model
+RegRF_tuned = lrn("regr.ranger")
+
+# Set the tuned parameter values
+RegRF_tuned$param_set$values = instance$result_learner_param_vals
+
+generalization = RegRF_tuned$train(Data_sf_set3_train)$
+  predict(Data_sf_set3_test)$score(msr("regr.rsq"))
+
+rbind(generalization,insample,outsample)
+  # Train model on full data for predictions
+
+RegRF_trained <- RegRF_tuned$train(Both_AvgYield)
+  
+}
+
+
+
+
+
+
+
+
+
+
+```
+
+
+#### Trial
+
+
+```{r}
+Data_sf_Full = st_centroid(Train_sf_full) %>% select(-Estado, -Municipio, -EstadoMunicipio, -cvYield)
+Data_sf_Full_tsk = as_task_regr_st(Data_sf_Full, target = "AvgYield", id = "Data_sf_Full")
+# Partition the data with the default 2/3 split (== 2/3 data for training, 1/3 for testing)
+Data_sf_set3_tsk = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3")
+nnn = Data_sf_set3_tsk$ncol
+
+Data_sf_set3_train = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_train")
+Data_sf_set3_test = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_test")
+splits = partition(Data_sf_set3_tsk, ratio=0.67)
+Data_sf_set3_train = Data_sf_set3_train$filter(splits$train)
+Data_sf_set3_test = Data_sf_set3_test$filter(splits$test)
+
+
+# Setup Ranger Random Forest Regression Model (= "Learner") for tuning the hyperparameters
+RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(p_int(50, 500, tags = "budget")), mtry.ratio = to_tune(0.1,0.5),#mtry = to_tune(6,12), 
+            min.node.size = 4, max.depth = to_tune(7,20), sample.fraction = to_tune(0.75,1.0),
+            num.random.splits = to_tune(1,12), num.threads = 2)
+
+
+
+at = auto_tuner(
+  tuner = tnr("hyperband", eta = 2, repetitions = 1),
+  learner = RegRF,
+  resampling = rsmp("holdout"),
+  measure = msr("regr.rsq"),
+  terminator = trm("combo", list(trm("run_time", secs = 60*60), trm("evals", n_evals = 3000)), any = T)
+)
+
+afs = auto_fselector(
+    fselector = fs("rfecv", n_features = ceiling(0.9*nnn), feature_fraction = 0.95),
+    learner = at,
+    resampling = rsmp("holdout"),
+    measure = msr("regr.rsq")
+)
+
+rr = resample(Data_sf_set3_train, afs, resampling = rsmp("holdout"), store_models = T)
+
+outsample = as.numeric(rr$aggregate(msr("regr.rsq")))
+
+temp_task = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_train")
+temp_task$select(rr$learners[[1]]$state$model$fselect_instance$result_feature_set)
+temp_train = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_train")
+temp_train$select(rr$learners[[1]]$state$model$fselect_instance$result_feature_set)
+temp_train = temp_train$filter(splits$train)
+temp_test = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_train")
+temp_test$select(rr$learners[[1]]$state$model$fselect_instance$result_feature_set)
+temp_test = temp_test$filter(splits$test)
+
+# setup another Ranger Random Forest Regression Model
+RegRF_tuned = lrn("regr.ranger")
+
+# Set the tuned parameter values
+RegRF_tuned$param_set$values = rr$learners[[1]]$state$model$learner$tuning_instance$result_learner_param_vals
+
+generalization = as.numeric(RegRF_tuned$train(temp_train)$predict(temp_test)$score(msr("regr.rsq")))
+
+# results output dataframe
+a <- data.frame(FeatSelect = FFrac[i],n_Features = temp_task$ncol,Perform_General = generalization, Perform_Outsample = outsample)
+b = as.data.frame(rr$learners[[1]]$state$model$fselect_instance$result) %>% rename(fselect_rsq = regr.rsq)
+c = as.data.frame(rr$learners[[1]]$state$model$learner$tuning_instance$result) %>% rename(tune_rsq = regr.rsq)
+  # Train model on full data for predictions
+df = cbind(a,b,c)
+results[[i]] <- df
+names(results) <- c(names(results),paste0("Feat_",FFrac[i]))
+
+# Train model on full data for predictions
+RegRF_trained <- RegRF_tuned$train(temp_task)
+
+# sf Polygon / dataframe predictions
+pred = RegRF_trained$predict(task = Data_sf_Full_tsk)
+pred = as.data.frame(as.data.table(pred))
+pred$resid = pred$response - pred$truth
+names(pred) <- c(paste0("AvgYield_Predict_",FFrac[i]),paste0("AvgYield_Resid_",FFrac[i]))
+pred_df[[i]] <- pred
+names(pred_df) <- c(names(pred_df),paste0("Feat_",FFrac[i]))
+
+# raster / terra predictions
+prediction = predict_spatial(Raster_Predictors, RegRF_trained, format = "terra")
+names(prediction) <- paste0("AvgYield_Predict_",FFrac[i])
+AvgYield_Pred <- c(AvgYield_Pred, prediction)
+
+#pred_rast[[i]] <- pred
+#names(pred_rast) <- c(names(pred_rast),paste0("Feat_",FFrac[i]))
+
+
+
+
+
+signif(outsample, digits = 4)
+
+
+rr$learners[[1]]$state$model$learner$tuning_result
+extract_inner_fselect_results(rr)
+rr$learners[[1]]$state$model$fselect_instance
+rr$learners[[1]]$state$model$fselect_instance$result
+rr$learners[[1]]$state$model$fselect_instance$result_y
+rr$learners[[1]]$state$model$fselect_instance$result_feature_set
+rr$learners[[1]]$state$model$features
+rr$learners[[1]]$state$model$learner$tuning_instance
+rr$learners[[1]]$state$model$learner$tuning_instance$result_learner_param_vals
+rr$learners[[1]]$state$model$learner$tuning_instance$result_y
+rr$learners[[1]]$state$model$learner$tuning_instance$result
+
+
+
+
+
+#rr$learners[[1]]$fselector
+#rr$learners[[1]]$instance_args$resampling
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+Data_sf_set3_rfecv_1.0 = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_rfecv_1.0")
+
+
+
+
+
+
+Data_sf_set3_rfecv_0.9 = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_rfecv_0.9")
+
+rfecv = fselect(
+  fselector = fs("rfecv", n_features = ceiling(0.9*Data_sf_set3_rfecv_0.9$ncol), feature_fraction = 0.95),
+  task = Data_sf_set3_rfecv_0.9,
+  learner = RegRF_tuned,
+  resampling = rsmp("cv", folds = 3),
+  measure = msr("regr.rsq")#,  store_models = TRUE
+)
+Data_sf_set3_rfecv_0.9$select(rfecv$result_feature_set)
+
+Data_sf_set3_rfecv_0.8 = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_rfecv_0.8")
+rfecv = fselect(
+  fselector = fs("rfecv", n_features = ceiling(0.8*Data_sf_set3_rfecv_0.8$ncol), feature_fraction = 0.95),
+  task = Data_sf_set3_rfecv_0.8,
+  learner = RegRF_tuned,
+  resampling = rsmp("cv", folds = 3),
+  measure = msr("regr.rsq")#,store_models = TRUE
+)
+Data_sf_set3_rfecv_0.8$select(rfecv$result_feature_set)
+
+Data_sf_set3_rfecv_0.7 = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_rfecv_0.7")
+rfecv = fselect(
+  fselector = fs("rfecv", n_features = ceiling(0.7*Data_sf_set3_rfecv_0.7$ncol), feature_fraction = 0.95),
+  task = Data_sf_set3_rfecv_0.7,
+  learner = RegRF_tuned,
+  resampling = rsmp("cv", folds = 3),
+  measure = msr("regr.rsq")#,store_models = TRUE
+)
+Data_sf_set3_rfecv_0.7$select(rfecv$result_feature_set)
+
+Data_sf_set3_rfecv_0.6 = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_rfecv_0.6")
+rfecv = fselect(
+  fselector = fs("rfecv", n_features = ceiling(0.6*Data_sf_set3_rfecv_0.6$ncol), feature_fraction = 0.95),
+  task = Data_sf_set3_rfecv_0.6,
+  learner = RegRF_tuned,
+  resampling = rsmp("cv", folds = 3),
+  measure = msr("regr.rsq")#,store_models = TRUE
+)
+Data_sf_set3_rfecv_0.6$select(rfecv$result_feature_set)
+
+Data_sf_set3_rfecv_0.5 = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_rfecv_0.5")
+rfecv = fselect(
+  fselector = fs("rfecv", n_features = ceiling(0.5*Data_sf_set3_rfecv_0.5$ncol), feature_fraction = 0.95),
+  task = Data_sf_set3_rfecv_0.5,
+  learner = RegRF_tuned,
+  resampling = rsmp("cv", folds = 3),
+  measure = msr("regr.rsq")#,store_models = TRUE
+)
+Data_sf_set3_rfecv_0.5$select(rfecv$result_feature_set)
+
+
+tasks = list(Data_sf_set3_tsk, Data_sf_set3_rfecv_0.9, Data_sf_set3_rfecv_0.8, Data_sf_set3_rfecv_0.7, Data_sf_set3_rfecv_0.6, Data_sf_set3_rfecv_0.5)
+learners = list(RegRF_tuned)
+resamplings = list(rsmp("cv", folds = 3))
+
+grid = benchmark_grid(tasks, learners, resamplings)
+head(grid)
+bmr = benchmark(grid)
+bmr
+bmr$aggregate(msrs(c("regr.mse", "regr.mae", "regr.rsq")))[, .(task_id, learner_id, regr.mse, regr.mae, regr.rsq)]
+
+autoplot(bmr, measure = msr("regr.rsq"))
+```
+```{r}
+Data_sf_set3_rfecv_0.9 = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_rfecv_0.9")
+
+rfecv = fselect(
+  fselector = fs("rfecv", n_features = ceiling(0.9*Data_sf_set3_rfecv_0.9$ncol), feature_fraction = 0.95),
+  task = Data_sf_set3_rfecv_0.9,
+  learner = lrn("regr.ranger", importance = "impurity"),
+  resampling = rsmp("cv", folds = 3),
+  measure = msr("regr.rsq")#,  store_models = TRUE
+)
+Data_sf_set3_rfecv_0.9$select(rfecv$result_feature_set)
+
+Data_sf_set3_rfecv_0.8 = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_rfecv_0.8")
+rfecv = fselect(
+  fselector = fs("rfecv", n_features = ceiling(0.8*Data_sf_set3_rfecv_0.8$ncol), feature_fraction = 0.95),
+  task = Data_sf_set3_rfecv_0.8,
+  learner = lrn("regr.ranger", importance = "impurity"),
+  resampling = rsmp("cv", folds = 3),
+  measure = msr("regr.rsq")#,store_models = TRUE
+)
+Data_sf_set3_rfecv_0.8$select(rfecv$result_feature_set)
+
+Data_sf_set3_rfecv_0.7 = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_rfecv_0.7")
+rfecv = fselect(
+  fselector = fs("rfecv", n_features = ceiling(0.7*Data_sf_set3_rfecv_0.7$ncol), feature_fraction = 0.95),
+  task = Data_sf_set3_rfecv_0.7,
+  learner = lrn("regr.ranger", importance = "impurity"),
+  resampling = rsmp("cv", folds = 3),
+  measure = msr("regr.rsq")#,store_models = TRUE
+)
+Data_sf_set3_rfecv_0.7$select(rfecv$result_feature_set)
+
+Data_sf_set3_rfecv_0.6 = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_rfecv_0.6")
+rfecv = fselect(
+  fselector = fs("rfecv", n_features = ceiling(0.6*Data_sf_set3_rfecv_0.6$ncol), feature_fraction = 0.95),
+  task = Data_sf_set3_rfecv_0.6,
+  learner = lrn("regr.ranger", importance = "impurity"),
+  resampling = rsmp("cv", folds = 3),
+  measure = msr("regr.rsq")#,store_models = TRUE
+)
+Data_sf_set3_rfecv_0.6$select(rfecv$result_feature_set)
+
+Data_sf_set3_rfecv_0.5 = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3_rfecv_0.5")
+rfecv = fselect(
+  fselector = fs("rfecv", n_features = ceiling(0.5*Data_sf_set3_rfecv_0.5$ncol), feature_fraction = 0.95),
+  task = Data_sf_set3_rfecv_0.5,
+  learner = lrn("regr.ranger", importance = "impurity"),
+  resampling = rsmp("cv", folds = 3),
+  measure = msr("regr.rsq")#,store_models = TRUE
+)
+Data_sf_set3_rfecv_0.5$select(rfecv$result_feature_set)
+
+
+tasks = list(Data_sf_set3_tsk, Data_sf_set3_rfecv_0.9, Data_sf_set3_rfecv_0.8, Data_sf_set3_rfecv_0.7, Data_sf_set3_rfecv_0.6, Data_sf_set3_rfecv_0.5)
+learners = list(lrn("regr.ranger"))
+resamplings = list(rsmp("cv", folds = 3))
+
+grid = benchmark_grid(tasks, learners, resamplings)
+head(grid)
+bmr = benchmark(grid)
+bmr
+bmr$aggregate(msrs(c("regr.mse", "regr.mae", "regr.rsq")))[, .(task_id, learner_id, regr.mse, regr.mae, regr.rsq)]
+
+autoplot(bmr, measure = msr("regr.rsq"))
+```
+
+
+
+
+#### Genetic Search Feature Selection
+
+```{r}
+
+instance = fselect(
+  fselector = fs("genetic_search"),
+  task = Data_sf_set3_tsk,
+  learner = lrn("regr.ranger"),
+  resampling = rsmp("holdout"),
+  measure = msr("classif.ce"),
+  term_evals = 10
+)
+```
+
+
+#### Select Features
+
+
+```{r}
+Train_sf_Both_AvgYield = centroids %>% select(AvgYield, AGType, AvgPctArea_ofTotal, mean.clt_fall, mean.OCD, mean.CEC, Fertilizer, mean.S, mean.rsds_may, mean.swb, mean.pet_spring, mean.gdd10, mean.FloodOrder_Rel, mean.rsds_summer, mean.pet_oct, TotalLabor_DensArable, mean.pr_summer, mean.rsds_oct, mean.N, mean.cmi_may, mean.pr_fall, mean.BDRICM, mean.Slope_sqrt, mean.DEM, mean.ElevAboveStreams2)
+
+names(Train_sf_Both_AvgYield) = sub("^mean\\.", "", names(Train_sf_Both_AvgYield))
+```
+
+
+#### (Hyper)Parameter Tuning / Training
+
+```{r}
+lgr::get_logger("mlr3")$set_threshold("warn")
+
+
+
+# Dataset ("Task")
+#Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "Both_AvgYield")
+Both_AvgYield = as_task_regr_st(Train_sf_Both_AvgYield, target = "AvgYield", id = "Train_sf_Total")
+Both_AvgYield_train = as_task_regr_st(Train_sf_Both_AvgYield, target = "AvgYield", id = "Train_sf_Total")
+Both_AvgYield_test = as_task_regr_st(Train_sf_Both_AvgYield, target = "AvgYield", id = "Train_sf_Total")
+# Partition the data with the default 2/3 split (== 2/3 data for training, 1/3 for testing)
+splits = partition(Both_AvgYield, ratio=0.67)
+#rcv = rsmp("spcv_coords", folds = 2)
+#rcv$instantiate(Both_AvgYield)
+#Both_AvgYield_test$filter(rcv$test_set(2))
+#Both_AvgYield_train$filter(rcv$train_set(2))
+Both_AvgYield_train = Both_AvgYield_train$filter(splits$train)
+
+Both_AvgYield_test = Both_AvgYield_test$filter(splits$test)
+#Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "BoAvY")
+Both_AvgYield = as_task_regr_st(Train_sf_Both_AvgYield, target = "AvgYield", id = "Train_sf_Total")
+#### Initial Random Forest Model Parameter Tuning
+
+# Setup Ranger Random Forest Regression Model (= "Learner") for tuning the hyperparameters
+RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(c(100,300,500)), mtry = to_tune(c(6,8,10)), min.node.size = 4,#to_tune(c(4,6,8)),
+            regularization.usedepth = T, regularization.factor = to_tune(c(0.25,0.5,0.75)),#to_tune(seq(0.1,1,0.1))
+            max.depth = to_tune(c(5,10,15)))
+
+# Setup Tuning using grid search (hyperparameter space specified in the RF model above)
+
+termz = trm("combo", list(trm("run_time", secs = 12000), trm("evals", n_evals = 300)), any = T)
+tuner_grid = tnr("grid_search", resolution = 1, batch_size = 1)
+
+rsmp_holdout = rsmp("holdout")
+#rcv = rsmp("spcv_coords", folds = 1)
+#rcv$instantiate(Both_AvgYield_train)
+# Find optimal parameter values
+
+#progressr::with_progress()
+BoAvY_instance = tune(
+  tuner = tuner_grid,
+  task = Both_AvgYield_train,
+  learner = RegRF,
+  resampling = rsmp_holdout,
+  measures =  msr("regr.mae"),
+  terminator = termz
+)
+
+# Results of Tuning via grid search:
+BoAvY_instance$result$learner_param_vals
+
+insample = BoAvY_instance$result_y
+
+# Save tuning grid search results as table for inspection
+#z = as.data.table(BoAvY_instance$archive)
+
+#autoplot(BoAvY_instance)
+
+BoAvY_at = auto_tuner(
+  tuner = tuner_grid,
+  learner = RegRF,
+  resampling = rsmp_holdout,
+  measure = msr("regr.mae"),
+  terminator = termz
+)
+rsmp_cv5 = rsmp("cv", folds = 5)
+#rcv$instantiate(Both_AvgYield_train)
+outsample = resample(Both_AvgYield_train, BoAvY_at, rsmp_cv5)$aggregate(msr("regr.mae"))
+
+# setup another Ranger Random Forest Regression Model
+RegRF_tuned = lrn("regr.ranger")
+
+# Set the tuned parameter values
+RegRF_tuned$param_set$values = BoAvY_instance$result_learner_param_vals
+
+generalization = RegRF_tuned$train(Both_AvgYield_train)$
+  predict(Both_AvgYield_test)$score(msr("regr.mae"))
+
+rbind(generalization,insample,outsample)
+
+###### Benchmarking
+
+tasks = list(Both_AvgYield)
+learners = list(RegRF_tuned, lrn("regr.rpart"), lrn("regr.ranger"), lrn("regr.ksvm"), lrn("regr.bart"))
+resamplings = list(rsmp_cv5)
+
+grid = benchmark_grid(tasks, learners, resamplings)
+head(grid)
+bmr = benchmark(grid)
+bmr
+bmr$aggregate(msrs(c("regr.mse", "regr.mae", "regr.rsq")))[, .(task_id, learner_id, regr.mse, regr.mae, regr.rsq)]
+
+autoplot(bmr, measure = msr("regr.mae"))
+
+
+####################
+
+# Train model on full data for predictions
+
+RegRF_trained <- RegRF_tuned$train(Both_AvgYield)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

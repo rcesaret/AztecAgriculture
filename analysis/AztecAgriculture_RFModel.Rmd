@@ -159,7 +159,7 @@ Chalco <- SIAP_2 %>% filter(EstadoMunicipio == "Chalco, Mexico" & AGType == "Rie
   mutate(Yield=Yield*1000, ZYield = (Yield - mean(Yield)) / sd(Yield))
 
 
-MilpaAlta <- SIAP_2 %>% filter(EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" & Cycle == "Perennes") %>% mutate(Cultigen = "Maiz grano", Cultigen_ID = 7490000, AGType = "Riego", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +20, Harvested = Harvested + 20) 
+MilpaAlta <- SIAP_2 %>% filter(EstadoMunicipio == "Milpa Alta, Distrito Federal" & AGType == "Riego" & Cycle == "Perennes") %>% mutate(Cultigen = "Maiz grano", Cultigen_ID = 7490000, AGType = "Riego", Cycle = "Primavera-Verano", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +20, Harvested = Harvested + 20) 
 MilpaAlta$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(150 +runif(1, min = 0, max = 50))+3800
 MilpaAlta$Product = MilpaAlta$Yield*MilpaAlta$Harvested
 
@@ -175,14 +175,14 @@ Tlahuac$Product = Tlahuac$Yield*Tlahuac$Harvested
 
 
 ValleChalco <- SIAP_2 %>% filter(EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" & Cycle == "Primavera-Verano" & Cultigen == "Lechuga") %>% mutate(Cultigen = "Maiz grano", Cultigen_ID = 7490000, AGType = "Riego", Price = NA, Value = NA, Yield_orig = NA, Yield_SIAP = NA) 
-ValleChalco$Yield = (Chalco$ZYield[(length(Chalco$ZYield)-nrow(ValleChalco)):length(Chalco$ZYield)] + runif(1, min = -0.5, max = 0.5))*(150 +runif(1, min = 0, max = 50))+3900
+ValleChalco$Yield = (Chalco$ZYield[(length(Chalco$ZYield)-nrow(ValleChalco)+1):length(Chalco$ZYield)] + runif(1, min = -0.5, max = 0.5))*(150 +runif(1, min = 0, max = 50))+3900
 ValleChalco$Product = ValleChalco$Yield*ValleChalco$Harvested
 runif(1, min = 0.01, max = 0.5)
 
 
 
 Ixtapaluca <- SIAP_2 %>% filter(EstadoMunicipio == "Ixtapaluca, Mexico" & AGType == "Riego" & Cultigen == "Maiz forrajero en verde") %>% mutate(Cultigen = "Maiz grano", Cultigen_ID = 7490000, AGType = "Riego", Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +50, Harvested = Harvested + 50) 
-Ixtapaluca$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(200 +runif(1, min = -10, max = 20))+2300
+Ixtapaluca$Yield = (Chalco$ZYield[2:19] + runif(1, min = -0.5, max = 0.5))*(200 +runif(1, min = -10, max = 20))+2300
 Ixtapaluca$Product = Ixtapaluca$Yield*Ixtapaluca$Harvested
 
 
@@ -192,8 +192,14 @@ Nextlalpan$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(200 +runif
 Nextlalpan$Product = Nextlalpan$Yield*Nextlalpan$Harvested
 
 Tonanitla <- SIAP_2 %>% filter(EstadoMunicipio == "Tonanitla, Mexico" & AGType == "Riego" & Cultigen == "Maiz grano") %>% mutate(Cultigen = "Maiz grano", Cultigen_ID = 7490000, AGType = "Riego", Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +20, Harvested = Harvested + 20) 
-Tonanitla$Yield = (Chalco$ZYield + runif(1, min = -0.5, max = 0.5))*(200 +runif(1, min = -10, max = 20))+3800
+Tonanitla$Yield = (Chalco$ZYield[4:19] + runif(1, min = -0.5, max = 0.5))*(200 +runif(1, min = -10, max = 20))+3800
 Tonanitla$Product = Tonanitla$Yield*Tonanitla$Harvested
+
+Tecamac <- SIAP_2 %>% filter(EstadoMunicipio == "Tecamac, Mexico" & AGType == "Riego" & Cultigen == "Maiz grano") %>% mutate(Cultigen = "Maiz grano", Cultigen_ID = 7490000, AGType = "Riego", Value = NA, Yield_orig = NA, Yield_SIAP = NA, Planted = Planted +20, Harvested = Harvested + 20) 
+Tecamac$Yield = (Chalco$ZYield + runif(1, min = -0.75, max = 0.75))*(300 +runif(1, min = -10, max = 20))+3500
+Tecamac$Product = Tecamac$Yield*Tecamac$Harvested
+
+
 
 ##############################################################
 
@@ -209,9 +215,9 @@ Axapusco$Harvested = Axapusco$Harvested
 Axapusco$Product = Axapusco$Yield*Axapusco$Harvested
 
 
-ADDEDCASES <- rbind(MilpaAlta, Xochimilco, Tlahuac, ValleChalco, Ixtapaluca, Axapusco, Nextlalpan, Tonanitla)
+ADDEDCASES <- rbind(MilpaAlta, Xochimilco, Tlahuac, ValleChalco, Ixtapaluca, Axapusco, Nextlalpan, Tonanitla, Tecamac)
 
-rm(Chalco, MilpaAlta, Xochimilco, Tlahuac, ValleChalco, Ixtapaluca, Axapusco, Nextlalpan, Otumba, Tonanitla)
+rm(Chalco, MilpaAlta, Xochimilco, Tlahuac, ValleChalco, Ixtapaluca, Axapusco, Nextlalpan, Otumba, Tonanitla, Tecamac)
 
 
 
@@ -251,10 +257,14 @@ SIAP_2b = SIAP_2b %>%
   filter(!(EstadoMunicipio == "Xochimilco, Distrito Federal" & AGType == "Riego" & Cultigen == "Lechuga")) %>%
   filter(!(EstadoMunicipio == "Tlahuac, Distrito Federal" & AGType == "Riego" & Cultigen == "Brocoli" & Cycle == "Primavera-Verano")) %>%
   filter(!(EstadoMunicipio == "Valle de Chalco Solidaridad, Mexico" & AGType == "Riego" & Cycle == "Primavera-Verano" & Cultigen == "Lechuga")) %>%
-  filter(!(EstadoMunicipio == "Ixtapaluca, Mexico" & AGType == "Riego" & Cultigen == "Maiz forrajero en verde"))
+  filter(!(EstadoMunicipio == "Ixtapaluca, Mexico" & AGType == "Riego" & Cultigen == "Maiz forrajero en verde")) %>%
+  filter(!(EstadoMunicipio == "Nextlalpan, Mexico" & AGType == "Riego" & Cultigen == "Maiz grano")) %>%
+  filter(!(EstadoMunicipio == "Tonanitla, Mexico" & AGType == "Riego" & Cultigen == "Maiz grano")) %>%
+  filter(!(EstadoMunicipio == "Tecamac, Mexico" & AGType == "Riego" & Cultigen == "Maiz grano"))
+
 
 # Add the new rows
-SIAP_2b = cbind(SIAP_2b, ADDEDCASES) 
+SIAP_2b = rbind(SIAP_2b, ADDEDCASES) 
 
 SIAP_2b = SIAP_2b %>% 
   select(-X) %>%
@@ -307,7 +317,7 @@ SIAP_3_rs <- SIAP_2b %>% mutate(
            TotYieldLoss = TotYield_orig - TotYield,
            TotPctYieldLoss = (1-(TotYield/TotYield_orig))*100) %>% ungroup()
 
-rm(SIAP_2, ADDEDCASES)
+rm(SIAP_2, ADDEDCASES, METHOD, A_PAR, B_PAR)
 
 SIAP_4_rs = SIAP_3_rs %>% 
   # group the data by state-municipality and agriculture type
@@ -557,12 +567,12 @@ SIAP_5_rs = SIAP_4_rs %>%
    ungroup() %>% 
    mutate(
     # irrigated maize % of total maize cultivation
-    AvgPctMaizeArea_Irrig = AvgArea_Maize_Irrig / AvgArea_Maize_Total,
+    AvgPctMaizeArea_Irrig = AvgArea_Irrig_Maize / AvgArea_Total_Maize,
     AvgPctMaizeArea_Irrig = ifelse(is.nan(AvgPctMaizeArea_Irrig), 0, AvgPctMaizeArea_Irrig),
     AvgPctMaizeArea_Irrig = ifelse(is.na(AvgPctMaizeArea_Irrig), 0, AvgPctMaizeArea_Irrig),
     AvgPctMaizeArea_Irrig = ifelse(AvgPctMaizeArea_Irrig > 1, 1, AvgPctMaizeArea_Irrig),
     # temporal maize % of total maize cultivation 
-    AvgPctMaizeArea_Temp = AvgArea_Maize_Temp / AvgArea_Maize_Total,
+    AvgPctMaizeArea_Temp = AvgArea_Temp_Maize / AvgArea_Total_Maize,
     AvgPctMaizeArea_Temp = ifelse(is.nan(AvgPctMaizeArea_Temp), 0, AvgPctMaizeArea_Temp),
     AvgPctMaizeArea_Temp = ifelse(is.na(AvgPctMaizeArea_Temp), 0, AvgPctMaizeArea_Temp),
     AvgPctMaizeArea_Temp = ifelse(AvgPctMaizeArea_Temp > 1, 1, AvgPctMaizeArea_Temp),
@@ -798,17 +808,15 @@ SIAP_6_rs = SIAP_4_rs %>%
     AvgPctArea_Temp = ifelse(AvgPctArea_Temp > 1, 1, AvgPctArea_Temp))
 rm(x)
 
-rm(x)
+write.csv(SIAP_2b, paste0(wd$data_p,"SIAP_2_rescale.csv"))
 
-write.csv(SIAP_2b, paste0(wd$data_r,"SIAP_2_rescale.csv"))
+write.csv(SIAP_3_rs, paste0(wd$data_p,"SIAP_3_rescale.csv"))
 
-write.csv(SIAP_3_rs, paste0(wd$data_r,"SIAP_3_rescale.csv"))
+write.csv(SIAP_4_rs, paste0(wd$data_p,"SIAP_4_rescale.csv"))
 
-write.csv(SIAP_4_rs, paste0(wd$data_r,"SIAP_4_rescale.csv"))
+write.csv(SIAP_5_rs, paste0(wd$data_p,"SIAP_5_rescale.csv"))
 
-write.csv(SIAP_5_rs, paste0(wd$data_r,"SIAP_5_rescale.csv"))
-
-write.csv(SIAP_6_rs, paste0(wd$data_r,"SIAP_6_rescale.csv"))
+write.csv(SIAP_6_rs, paste0(wd$data_p,"SIAP_6_rescale.csv"))
 
 SIAP_5_remove_cases_rs = SIAP_5_rs %>% 
 # remove irrigation maize yield cases for some municipalities that lack irrigation agriculture in the land use data
@@ -831,7 +839,7 @@ SIAP_5_remove_cases_rs = SIAP_5_rs %>%
 # remove Temporal maize yield cases for  municipalities that lack Temporal agriculture in the land use data
   filter(!(EstadoMunicipio %in% c("Tonanitla, Mexico") & AGType %in% "Temporal"))
 
-LU2000e <- st_read(paste0(wd$data_r, "LU2000e.gpkg")) 
+LU2000e <- st_read(paste0(wd$data_p, "LU2000e.gpkg")) 
 
 SIAP_LU_poly = LU2000e %>% left_join(SIAP_5_remove_cases_rs, by = c("EstadoMunicipio", "AGType")) %>% select(-ddr_ID, -ddr, -Cader_ID, -Cader, -Municipio_ID.y, -Municipio.y, -Estado_ID.y, -Estado.y, -Area_m2) %>% rename( Municipio = Municipio.x, Estado = Estado.x, Estado_ID = Estado_ID.x, Municipio_ID = Municipio_ID.x, AGType_Area_ha = Area_ha)
 
@@ -926,12 +934,11 @@ SIAP_annual_rs = SIAP_4_rs %>%
   mutate(AGType = case_when(
     AGType == "Riego" ~ "Irrig",
     AGType == "Temporal" ~ "Temp")) %>% 
-  bind_rows(x) %>% 
+  bind_rows(x) %>% group_by(Municipio, Estado, EstadoMunicipio, Year, AGType) %>% 
   pivot_wider(
     names_from = c(Year, AGType),
     names_glue = "Y_{Year}_{AGType}",
     values_from = Yield)
-
 rm(x)
 
 SIAP_averages_rs = SIAP_6_rs %>% select(-Estado_ID, -ddr, -ddr_ID, -Cader, -Cader_ID, -Municipio_ID)
@@ -1006,7 +1013,7 @@ MunicipioYields_rs <- MunicipioYields_rs %>%
 st_write(MunicipioYields_rs, paste0(wd$data_p, "MunicipioYields_rs.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
 st_write(MunicipioYields_Z_rs, paste0(wd$data_p, "MunicipioYields_Z_rs.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
 
-rm(SIAP_ZFluct_rs, AGC1960, AGC1970, AGC1991, AGC2007, Municipios2000s, SIAP_yields_rs, SIAP_ID, rEM, rM)
+rm(SIAP_ZFluct_rs, AGC1960, AGC1970, AGC1991, AGC2007, Municipios2000s, SIAP_yields_rs)
 
 rm(MunicipioYields_rs, MunicipioYields_Z_rs, SIAP_3_rs, SIAP_4_rs, SIAP_5_rs, SIAP_6_rs, Data2000s_poly_rs)
 
@@ -1019,8 +1026,10 @@ rm(MunicipioYields_rs, MunicipioYields_Z_rs, SIAP_3_rs, SIAP_4_rs, SIAP_5_rs, SI
 
 
 ```{r}
-SIAP_4_rs <- read.csv(paste0(wd$data_r,"SIAP_4_rescale.csv"))
-SIAP_5_rs <- read.csv(paste0(wd$data_r,"SIAP_5_rescale.csv"))
+SIAP_4_rs <- read.csv(paste0(wd$data_p,"SIAP_4_rescale.csv"))
+SIAP_5_rs <- read.csv(paste0(wd$data_p,"SIAP_5_rescale.csv"))
+SIAP_4 <- read.csv(paste0(wd$data_p,"SIAP_4.csv"))
+SIAP_5 <- read.csv(paste0(wd$data_p,"SIAP_5.csv"))
 #SIAP_6_rs <- read.csv(paste0(wd$data_r,"SIAP_6_rescale.csv"))
 #MunicipioYields_rs <- st_read(paste0(wd$data_p, "MunicipioYields_rs.gpkg"))
 MunicipioYields_Z_rs <- st_read(paste0(wd$data_p, "MunicipioYields_Z_rs.gpkg"))
@@ -1032,7 +1041,7 @@ Data2000s_poly_rs <- st_read(paste0(wd$data_p, "Data2000s_poly_rescale.gpkg"))
 ## Histograms
 
 
-#### Average Yield Histograms
+#### Average Yield Histograms 
 
 ```{r, label='SIAP Yield Histograms', message=FALSE,warning=FALSE}
 
@@ -1041,7 +1050,7 @@ h1 = ggplot(SIAP_4,aes(x = Yield)) +
   scale_fill_manual(name = "Agriculture Type", values = c("cyan1", "indianred1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
   geom_density(aes(group = AGType, color = AGType, y=360 * ..count..), adjust = 2, size=1, alpha=0.5)+
   scale_color_manual(name = "Agriculture Type",values = c("cyan2", "firebrick1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
-  labs(x ="Maize Yield (kg / ha)", y = "Count")+
+  labs(x ="Actual SIAP Maize Yields (kg / ha)", y = "Count")+
     theme_bw()+
     scale_x_continuous(limits= c(0,12000), breaks=seq(0,12000,2000)) +
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
@@ -1054,17 +1063,31 @@ h1 = ggplot(SIAP_4,aes(x = Yield)) +
           legend.text = element_text(colour="black", size = 12),
           legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
 
-df = SIAP_4 %>% group_by(EstadoMunicipio, Year) %>% summarize(Yield = sum(Product, na.rm=T) / sum(Planted, na.rm=T))
-df$Series <- "Municipal Average"
-df2 = SIAP_4 %>% select(EstadoMunicipio, Year, Yield) %>% mutate(Series = "Both Irrigation and Temporal")
-df = rbind(df,df2)
+h2 = ggplot(SIAP_4_rs,aes(x = Yield)) +
+  geom_histogram(aes(group = AGType, fill = AGType),alpha = 0.5, position = "identity", binwidth = 150, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("cyan1", "indianred1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  geom_density(aes(group = AGType, color = AGType, y=180 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  scale_color_manual(name = "Agriculture Type",values = c("cyan2", "firebrick1"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  labs(x ="Rescaled SIAP Maize Yields (kg / ha)", y = "Count")+
+    theme_bw()+
+    scale_x_continuous(limits= c(0,6000), breaks=seq(0,6000,1000)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.5,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
 
-h2 = ggplot(df,aes(x = Yield)) +
-  geom_histogram(aes(group = Series, fill = Series),alpha = 0.5, position = "identity", binwidth = 300, color = "black") +
-  scale_fill_manual(name = "Agriculture Type", values = c("grey75", "greenyellow"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
-  geom_density(aes(group = Series, color = Series, y=360 * ..count..), adjust = 2, size=1, alpha=0.5)+
-  scale_color_manual(name = "Agriculture Type",values = c("black", "green"), breaks = c("Municipal Average", "Both Irrigation and Temporal"), labels = c("Total", "All"))+
-  labs(x ="Maize Yield (kg / ha)", y = "Count")+
+
+h3 = ggplot(SIAP_5,aes(x = AvgYield)) +
+  geom_histogram(aes(group = AGType, fill = AGType),alpha = 0.5, position = "identity", binwidth = 300, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("dodgerblue", "goldenrod"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  geom_density(aes(group = AGType, color = AGType, y=360 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  scale_color_manual(name = "Agriculture Type",values = c("dodgerblue3", "goldenrod4"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  labs(x ="Actual SIAP Maize Yields (kg / ha)", y = "Count")+
     theme_bw()+
     scale_x_continuous(limits= c(0,12000), breaks=seq(0,12000,2000)) +
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
@@ -1077,26 +1100,57 @@ h2 = ggplot(df,aes(x = Yield)) +
           legend.text = element_text(colour="black", size = 12),
           legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
 
-ggp2 = plot_grid(h1, h2, labels = c('A', 'B'), label_size = 24)
+
+h4 = ggplot(SIAP_5_rs,aes(x = AvgYield)) +
+  geom_histogram(aes(group = AGType, fill = AGType),alpha = 0.5, position = "identity", binwidth = 150, color = "black") +
+  scale_fill_manual(name = "Agriculture Type", values = c("dodgerblue", "goldenrod"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  geom_density(aes(group = AGType, color = AGType, y=180 * ..count..), adjust = 2, size=1, alpha=0.5)+
+  scale_color_manual(name = "Agriculture Type",values = c("dodgerblue3", "goldenrod4"), breaks = c("Riego", "Temporal"), labels = c("Irrigation", "Temporal"))+
+  labs(x ="Rescaled SIAP Maize Yields (kg / ha)", y = "Count")+
+    theme_bw()+
+    scale_x_continuous(limits= c(0,6000), breaks=seq(0,6000,1000)) +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1, color="black", size=11), 
+          axis.text.y = element_text(color="black", size=11), 
+          axis.title.x = element_text(color="black", size=14, face="bold"),
+          axis.title.y = element_text(color="black", size=14, face="bold"),
+          legend.justification=c(0,1), legend.position=c(0.5,0.85), 
+          legend.title=element_blank(),
+          legend.box.background = element_rect(colour = "black"),
+          legend.text = element_text(colour="black", size = 12),
+          legend.background = element_rect(fill="white",size=0.5, linetype="solid", color ="black"))
+
+
+
+ggp2 = plot_grid(h1, h2, h3, h4, labels = c('A', 'B', 'C', 'D'), label_size = 24, rows=2, cols=2, label_y = 1.03)
 
 
 #save figure
-ggsave("Hists_SIAP_AGType_AvgYield.png", plot = ggp2, device = "png", path = wd$figs, scale = 1, width = 8, height = 4.5,   units = "in",  dpi = 1500)
+ggsave("Hists_RescaledYields_AGType.png", plot = ggp2, device = "png", path = wd$figs, scale = 1, width = 8, height = 7,   units = "in",  dpi = 1500)
 
 YieldIrrig = SIAP_4 %>% filter(AGType == "Riego") %>% pull(Yield) %>% na.omit
 YieldTemp = SIAP_4 %>% filter(AGType == "Temporal") %>% pull(Yield) %>% na.omit
-YieldTotal = df %>% filter(Series == "Municipal Average") %>% pull(Yield) %>% na.omit
-YieldAll = df %>% filter(Series == "Both Irrigation and Temporal") %>% pull(Yield) %>% na.omit
+YieldIrrig_rs = SIAP_4_rs %>% filter(AGType == "Riego") %>% pull(Yield) %>% na.omit
+YieldTemp_rs = SIAP_4_rs %>% filter(AGType == "Temporal") %>% pull(Yield) %>% na.omit
+AvgYieldIrrig = SIAP_5 %>% filter(AGType == "Riego") %>% pull(AvgYield) %>% na.omit
+AvgYieldTemp = SIAP_5 %>% filter(AGType == "Temporal") %>% pull(AvgYield) %>% na.omit
+AvgYieldIrrig_rs = SIAP_5_rs %>% filter(AGType == "Riego") %>% pull(AvgYield) %>% na.omit
+AvgYieldTemp_rs = SIAP_5_rs %>% filter(AGType == "Temporal") %>% pull(AvgYield) %>% na.omit
+
 
 gamma_test(YieldIrrig[YieldIrrig > 0])
 gamma_test(YieldTemp[YieldTemp > 0])
-gamma_test(YieldTotal[YieldTotal > 0])
-gamma_test(YieldAll[YieldAll > 0])
+gamma_test(YieldIrrig_rs[YieldIrrig_rs > 0])
+gamma_test(YieldTemp_rs[YieldTemp_rs > 0])
 
-rm(ggp2, h1, h2, df, df2, YieldIrrig, YieldTemp, YieldTotal, YieldAll)
+gamma_test(AvgYieldIrrig[AvgYieldIrrig > 0])
+gamma_test(AvgYieldTemp[AvgYieldTemp > 0])
+gamma_test(AvgYieldIrrig_rs[AvgYieldIrrig_rs > 0])
+gamma_test(AvgYieldTemp_rs[AvgYieldTemp_rs > 0])
+
+rm(ggp2, h1, h2, h3, h4, df, df2, YieldIrrig, YieldTemp, YieldIrrig_rs, YieldTemp_rs, AvgYieldIrrig, AvgYieldTemp, AvgYieldIrrig_rs, AvgYieldTemp_rs)
 
 # import figure for display
-knitr::include_graphics(paste0(wd$figs,"Hists_SIAP_AGType_AvgYield.png"), FALSE)
+knitr::include_graphics(paste0(wd$figs,"Hists_RescaledYields_AGType.png"), FALSE)
 ```
 
 
@@ -1288,6 +1342,15 @@ rm(nb, wt, paths, names, n, map_list, v, t, s, val, var, tit, subtit, name, myLe
 ```
 
 
+## Remove Unneeded Data
+
+```{r}
+
+rm(SIAP_2b, SIAP_4, SIAP_4_rs, SIAP_5, SIAP_5_rs)
+
+```
+
+
 # Construct RF Training Dataset
 
 
@@ -1315,55 +1378,55 @@ Clim <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
 
 ```{r, label='Subset Environmental Data Rasters', message=FALSE,warning=FALSE}
 
-Soil_sub <- subset(Soil, c("BDRICM", "BDRLOG", "BDTICM", "AWCtS", "AWCtS_2m", "BD", 
-                               "S", "Z", "C", "CF", "SOC", "CEC","OCD", "N", "SOCS"))
+Soil_sub <- subset(Soil, c("BDRICM", "BDTICM", "AWCtS", "AWCtS_2m", "S", "Z", "C", "CF", "SOC", "CEC","OCD", "N", "SOCS"))
 
-Topo_sub <- subset(Topo, c("DEM", "Slope","Accum", "TRI", "TWI", "STI", "SPI", 
-                                     "curv_min", "curv_max", "curv_mean", "DistStreams", 
-                                     "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2",
-                                     "elev_watershed", "FloodOrder_Rel"))
+Topo_sub <- subset(Topo, c("DEM", "Slope","Accum", "TWI", "STI", "SPI","DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "elev_watershed", "FloodOrder_Rel"))
+Slope_sqrt <- Topo_sub[[2]]^0.5
+names(Slope_sqrt) = "Slope_sqrt"
+Topo_sub <- c(Topo_sub, Slope_sqrt)
 
-pr_spring = app(subset(Clim, c("pr_04", "pr_05")), sum)
+pr_may = subset(Clim, c("pr_05"))
+pr_june = subset(Clim, c("pr_06"))
+pr_summer78 = app(subset(Clim, c("pr_07","pr_08")), sum)
 pr_summer = app(subset(Clim, c("pr_06", "pr_07","pr_08")), sum)
 pr_fall = app(subset(Clim, c("pr_09", "pr_10")), sum)
+pr_sept = subset(Clim, c("pr_09"))
+pr_oct = subset(Clim, c("pr_10"))
 
-tas_spring = app(subset(Clim, c("tas_04", "tas_05")), mean)
-tas_summer = app(subset(Clim, c("tas_06", "tas_07","tas_08")), mean)
-tas_fall = app(subset(Clim, c("tas_09", "tas_10")), mean)
-
-tasmin_spring = app(subset(Clim, c("tasmin_04", "tasmin_05")), mean)
-tasmin_summer = app(subset(Clim, c("tasmin_06", "tasmin_07","tasmin_08")), mean)
-tasmin_fall = app(subset(Clim, c("tasmin_09", "tasmin_10")), mean)
-
-tasmax_spring = app(subset(Clim, c("tasmax_04", "tasmax_05")), mean)
-tasmax_summer = app(subset(Clim, c("tasmax_06", "tasmax_07","tasmax_08")), mean)
-tasmax_fall = app(subset(Clim, c("tasmax_09", "tasmax_10")), mean)
-
-pet_spring = app(subset(Clim, c("pet_04", "pet_05")), mean)
+pet_may = subset(Clim, c("pet_05"))
+pet_june = subset(Clim, c("pet_06"))
 pet_summer = app(subset(Clim, c("pet_06", "pet_07","pet_08")), mean)
-pet_fall = app(subset(Clim, c("pet_09", "pet_10")), mean)
+pet_sept = subset(Clim, c("pet_09"))
+pet_oct = subset(Clim, c("pet_10"))
 
-cmi_spring = app(subset(Clim, c("cmi_04", "cmi_05")), mean)
+cmi_may = subset(Clim, c("cmi_05"))
+cmi_june = subset(Clim, c("cmi_06"))
 cmi_summer = app(subset(Clim, c("cmi_06", "cmi_07","cmi_08")), mean)
-cmi_fall = app(subset(Clim, c("cmi_09", "cmi_10")), mean)
+#cmi_fall = app(subset(Clim, c("cmi_09", "cmi_10")), mean)
+cmi_sept = subset(Clim, c("cmi_09"))
+cmi_oct = subset(Clim, c("cmi_10"))
 
-clt_spring = app(subset(Clim, c("clt_04", "clt_05")), mean)
+clt_may = subset(Clim, c("clt_05"))
 clt_summer = app(subset(Clim, c("clt_06", "clt_07","clt_08")), mean)
 clt_fall = app(subset(Clim, c("clt_09", "clt_10")), mean)
+clt_sept = subset(Clim, c("clt_09"))
+clt_oct = subset(Clim, c("clt_10"))
 
-rsds_spring = app(subset(Clim, c("rsds_04", "rsds_05")), mean)
-rsds_summer = app(subset(Clim, c("rsds_06", "rsds_07","rsds_08")), mean)
-rsds_fall = app(subset(Clim, c("rsds_09", "rsds_10")), mean)
+rsds_may = subset(Clim, c("rsds_05"))
+rsds_june = subset(Clim, c("rsds_06"))
+rsds_summer = app(subset(Clim, c("rsds_07","rsds_08", "rsds_09")), mean)
+rsds_sept = subset(Clim, c("rsds_09"))
+rsds_oct = subset(Clim, c("rsds_10"))
 
 Clim_sub <- subset(Clim, c("npp", "swb", "gdd10"))
 
-Clim_sub <- c(Clim_sub, pr_spring, pr_summer, pr_fall, tas_spring, tas_summer, tas_fall, tasmin_spring, tasmin_summer, tasmin_fall, tasmax_spring, tasmax_summer, tasmax_fall, pet_spring, pet_summer, pet_fall, cmi_spring, cmi_summer, cmi_fall, clt_spring, clt_summer, clt_fall, rsds_spring, rsds_summer, rsds_fall)
+Clim_sub <- c(Clim_sub, pr_may, pr_summer, pr_fall, pet_spring, pet_summer, pet_oct, cmi_may, cmi_summer, cmi_fall, clt_may, clt_summer, clt_fall, rsds_may, rsds_june, rsds_summer, rsds_oct)
 
-names(Clim_sub) <- c("npp", "swb", "gdd10", "pr_spring", "pr_summer", "pr_fall", "tas_spring", "tas_summer", "tas_fall", "tasmin_spring", "tasmin_summer", "tasmin_fall", "tasmax_spring", "tasmax_summer", "tasmax_fall", "pet_spring", "pet_summer", "pet_fall", "cmi_spring", "cmi_summer", "cmi_fall", "clt_spring", "clt_summer", "clt_fall", "rsds_spring", "rsds_summer", "rsds_fall")
+names(Clim_sub) <- c("npp", "swb", "gdd10", "pr_may", "pr_summer", "pr_fall", 'pet_spring', "pet_summer", "pet_oct", "cmi_may", "cmi_summer", "cmi_fall", "clt_may", "clt_summer", "clt_fall", "rsds_may", "rsds_june", "rsds_summer", "rsds_oct")
 
 writeRaster(Clim_sub, filename = paste0(wd$data_p, "Clim_sub_RF.tif"), overwrite=TRUE)
 
-rm(Clim_sub, pr_spring, pr_summer, pr_fall, tas_spring, tas_summer, tas_fall, tasmin_spring, tasmin_summer, tasmin_fall, tasmax_spring, tasmax_summer, tasmax_fall, pet_spring, pet_summer, pet_fall, cmi_spring, cmi_summer, cmi_fall, clt_spring, clt_summer, clt_fall, rsds_spring, rsds_summer, rsds_fall, Clim, Soil)
+rm(Clim_sub, pr_may, pr_summer, pr_fall, pet_spring, pet_summer, pet_oct, cmi_may, cmi_summer, cmi_fall, clt_may, clt_summer, clt_fall, rsds_may, rsds_june, rsds_summer, rsds_oct, Clim, Soil)
 
 Clim_sub <- rast(paste0(wd$data_p, "Clim_sub_RF.tif"))
 
@@ -1373,7 +1436,7 @@ writeRaster(Env_sub, filename = paste0(wd$data_p, "Env_sub_RF.tif"), overwrite=T
 
 Env_sub <- rast(paste0(wd$data_p, "Env_sub_RF.tif"))
 
-rm(Clim_sub, Topo_sub, Soil_sub)
+#rm(Clim_sub, Topo_sub, Soil_sub)
 ```
 
 
@@ -1460,101 +1523,60 @@ env_vals <- exact_extract(x = Env_sub, y = Data2000s_poly_rs, fun = "mean",
 
 
 
-SIAP Maize cultivated area stats
-
-Data2000s_poly_rs <- Data2000s_poly_rs %>% mutate(
-  
-  # irrigated maize % of total maize cultivation
-  AvgPctMaizeArea_Irrig = AvgArea_Irrig_Maize / AvgArea_Total_Maize,
-
-  # temporal maize % of total maize cultivation 
-  AvgPctMaizeArea_Temp = AvgArea_Temp_Maize / AvgArea_Total_Maize,
-
-  # irrigated % of total cultivation 
-  AvgPctArea_Irrig = AvgArea_Irrig / AvgArea_Total,#BY MUNICIPIO (both AGTypes have same value!)
-
-  # temporal % of total cultivation 
-  AvgPctArea_Temp = AvgArea_Temp / AvgArea_Total)
-
-  #AvgPctArea_Maize_Total # == Total maize (all AGTypes) % of total cultivated area
-  #AvgPctArea_Maize_Crops_Total # == Total maize (all AGTypes) % of total crop cultivated area (excl. fodder)
-
-  #AvgPctArea_Maize # == Row Avg Area % of total area
-  #AvgPctArea_Maize_Crops # == Row Avg Area % of total crop area (excl. fodder)
-  
-  #BY MUNICIPIO (both AGTypes have same value!)
-  #AvgPctArea_Maize_Temp # == Temporal Maize Avg Area % of total irrigated area
-  #AvgPctArea_Maize_Crops_Temp # == Temporal Maize Avg Area % of total crop irrigated area (excl. fodder)
-  #AvgPctArea_Maize_Irrig # == Irrigated Maize Avg Area % of total irrigated area
-  #AvgPctArea_Maize_Crops_Irrig # == Irrigated Maize Avg Area % of total crop irrigated area (excl. fodder)
-
-hist(Train_df$PopRuralMz_perMzHa, breaks=25)
-hist(Train_df$PrimaryMz_perMzHa, breaks=25)
-hist(Train_df$AGWorkersMz_perMzHa, breaks=25)
-hist(Train_df$TotalLaborMz_perMzHa, breaks=25)
-hist(Train_df$LUTotalMz_perMzHa, breaks=25)
-
-hist(Train_df$ContractLaboTotMz_perMzHa, breaks=25)
-hist(Train_df$ContractLaborFullMz_perMzHa, breaks=25)
-hist(Train_df$ContractLaboPartMz_perMzHa, breaks=25)
-hist(Train_df$FamLaborMz_perMzHa, breaks=25)
-hist(Train_df$MechanizEquipMz_perMzHa, breaks=25)
-hist(Train_df$DraftAnimalsMz_perMzHa, breaks=25)
-hist(Train_df$PopRuralMz_perMzHa, breaks=25)
-hist(Train_df$TractorsMz_perMzHa, breaks=25)
-
-Train_df = st_drop_geometry(Data2000s_poly_rs) %>% select(
-  
-  EstadoMunicipio, Estado, Municipio, AvgYield, cvYield, AGType, n, n_Total,  Pop_Urban, Pop_Rural, UrbRatio, Arable_ha, AG_ha, AGPasture_ha, Primary, AG_Workers, LU_Total, TotalLabor, 
-  AvgArea_Maize, sdArea_Maize, cvArea_Maize, AvgArea_Total, sdArea_Total, cvArea_Total, AvgArea_Total_Maize, AvgPctArea_Maize, AvgPctArea_Maize_Crops, AvgPctArea_ofTotal, AvgPctArea_ofAGPasture,
-  PopRuralMz_perMzHa,  PrimaryMz_perMzHa,  AGWorkersMz_perMzHa,  TotalLaborMz_perMzHa,  LUTotalMz_perMzHa,
-  ContractLaboTotMz_perMzHa,  ContractLaborFullMz_perMzHa,  ContractLaboPartMz_perMzHa,  FamLaborMz_perMzHa,
-  MechanizEquipMz_perMzHa,  DraftAnimalsMz_perMzHa,  TractorsMz_perMzHa
-  )
-Train_df$Avgrat = Train_df$AvgArea_Maize / Train_df$AvgArea_Total
-Train_df$SDrat = Train_df$sdArea_Maize / Train_df$sdArea_Total
-
 ### Select Variables
 
 ```{r}
-y = env_vals %>% select(-Estado, -Municipio, -mean.AWCtS, -EstadoMunicipio, -AGType)
+y = env_vals %>% select(-Estado, -Municipio, -EstadoMunicipio, -AGType)
 
-Train_df = st_drop_geometry(Pred_Poly_ModLU) %>% select(
+Train_sf = Data2000s_poly_rs %>% select(
   
   EstadoMunicipio, Estado, Municipio, AvgYield, cvYield, AGType, 
   
-  #PopDens, Pop_Urban, Pop_Rural, 
-  #PopDensRural, UrbRatio,
+  PopDens, Pop_Urban, Pop_Rural, 
+  PopDensRural, UrbRatio,
   
-  #Pct_Primary, Pct_AG_Workers, 
+  Pct_Primary, Pct_AG_Workers, 
   
-  #Pct_Rest_ha, Pct_Fallow_ha, 
+  Pct_Rest_ha, Pct_Fallow_ha, 
   
-  #Pct_Tract_Mechaniz_pu, Pct_Tract_Animal_pu, Pct_Tract_Manual_pu, 
+  Pct_Tract_Mechaniz_pu, Pct_Tract_Animal_pu, Pct_Tract_Manual_pu, 
   
- # Pct_Herbicides_ha, #Pct_FertilChem_ha, Pct_FertilManure_ha, Pct_ImprovSeed_ha, Pct_Insecticides_ha, Pct_ControlledBurn_ha, 
+  Pct_Herbicides_ha, #Pct_FertilChem_ha, Pct_FertilManure_ha, Pct_ImprovSeed_ha, Pct_Insecticides_ha, Pct_ControlledBurn_ha, 
   
   Fertilizer, #Techniques, 
   
   #IrrigPU_EarthenCanals, IrrigPU_CoatedCanals, IrrigPU_CanalsTotal, IrrigPU_Modern, IrrigPU_Other, IrrigPUWater_River, IrrigPUWater_Spring, IrrigPUWater_Dam, IrrigPUWater_Modern, IrrigPUWater_Other,
   
-  #PopRuralMz_perMzHa,  PrimaryMz_perMzHa,  AGWorkersMz_perMzHa,  TotalLaborMz_perMzHa,  LUTotalMz_perMzHa,
-  #ContractLaboTotMz_perMzHa,  ContractLaborFullMz_perMzHa,  ContractLaboPartMz_perMzHa,  FamLaborMz_perMzHa,
-  #MechanizEquipMz_perMzHa,  DraftAnimalsMz_perMzHa,  TractorsMz_perMzHa,
+  PopRuralMz_perMzHa,  PrimaryMz_perMzHa,  AGWorkersMz_perMzHa,  TotalLaborMz_perMzHa,  LUTotalMz_perMzHa,
+  ContractLaboTotMz_perMzHa,  ContractLaborFullMz_perMzHa,  ContractLaboPartMz_perMzHa,  FamLaborMz_perMzHa,
+  MechanizEquipMz_perMzHa,  DraftAnimalsMz_perMzHa,  TractorsMz_perMzHa,
   
    AvgPctArea_ofTotal, AvgPctArea_ofArable, #AvgArea_Maize,AvgPctMaizeArea_Irrig, AvgPctMaizeArea_Temp, AvgPctArea_Irrig, AvgPctArea_Temp,
   
-  LU_Total_DensArable, AG_Workers_DensArable, PrimaryEmploy_DensArable, TotalLabor_DensArable, Pop_DensArable, PopRural_DensArable, #PctMun_Arable
+  LU_Total_DensArable, AG_Workers_DensArable, PrimaryEmploy_DensArable, TotalLabor_DensArable, Pop_DensArable, PopRural_DensArable #PctMun_Arable
   #MechanizEquip_DensArable, DraftAnimals_DensArable, PctMun_Settlement, AvgMunSettlementDens
-  )
-Train_df = cbind(Train_df, y)
+  ) %>% mutate(Pop_Urban = as.numeric(Pop_Urban), Pop_Rural = as.numeric(Pop_Rural))
+
+
+Train_sf = cbind(Train_sf, y)
+
+
+
 rm(y)
 ```
+
 Fertilizer
 AvgPctArea_ofTotal
 Pop_DensArable
 AG_Workers_DensArable
 TotalLabor_DensArable
+
+
+
+```{r}
+tt=Train_df[,c(4:5,7:ncol(Train_df))]
+corm = cor(tt, use="pairwise.complete.obs", method="pearson")
+```
 
 
 ### Remove Cases
@@ -1580,9 +1602,9 @@ Remove_Temporal = c("Milpa Alta, Distrito Federal", "Tlalpan, Distrito Federal",
 
 
 
-Train_df = Train_df %>% 
+Train_sf = Train_sf %>% 
   
-  filter(!(EstadoMunicipio %in% c("Ixtapaluca, Mexico", "Axapusco, Mexico") & AGType %in% "Riego")) %>% 
+  #filter(!(EstadoMunicipio %in% c("Ixtapaluca, Mexico", "Axapusco, Mexico") & AGType %in% "Riego")) %>% 
   
   filter(!(EstadoMunicipio %in% S_HIDALGO)) %>% 
   
@@ -1598,20 +1620,20 @@ Train_df = Train_df %>%
 
 #Train_df[, c("IrrigPU_EarthenCanals", "IrrigPU_CoatedCanals", "IrrigPU_CanalsTotal", "IrrigPU_Modern", "IrrigPU_Other", "IrrigPUWater_River", "IrrigPUWater_Spring", "IrrigPUWater_Dam", "IrrigPUWater_Modern", "IrrigPUWater_Other")][is.na(Train_df[, c("IrrigPU_EarthenCanals", "IrrigPU_CoatedCanals", "IrrigPU_CanalsTotal", "IrrigPU_Modern", "IrrigPU_Other", "IrrigPUWater_River", "IrrigPUWater_Spring", "IrrigPUWater_Dam", "IrrigPUWater_Modern", "IrrigPUWater_Other")])] <- 0
 
-#Train_df_Temp_AvgYield = Train_df %>% filter(AGType == "Temporal") %>% select(-AGType, -cvYield, -IrrigPU_EarthenCanals, -IrrigPU_CoatedCanals, -IrrigPU_CanalsTotal, -IrrigPU_Modern, -IrrigPU_Other, -IrrigPUWater_River, -IrrigPUWater_Spring, -IrrigPUWater_Dam, -IrrigPUWater_Modern, -IrrigPUWater_Other, -AvgPctArea_Irrig, -AvgPctMaizeArea_Irrig) %>% filter(complete.cases(.))
+Train_df_Temp_AvgYield = Train_df %>% filter(AGType == "Temporal") #%>% select(-AGType, -cvYield, -IrrigPU_EarthenCanals, -IrrigPU_CoatedCanals, -IrrigPU_CanalsTotal, -IrrigPU_Modern, -IrrigPU_Other, -IrrigPUWater_River, -IrrigPUWater_Spring, -IrrigPUWater_Dam, -IrrigPUWater_Modern, -IrrigPUWater_Other, -AvgPctArea_Irrig, -AvgPctMaizeArea_Irrig) %>% filter(complete.cases(.))
 
 #Train_df_Irrig_AvgYield = Train_df %>% filter(AGType == "Riego") %>% select(-AGType, -cvYield, -Pct_Rest_ha, -Pct_Fallow_ha, -Pct_ControlledBurn_ha, -AvgPctArea_Temp, -AvgPctMaizeArea_Temp) %>% filter(complete.cases(.))
 
-Train_df_Both_AvgYield = Train_df %>% select( -cvYield) #%>% filter(complete.cases(.))-AvgPctArea_Temp,, -AvgPctMaizeArea_Temp
+Train_sf_Both_AvgYield = Train_sf %>% select( -cvYield) #%>% filter(complete.cases(.))-AvgPctArea_Temp,, -AvgPctMaizeArea_Temp
 
 #Train_df_Temp_cvYield = Train_df %>% filter(AGType == "Temporal") %>% select(-AGType, -AvgYield, -IrrigPU_EarthenCanals, -IrrigPU_CoatedCanals, -IrrigPU_CanalsTotal, -IrrigPU_Modern, -IrrigPU_Other, -IrrigPUWater_River, -IrrigPUWater_Spring, -IrrigPUWater_Dam, -IrrigPUWater_Modern, -IrrigPUWater_Other, -AvgPctArea_Irrig, -AvgPctMaizeArea_Irrig) %>% filter(complete.cases(.))
 
 #Train_df_Irrig_cvYield = Train_df %>% filter(AGType == "Riego") %>% select(-AGType, -AvgYield, -Pct_Rest_ha, -Pct_Fallow_ha, -Pct_ControlledBurn_ha, -AvgPctArea_Temp, -AvgPctMaizeArea_Temp) %>% filter(complete.cases(.))
 
-Train_df_Both_cvYield = Train_df %>% select(-AvgPctArea_Temp, -AvgYield, -AvgPctMaizeArea_Temp) %>% filter(complete.cases(.))
+Train_sf_Both_cvYield = Train_sf %>% select(-AvgYield)# %>% filter(complete.cases(.))
 
 
-
+Train_df = st_drop_geometry(Train_sf)
 
 ```
 
@@ -1669,13 +1691,6 @@ Train_df = st_drop_geometry(Pred_Poly_ModLU) %>% select(
 
 
 
-Municipios2000s <- st_read(paste0(wd$data_p, "Municipios2000s_Data.gpkg")) %>% select(EstadoMunicipio, Estado, Municipio)
-
-Pred_Poly_ModMun_Temp = st_drop_geometry(Pred_Poly_ModLU) %>% filter(AGType == "Temporal") 
-Pred_Poly_ModMun_Temp = Municipios2000s %>% left_join(Pred_Poly_ModMun_Temp, by = c("EstadoMunicipio", "Estado", "Municipio"))
-
-Pred_Poly_ModMun_Irrig = st_drop_geometry(Pred_Poly_ModLU) %>% filter(AGType == "Riego") 
-Pred_Poly_ModMun_Irrig = Municipios2000s %>% left_join(Pred_Poly_ModMun_Irrig, by = c("EstadoMunicipio", "Estado", "Municipio"))
 
 ```
 Riego
@@ -1704,6 +1719,27 @@ Census2000s <- read.csv(paste0(wd$data_p,"CensusData2000s.csv")) %>% select(-Est
 
 
 ```{r}
+
+Municipios2000s <- st_read(paste0(wd$data_p, "Municipios2000s_Data.gpkg")) %>% select(EstadoMunicipio, Estado, Municipio)
+
+Pred_Poly_ModMun_Temp = st_drop_geometry(Pred_Poly_ModLU) %>% filter(AGType == "Temporal") 
+Pred_Poly_ModMun_Temp = Municipios2000s %>% left_join(Pred_Poly_ModMun_Temp, by = c("EstadoMunicipio", "Estado", "Municipio"))
+
+Pred_Poly_ModMun_Irrig = st_drop_geometry(Pred_Poly_ModLU) %>% filter(AGType == "Riego") 
+Pred_Poly_ModMun_Irrig = Municipios2000s %>% left_join(Pred_Poly_ModMun_Irrig, by = c("EstadoMunicipio", "Estado", "Municipio"))
+
+RasterizePoly = Train_sf %>% select(AGType:PopRural_DensArable)
+nn = ncol(RasterizePoly) - 1
+vars = names(RasterizePoly)[1:nn]
+temp = RasterizePoly %>% select(!!sym(vars[1]))
+AG_rasts_train <- terra::rasterize(temp, Env_sub, field = vars[1], background = NA)
+
+for (i in 2:nn){
+  temp = RasterizePoly %>% select(!!sym(vars[i]))
+  temp_rast <- terra::rasterize(temp, Env_sub, field = vars[i], background = NA)
+  AG_rasts_train <- c(AG_rasts_train, temp_rast)
+}
+
 ArableAreaMask <- rast(paste0(wd$data_p, "ArableArea_100m.tif"))
 ArableAreaMask <- as.numeric(ArableAreaMask)
 ArableAreaMask <- ifel(ArableAreaMask < 2, 0, 1)
@@ -1917,20 +1953,21 @@ Train_df_Irrig_cvYield
 Train_df_Both_cvYield
 
 ```{r, label='Avg Yield Variable Selection', message=FALSE,warning=FALSE}
-Train_df_Both_AvgYield = Train_df_Both_AvgYield %>% select(-mean.ElevAboveStreams2)
+Train_df_Temp = Train_df %>% filter(AGType == "Temporal")
+Train_df_Irrig = Train_df %>% filter(AGType == "Riego")
 #par(mar = c(11, 4, 4, 2))
 
 #boruta = readRDS(paste0(wd$data_p,"AGType_RFModel_boruta.rda"))
-boruta_Bavg <- Boruta(AvgYield ~ ., data = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], maxRuns = 500)#, doTrace = 2
+boruta_Bavg <- Boruta(AvgYield ~ ., data = Train_df[,c(4, 6:ncol(Train_df))], maxRuns = 500)#, doTrace = 2
 plot(boruta_Bavg, las = 2, cex.axis = 0.7)
 Bavg_atts <- attStats(boruta_Bavg)
 Bavg_form = getConfirmedFormula(boruta_Bavg)
 
-#boruta_Tavg <- Boruta(AvgYield ~ ., data = Train_df_Temp_AvgYield[,c(4:ncol(Train_df_Temp_AvgYield))], maxRuns = 500)
-#Tavg_atts <- attStats(boruta_Tavg)
+boruta_Tavg <- Boruta(AvgYield ~ ., data = Train_df_Temp[,c(4, 6:ncol(Train_df_Temp))], maxRuns = 500)
+Tavg_atts <- attStats(boruta_Tavg)
 
-#boruta_Iavg <- Boruta(AvgYield ~ ., data = Train_df_Irrig_AvgYield[,c(4:ncol(Train_df_Irrig_AvgYield))], maxRuns = 500)
-#Iavg_atts <- attStats(boruta_Iavg)
+boruta_Iavg <- Boruta(AvgYield ~ ., data = Train_df_Irrig[,c(4,6:ncol(Train_df_Irrig))], maxRuns = 500)
+Iavg_atts <- attStats(boruta_Iavg)
 
 
 #print(boruta)
@@ -1952,6 +1989,49 @@ Train_df_Both_AvgYield = Train_df_Both_AvgYield %>% select(-AvgPctArea_ofArable,
 ```
 5.1 4.1 4.1 2.1
 
+AGType, mean.CEC, mean.OCD, mean.ElevAboveStreams, AvgPctArea_ofTotal, AG_Workers_DensArable, mean.C, mean.BDRICM, 
+Fertilizer, mean.DEM, mean.rsds_may, mean.rsds_summer, mean.gdd10, mean.pr_fall, mean.DistStreams, mean.Slope, 
+mean.N, mean.cmi_summer, mean.pr_summer, TotalLabor_DensArable, mean.npp, mean.swb, mean.pet_spring, mean.TWI, mean.pet_oct, 
+mean.cmi_may, mean.pet_summer, mean.rsds_june, mean.rsds_oct
+
+```{r}
+#Train_sf_Total = Train_sf %>% select(AvgYield, AGType, mean.CEC, mean.OCD, mean.ElevAboveStreams, AvgPctArea_ofTotal, AG_Workers_DensArable, mean.C, mean.BDRICM, Fertilizer, mean.DEM, mean.rsds_may, mean.rsds_summer, mean.gdd10, mean.pr_fall, mean.DistStreams, mean.Slope, mean.N, mean.cmi_summer, mean.pr_summer, TotalLabor_DensArable, mean.npp, mean.swb, mean.pet_spring, mean.TWI, mean.pet_oct, mean.cmi_may, mean.pet_summer, mean.rsds_june, mean.rsds_oct)
+boruta_Bavg <- Boruta(AvgYield ~ ., data = Train_df[,c(4, 6:ncol(Train_df))], maxRuns = 500)#, doTrace = 2
+Bavg_atts <- attStats(boruta_Bavg)
+Bavg_atts$Boruta <- scales::rescale(rank(Bavg_atts$meanImp)/nrow(Bavg_atts))
+Bavg_atts$feature = row.names(Bavg_atts)
+FeatSelect = Bavg_atts %>% rowid_to_column(var = "ORD") %>% select(ORD, feature, meanImp, Boruta)
+
+centroids <- st_centroid(Train_sf) %>% select(-Estado, -Municipio, -EstadoMunicipio, -cvYield)
+
+Tsk_Y_sf_Total = as_task_regr_st(centroids, target = "AvgYield", id = "Train_sf_Total")
+
+methodz <- c("jmi", "mrmr", "njmim", "cmim", "disr")
+
+for (i in 1:length(methodz)){
+  temp = flt(methodz[i])
+  temp$calculate(Tsk_Y_sf_Total)
+  temp = as.data.table(temp)
+  temp = as.data.frame(temp)
+  names(temp)[2] <- methodz[i]
+  FeatSelect = FeatSelect %>% left_join(temp, by="feature")
+}
+
+FeatSelect = FeatSelect %>% rowwise() %>%
+  mutate(Arith_Mean = (jmi + mrmr + njmim + cmim + disr)/5,
+         Geom_Mean = (jmi * mrmr * njmim * cmim * disr)^(1/5)) %>% ungroup()
+
+
+
+
+Train_sf_Both_AvgYield = centroids %>% select(AvgYield, AGType, AvgPctArea_ofTotal, mean.clt_fall, mean.OCD, mean.CEC, Fertilizer, mean.S, mean.rsds_may, mean.swb, mean.pet_spring, mean.gdd10, mean.FloodOrder_Rel, mean.rsds_summer, mean.pet_oct, TotalLabor_DensArable, mean.pr_summer, mean.rsds_oct, mean.N, mean.cmi_may, mean.pr_fall, mean.BDRICM, mean.Slope_sqrt, mean.DEM, mean.ElevAboveStreams2)
+
+
+```
+
+
+
+
 
 
 
@@ -1960,22 +2040,30 @@ Train_df_Both_AvgYield = Train_df_Both_AvgYield %>% select(-AvgPctArea_ofArable,
 ```{r}
 lgr::get_logger("mlr3")$set_threshold("warn")
 
-names(Train_df_Both_AvgYield) = sub("^mean\\.", "", names(Train_df_Both_AvgYield))
+names(Train_sf_Both_AvgYield) = sub("^mean\\.", "", names(Train_sf_Both_AvgYield))
 
 # Dataset ("Task")
-Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "Both_AvgYield")
-
+#Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "Both_AvgYield")
+Both_AvgYield = as_task_regr_st(Train_sf_Both_AvgYield, target = "AvgYield", id = "Train_sf_Total")
+Both_AvgYield_train = as_task_regr_st(Train_sf_Both_AvgYield, target = "AvgYield", id = "Train_sf_Total")
+Both_AvgYield_test = as_task_regr_st(Train_sf_Both_AvgYield, target = "AvgYield", id = "Train_sf_Total")
 # Partition the data with the default 2/3 split (== 2/3 data for training, 1/3 for testing)
 splits = partition(Both_AvgYield, ratio=0.67)
-Both_AvgYield_train = Both_AvgYield$filter(splits$train)
-Both_AvgYield_test = Both_AvgYield$filter(splits$train)
-Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "BoAvY")
+#rcv = rsmp("spcv_coords", folds = 2)
+#rcv$instantiate(Both_AvgYield)
+#Both_AvgYield_test$filter(rcv$test_set(2))
+#Both_AvgYield_train$filter(rcv$train_set(2))
+Both_AvgYield_train = Both_AvgYield_train$filter(splits$train)
+
+Both_AvgYield_test = Both_AvgYield_test$filter(splits$test)
+#Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "BoAvY")
+Both_AvgYield = as_task_regr_st(Train_sf_Both_AvgYield, target = "AvgYield", id = "Train_sf_Total")
 #### Initial Random Forest Model Parameter Tuning
 
 # Setup Ranger Random Forest Regression Model (= "Learner") for tuning the hyperparameters
 RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
             num.trees  = to_tune(c(100,300,500)), mtry = to_tune(c(6,8,10)), min.node.size = 4,#to_tune(c(4,6,8)),
-            #regularization.usedepth = T, regularization.factor = to_tune(c(0.25,0.5,0.75)),#to_tune(seq(0.1,1,0.1))
+            regularization.usedepth = T, regularization.factor = to_tune(c(0.25,0.5,0.75)),#to_tune(seq(0.1,1,0.1))
             max.depth = to_tune(c(5,10,15)))
 
 # Setup Tuning using grid search (hyperparameter space specified in the RF model above)
@@ -1984,7 +2072,8 @@ termz = trm("combo", list(trm("run_time", secs = 12000), trm("evals", n_evals = 
 tuner_grid = tnr("grid_search", resolution = 1, batch_size = 1)
 
 rsmp_holdout = rsmp("holdout")
-
+#rcv = rsmp("spcv_coords", folds = 1)
+#rcv$instantiate(Both_AvgYield_train)
 # Find optimal parameter values
 
 #progressr::with_progress()
@@ -2015,7 +2104,7 @@ BoAvY_at = auto_tuner(
   terminator = termz
 )
 rsmp_cv5 = rsmp("cv", folds = 5)
-
+#rcv$instantiate(Both_AvgYield_train)
 outsample = resample(Both_AvgYield_train, BoAvY_at, rsmp_cv5)$aggregate(msr("regr.mae"))
 
 # setup another Ranger Random Forest Regression Model
@@ -2032,8 +2121,8 @@ rbind(generalization,insample,outsample)
 ###### Benchmarking
 
 tasks = list(Both_AvgYield)
-learners = list(RegRF_tuned, lrn("regr.rpart"), lrn("regr.ranger"))
-resamplings = list(rsmp("cv", folds = 5))
+learners = list(RegRF_tuned, lrn("regr.rpart"), lrn("regr.ranger"), lrn("regr.ksvm"), lrn("regr.bart"))
+resamplings = list(rsmp_cv5)
 
 grid = benchmark_grid(tasks, learners, resamplings)
 head(grid)
@@ -2050,6 +2139,169 @@ autoplot(bmr, measure = msr("regr.mae"))
 
 RegRF_trained <- RegRF_tuned$train(Both_AvgYield)
 ```
+
+
+
+```{r}
+Train_sf_Temp_AvgYield = Train_sf %>% filter(AGType == "Temporal")
+df = st_drop_geometry(Train_sf_Temp_AvgYield)
+
+boruta_Bavg <- Boruta(AvgYield ~ ., data = df[,c(4, 7:ncol(df))], maxRuns = 500)#, doTrace = 2
+
+Bavg_atts <- attStats(boruta_Bavg)
+Bavg_atts$Boruta <- scales::rescale(rank(Bavg_atts$meanImp)/nrow(Bavg_atts))
+Bavg_atts$feature = row.names(Bavg_atts)
+FeatSelect = Bavg_atts %>% rowid_to_column(var = "ORD") %>% select(ORD, feature, meanImp, Boruta)
+
+centroids <- st_centroid(Train_sf_Temp_AvgYield) %>% select(-Estado, -Municipio, -EstadoMunicipio, -cvYield, -AGType)
+
+Tsk_Y_sf_Total = as_task_regr_st(centroids, target = "AvgYield", id = "Train_sf_Total")
+
+methodz <- c("jmi", "mrmr", "njmim", "cmim", "disr")
+
+for (i in 1:length(methodz)){
+  temp = flt(methodz[i])
+  temp$calculate(Tsk_Y_sf_Total)
+  temp = as.data.table(temp)
+  temp = as.data.frame(temp)
+  names(temp)[2] <- methodz[i]
+  FeatSelect = FeatSelect %>% left_join(temp, by="feature")
+}
+
+FeatSelect = FeatSelect %>% rowwise() %>%
+  mutate(Arith_Mean = (jmi + mrmr + njmim + cmim + disr)/5,
+         Geom_Mean = (jmi * mrmr * njmim * cmim * disr)^(1/5)) %>% ungroup()
+
+
+
+
+Train_sf_Temp_AvgYield = centroids %>% select(AvgYield, mean.gdd10, mean.rsds_may, mean.OCD, mean.S, mean.npp, mean.swb, mean.pet_spring, mean.CEC, TotalLabor_DensArable, mean.clt_fall, AvgPctArea_ofTotal, mean.CF, mean.pr_fall, mean.cmi_may, mean.pr_summer, mean.clt_may, mean.cmi_summer, Fertilizer, mean.pet_summer, mean.rsds_summer, mean.pet_oct, mean.BDRICM, mean.Z, mean.pr_may, mean.N, mean.clt_summer, mean.rsds_oct, mean.DEM, mean.cmi_fall, mean.FloodOrder_Rel)
+```
+
+
+
+
+
+
+### (Hyper)Parameter Tuning, Training and Feature Selection
+
+```{r}
+lgr::get_logger("mlr3")$set_threshold("warn")
+
+names(Train_sf_Temp_AvgYield) = sub("^mean\\.", "", names(Train_sf_Temp_AvgYield))
+
+# Dataset ("Task")
+#Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "Both_AvgYield")
+Temp_AvgYield = as_task_regr_st(Train_sf_Temp_AvgYield, target = "AvgYield", id = "Train_sf_Total")
+Temp_AvgYield_train = as_task_regr_st(Train_sf_Temp_AvgYield, target = "AvgYield", id = "Train_sf_Total")
+Temp_AvgYield_test = as_task_regr_st(Train_sf_Temp_AvgYield, target = "AvgYield", id = "Train_sf_Total")
+# Partition the data with the default 2/3 split (== 2/3 data for training, 1/3 for testing)
+splits = partition(Temp_AvgYield, ratio=0.67)
+#rcv = rsmp("spcv_coords", folds = 2)
+#rcv$instantiate(Both_AvgYield)
+#Both_AvgYield_test$filter(rcv$test_set(2))
+#Both_AvgYield_train$filter(rcv$train_set(2))
+Temp_AvgYield_train = Temp_AvgYield_train$filter(splits$train)
+
+Temp_AvgYield_test = Temp_AvgYield_test$filter(splits$test)
+#Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "BoAvY")
+Temp_AvgYield = as_task_regr_st(Train_sf_Temp_AvgYield, target = "AvgYield", id = "Train_sf_Total")
+#### Initial Random Forest Model Parameter Tuning
+
+# Setup Ranger Random Forest Regression Model (= "Learner") for tuning the hyperparameters
+RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(c(100,300,500)), mtry = to_tune(c(6,8,10)), min.node.size = 4,#to_tune(c(4,6,8)),
+            regularization.usedepth = T, regularization.factor = to_tune(c(0.25,0.5,0.75)),#to_tune(seq(0.1,1,0.1))
+            max.depth = to_tune(c(5,10,15)))
+
+# Setup Tuning using grid search (hyperparameter space specified in the RF model above)
+
+termz = trm("combo", list(trm("run_time", secs = 12000), trm("evals", n_evals = 300)), any = T)
+tuner_grid = tnr("grid_search", resolution = 1, batch_size = 1)
+
+rsmp_holdout = rsmp("holdout")
+#rcv = rsmp("spcv_coords", folds = 1)
+#rcv$instantiate(Both_AvgYield_train)
+# Find optimal parameter values
+
+#progressr::with_progress()
+ToAvY_instance = tune(
+  tuner = tuner_grid,
+  task = Temp_AvgYield_train,
+  learner = RegRF,
+  resampling = rsmp_holdout,
+  measures =  msr("regr.mae"),
+  terminator = termz
+)
+
+# Results of Tuning via grid search:
+ToAvY_instance$result$learner_param_vals
+
+insample = ToAvY_instance$result_y
+
+# Save tuning grid search results as table for inspection
+#z = as.data.table(BoAvY_instance$archive)
+
+#autoplot(BoAvY_instance)
+
+ToAvY_at = auto_tuner(
+  tuner = tuner_grid,
+  learner = RegRF,
+  resampling = rsmp_holdout,
+  measure = msr("regr.mae"),
+  terminator = termz
+)
+rsmp_cv5 = rsmp("cv", folds = 5)
+#rcv$instantiate(Both_AvgYield_train)
+outsample = resample(Temp_AvgYield_train, ToAvY_at, rsmp_cv5)$aggregate(msr("regr.mae"))
+
+# setup another Ranger Random Forest Regression Model
+RegRF_tuned = lrn("regr.ranger")
+
+# Set the tuned parameter values
+RegRF_tuned$param_set$values = ToAvY_instance$result_learner_param_vals
+
+generalization = RegRF_tuned$train(Temp_AvgYield_train)$
+  predict(Temp_AvgYield_test)$score(msr("regr.mae"))
+
+rbind(generalization,insample,outsample)
+
+###### Benchmarking
+
+tasks = list(Temp_AvgYield)
+learners = list(RegRF_tuned, lrn("regr.rpart"), lrn("regr.ranger"), lrn("regr.ksvm"), lrn("regr.bart"), lrn("regr.xgboost"), lrn("regr.svm"))
+resamplings = list(rsmp_cv5)
+
+grid = benchmark_grid(tasks, learners, resamplings)
+head(grid)
+bmr = benchmark(grid)
+bmr
+bmr$aggregate(msrs(c("regr.mse", "regr.mae", "regr.rsq")))[, .(task_id, learner_id, regr.mse, regr.mae, regr.rsq)]
+
+autoplot(bmr, measure = msr("regr.mae"))
+
+
+####################
+
+# Train model on full data for predictions
+
+RegRF_trained <- RegRF_tuned$train(Both_AvgYield)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 RF_df_Temp
 RF_df_Irrig

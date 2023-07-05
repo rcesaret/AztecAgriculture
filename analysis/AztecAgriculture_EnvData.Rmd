@@ -109,7 +109,7 @@ packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster",
               "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
               "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra", 
               "Boruta", "mlbench", "caret", "readr", "ClimDatDownloadR", "scPDSI",
-              "geoknife", "rnoaa", "ncdf4", "gdalUtils", "zoo")
+              "geoknife", "rnoaa", "ncdf4", "gdalUtils", "zoo", "fields", "gstat")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())

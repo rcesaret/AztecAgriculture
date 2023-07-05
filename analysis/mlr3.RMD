@@ -256,28 +256,19 @@ When comparing multiple models on a single dataset or on a domain consisting of 
 
 
 ```{r}
+lgr::get_logger("mlr3")$set_threshold("warn")
 
 
 
-RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
-            num.trees  = to_tune(seq(100, 600, 100)), mtry = to_tune(seq(4, 10, 2)), 
-            min.node.size = to_tune(seq(4, 10, 2)),regularization.usedepth = T, 
-            regularization.factor = to_tune(seq(0.1,1,0.1)),#alpha = to_tune(0, 5), 
-            max.depth = to_tune(seq(5, 15, 2)))
-BoAvY_instance = ti(task = Both_AvgYield, learner = RegRF, resampling = rsmp("cv", folds = 2), 
-                    measures = msr("regr.rsq"), terminator = trm("none"))
-
-###########################################################################
-###########################################################################
 
 # Dataset ("Task")
-Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "BoAvY")
+Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "Both_AvgYield")
 
 # Partition the data with the default 2/3 split (== 2/3 data for training, 1/3 for testing)
 splits = partition(Both_AvgYield, ratio=0.67)
 Both_AvgYield_train = Both_AvgYield$filter(splits$train)
 Both_AvgYield_test = Both_AvgYield$filter(splits$train)
-
+Both_AvgYield = as_task_regr(x = Train_df_Both_AvgYield[,c(4:ncol(Train_df_Both_AvgYield))], target="AvgYield", id = "BoAvY")
 #### Initial Random Forest Model Parameter Tuning
 
 # Setup Ranger Random Forest Regression Model (= "Learner") for tuning the hyperparameters
@@ -290,7 +281,7 @@ RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
 
 termz = trm("combo", list(trm("run_time", secs = 12000), trm("evals", n_evals = 300)), any = T)
 tuner_grid = tnr("grid_search", resolution = 1, batch_size = 1)
-rsmp_cv2 = rsmp("cv", folds = 2)
+
 rsmp_holdout = rsmp("holdout")
 
 # Find optimal parameter values
@@ -301,12 +292,15 @@ BoAvY_instance = tune(
   task = Both_AvgYield_train,
   learner = RegRF,
   resampling = rsmp_holdout,
-  measures =  msr("regr.mae"),
+  measures =  msrs(c("regr.mse", "regr.mae", "regr.rsq")),
   terminator = termz
 )
+
 # Results of Tuning via grid search:
 BoAvY_instance$result$learner_param_vals
+
 insample = BoAvY_instance$result_y
+
 # Save tuning grid search results as table for inspection
 #z = as.data.table(BoAvY_instance$archive)
 
@@ -315,26 +309,39 @@ insample = BoAvY_instance$result_y
 BoAvY_at = auto_tuner(
   tuner = tuner_grid,
   learner = RegRF,
-  resampling = rsmp_cv2,
+  resampling = rsmp_holdout,
   measure = msr("regr.mae"),
   terminator = termz
 )
+rsmp_cv5 = rsmp("cv", folds = 5)
 
-
-outsample = resample(Both_AvgYield_train, BoAvY_at, rsmp_cv2)$aggregate()
+outsample = resample(Both_AvgYield_train, BoAvY_at, rsmp_cv5)$aggregate(msrs(c("regr.mse", "regr.mae", "regr.rsq")))
 
 # setup another Ranger Random Forest Regression Model
-RegRF_tuned = lrn("regr.ranger")
+RegRF_tuned = lrn("regr.ranger", id = "RegRF_tuned")
 
 # Set the tuned parameter values
 RegRF_tuned$param_set$values = BoAvY_instance$result_learner_param_vals
 
 generalization = RegRF_tuned$train(Both_AvgYield_train)$
-  predict(Both_AvgYield_test)$score()
+  predict(Both_AvgYield_test)$score(msrs(c("regr.mse", "regr.mae", "regr.rsq")))
 
-round(c(generalization = as.numeric(generalization),
-  insample = as.numeric(insample),
-  outsample = as.numeric(outsample)), 2)
+rbind(generalization,insample,outsample)
+
+###### Benchmarking
+
+tasks = list(Both_AvgYield)
+learners = list(RegRF_tuned, lrn("regr.featureless"), lrn("regr.ranger"))
+resamplings = list(rsmp("cv", folds = 5))
+
+grid = benchmark_grid(tasks, learners, resamplings)
+head(grid)
+bmr = benchmark(grid, msr("regr.mae"))
+bmr
+bmr$aggregate(msrs(c("regr.mse", "regr.mae", "regr.rsq")))[, .(task_id, learner_id, regr.mse, regr.mae, regr.rsq)]
+
+autoplot(bmr, measure = msr("regr.rsq"))
+```
 
 
 
@@ -342,6 +349,9 @@ round(c(generalization = as.numeric(generalization),
 
 
 
+
+
+```{r}
 
 
 
@@ -512,24 +522,25 @@ table(tsk_penguins$data(cols = c("species", "year")))
 
 # Benchmarking
 
-tasks = list(tsk("penguins"), tsk("sonar"))
-learners = list(lrn("classif.featureless"), lrn("classif.rpart"))
-resamplings = list(rsmp("cv"), rsmp("subsampling"))
+tasks = list()
+learners = list(RegRF_tuned, lrn("regr.featureless"), lrn("regr.ranger"))
+resamplings = list(rsmps("cv", folds = 3))
 
 grid = benchmark_grid(tasks, learners, resamplings)
-
-
-tasks = tsks(c("german_credit", "sonar"))
-learners = lrns(c("classif.rpart", "classif.ranger",
-  "classif.featureless"), predict_type = "prob")
-rsmp_cv5 = rsmps("cv", folds = 5)
-
-design = benchmark_grid(tasks, learners, rsmp_cv5)
-head(design)
-bmr = benchmark(design)
+head(grid)
+bmr = benchmark(grid)
 bmr
 bmr$score()[c(1, 7, 13), .(iteration, task_id, learner_id, classif.ce)]
 
+tasks = tsks( , "regr.featureless", "regr.ranger")
+learners = lrns( , c("regr.featureless", "regr.ranger"))
+
+
+design = benchmark_grid(tasks, learners, rsmp_cv5)
+
+
+BaselineReg = lrn()
+BaselineRF = lrn("regr.ranger")
 
 
 
@@ -537,7 +548,7 @@ bmr$score()[c(1, 7, 13), .(iteration, task_id, learner_id, classif.ce)]
 as.data.table(instance$archive)[1:3,
   .(timestamp, runtime_learners, errors, warnings)]
 
-RegRF_tuned = lrn("regr.ranger")
+RegRF_tuned = lrn()
 bmr$aggregate()[, .(task_id, learner_id, classif.ce)]
 
 
