@@ -1,0 +1,439 @@
+---
+title: "Aztec Agricultural Productivity"
+subtitle: "Arable Area Model"
+author: "Rudolf Cesaretti"
+date: "Last run on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+    number_sections: true
+bibliography: References.bib
+csl: apa.csl
+link-citations: yes
+---
+
+```{css, echo=FALSE}
+pre {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+pre[class] {
+  max-height: 300px;
+}
+```
+
+
+```{r, setup, include=FALSE,echo=FALSE, message=FALSE,warning=FALSE}
+require(knitr)
+# Set so that long lines in R will be wrapped:
+opts_chunk$set(tidy.opts=list(width.cutoff=75),tidy=TRUE)
+#
+rm(list = ls())
+```
+
+
+  
+# Setup 
+
+
+```{r, label='Set Local Directory Location', message=FALSE,warning=FALSE}
+
+wd <- list()
+
+#SET YOUR LOCAL DIRECTORY LOCATION HERE:
+wd$dir <- "D:/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
+#wd$dir <- "C:/Users/TJ McMote/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
+
+wd$analysis <- paste0(wd$dir,"analysis/")
+wd$data_r <- paste0(wd$dir,"data-raw/")
+wd$data_p <- paste0(wd$dir,"data-processed/")
+wd$data_f <- paste0(wd$dir,"data-final-outputs/")
+wd$figs <- paste0(wd$dir,"figures/")
+wd$funcs <- paste0(wd$dir,"functions/")
+
+```
+
+
+
+## Load R Packages and Custom Functions
+
+
+
+```{r, label='Load Libraries', message=FALSE,warning=FALSE}
+# Package names
+packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster", 
+              "Matrix", "terra","gdistance", "lwgeom", "tidyr", "stars", 
+              "dismo", "purrr", "spatialEco", "whitebox", "classInt",
+              "ggnewscale", "lbmech", "data.table", "tidyterra","gridExtra", 
+              "cowplot", "scam", "rmarkdown", "spatialreg","spdep", "ggridges", 
+              "ggnewscale", "scales", "ggstatsplot", "stringi", "fuzzyjoin", 
+              "mgcv", "randomForest", "ranger", "exactextractr", "kableExtra",
+              "goft", "MASS", "NSM3", "ggsn", "rlang", "FSA", "philentropy", 
+              "sfdep","spdep", "Boruta", "mlbench", "caret", "readr", "DataExplorer", 
+              "tableone", "mlr3", "mlr3verse", "mlr3learners", "mlr3measures", 
+              "mlr3tuning", "mlr3mbo", "mlr3misc", "mlr3viz", "mlr3tuningspaces", 
+              "mlr3pipelines", "mlr3hyperband", "mlr3fselect", "mlr3filters", 
+              "mlr3cluster", "FSelectorRcpp", "mlr3extralearners", "mlr3spatial", 
+              "mlr3spatiotempcv", "praznik", "care", "genalg")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# load packages
+invisible(lapply(packages, library, character.only = TRUE))
+
+rm(packages,installed_packages)
+
+#Read in custom R functions located in the wd$funcs directory folder
+FUNCS <- list("RescaleSpatRast.R", "Terra_df.R", "RF_ImputeRast.R", "linear_rescale.R", "CMex_AG_Map.R")
+invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
+rm(FUNCS)
+
+```
+
+
+
+## Prepare Data
+
+
+### Predictor Variables
+
+```{r, label='Prepare Predictor Data', message=FALSE,warning=FALSE}
+
+### DEM and Topographic Data ###
+
+resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
+DEM <- rast(paste0(wd$data_p,"DEM_15m.tif"))
+DEM <- resample(DEM, resample_30m, method = "bilinear")
+writeRaster(DEM,paste0(wd$data_p,"DEM_30m.tif"), overwrite=TRUE)
+
+TRI <- terra::terrain(DEM, v="TRI")# calc Terrain Ruggedness Index
+slope <- terra::terrain(DEM, v="slope", unit="degrees")#Slope
+writeRaster(slope,paste0(wd$data_p,"temp_rasts/Slope_30m.tif"), overwrite=TRUE)
+
+wbt_breach_depressions(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/DEM_breach_30m.tif"))
+
+wbt_d8_flow_accumulation(paste0(wd$data_p,"temp_rasts/DEM_breach_30m.tif"), output=paste0(wd$data_p,"temp_rasts/Accum_30m.tif"), out_type = "specific contributing area")
+
+Accum <- rast(paste0(wd$data_p, "temp_rasts/Accum_30m.tif"))
+wbt_wetness_index(sca=paste0(wd$data_p,"temp_rasts/Accum_30m.tif"), slope=paste0(wd$data_p,"temp_rasts/Slope_30m.tif"), output=paste0(wd$data_p,"temp_rasts/TWI_30m.tif"), verbose_mode = FALSE)
+TWI <- rast(paste0(wd$data_p, "temp_rasts/TWI_30m.tif"))
+TWI <- focal(TWI, w=17, fun='max', na.policy="only", na.rm=T)
+wbt_stream_power_index(sca=paste0(wd$data_p,"temp_rasts/Accum_30m.tif"),slope=paste0(wd$data_p,"temp_rasts/Slope_30m.tif"),output=paste0(wd$data_p,"temp_rasts/SPI_30m.tif"),exponent = 1)
+SPI <- rast(paste0(wd$data_p, "temp_rasts/SPI_30m.tif"))
+wbt_fd8_flow_accumulation(paste0(wd$data_p,"temp_rasts/DEM_breach_30m.tif"), output=paste0(wd$data_p,"temp_rasts/Accum_fd8_30m.tif"), out_type = "specific contributing area")
+Accum_fd8 <- rast(paste0(wd$data_p, "temp_rasts/Accum_fd8_30m.tif"))
+wbt_sediment_transport_index(sca=paste0(wd$data_p,"temp_rasts/Accum_fd8_30m.tif"),slope=paste0(wd$data_p,"temp_rasts/Slope_30m.tif"),output=paste0(wd$data_p,"temp_rasts/STI_30m.tif"))
+STI <- rast(paste0(wd$data_p, "temp_rasts/STI_30m.tif"))
+
+wbt_flood_order(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/flood_order_30m.tif"))
+flood_order <- rast(paste0(wd$data_p, "temp_rasts/flood_order_30m.tif"))
+
+#wbt_extract_valleys(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/valleys_lq_30m.tif"))
+#valleys_lq <- rast(paste0(wd$data_p, "temp_rasts/valleys_lq_30m.tif"))
+
+#wbt_elev_relative_to_watershed_min_max(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/elev_watershed_30m.tif"))
+#elev_watershed <- rast(paste0(wd$data_p, "temp_rasts/elev_watershed_30m.tif"))
+
+#wbt_vertical_excess_curvature(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_vert_excess_30m.tif"))
+#curv_vert_excess <- rast(paste0(wd$data_p, "temp_rasts/curv_vert_excess_30m.tif"))
+
+#wbt_horizontal_excess_curvature(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_horiz_excess_30m.tif"))
+#curv_horiz_excess <- rast(paste0(wd$data_p, "temp_rasts/curv_horiz_excess_30m.tif"))
+
+wbt_minimal_curvature(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_min_30m.tif"))
+curv_min <- rast(paste0(wd$data_p, "temp_rasts/curv_min_30m.tif"))
+
+wbt_maximal_curvature(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_max_30m.tif"))
+curv_max <- rast(paste0(wd$data_p, "temp_rasts/curv_max_30m.tif"))
+
+wbt_mean_curvature(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_mean_30m.tif"))
+curv_mean <- rast(paste0(wd$data_p, "temp_rasts/curv_mean_30m.tif"))
+
+
+Topo_r_30m <- c(DEM, slope, Accum_fd8, TRI, TWI, STI, SPI, flood_order, curv_min, curv_max, curv_mean) #valleys_lq, elev_watershed, curv_vert_excess, curv_horiz_excess,
+
+names(Topo_r_30m) = c("DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "flood_order", "curv_min", "curv_max", "curv_mean") #"valleys_lq", "elev_watershed", "curv_vert_excess", "curv_horiz_excess", 
+
+rm(slope, Accum, Accum_fd8, TRI, TWI, STI, SPI, flood_order, curv_min, curv_max, curv_mean, nam)#valleys_lq, elev_watershed, curv_vert_excess, curv_horiz_excess, 
+
+writeRaster(Topo_r_30m, filename = paste0(wd$data_p, "Topo_r_30m.tif"), overwrite=TRUE)
+rm(Topo_r_30m)
+#Topo_r_30m <- rast(paste0(wd$data_p, "Topo_r_30m.tif"))
+
+### Soil Data ###
+
+Soil <- rast(paste0(wd$data_p, "Soil_r_resampled.tif"))
+
+z <- resample(Soil[[1]], DEM, method = "bilinear")
+
+for (i in 2:(nlyr(Soil)-1)) {
+  a = resample(Soil[[i]], DEM, method = "bilinear")
+  z = c(z,a)
+}
+WRB <- resample(Soil[[nlyr(Soil)]], DEM, method = "near") #Soil[[13]]
+Soil_30m = c(z, WRB)
+rm(z,a, Soil, WRB)
+
+writeRaster(Soil_30m, filename = paste0(wd$data_p, "Soil_r_30m.tif"), overwrite=TRUE)
+rm(Soil_30m)
+#Soil_30m <- rast(paste0(wd$data_p, "Soil_r_30m.tif"))
+
+
+### Geomorphons ###
+
+
+Geomorphons <- rast(paste0(wd$data_p,"CMex_30m_Geomorphons.tif"))
+Geomorphons <- as.factor(Geomorphons)
+levels(Geomorphons) = as.data.frame(levels(Geomorphons)[[1]]) %>% select(-Geomorphons) %>%
+  mutate(Geomorphons = case_when(
+    ID == 1 ~ "Flat",
+    ID == 2 ~ "Summit",
+    ID == 3 ~ "Ridge",
+    ID == 4 ~ "Shoulder",
+    ID == 5 ~ "Spur",
+    ID == 6 ~ "Slope",
+    ID == 7 ~ "Hollow",
+    ID == 8 ~ "Footslope",
+    ID == 9 ~ "Valley",
+    ID == 10 ~ "Depression"))
+#Geomorphons <- resample(Geomorphons, DEM, method = "near")
+writeRaster(Geomorphons, filename = paste0(wd$data_p, "CMex_30m_Geomorphons.tif"), overwrite=TRUE)
+rm(Geomorphons)
+#Geomorphons <- rast(paste0(wd$data_p,"CMex_30m_Geomorphons.tif"))
+
+
+CONABIO_2015_LandUse_30m <- rast(paste0(wd$data_r,"CONABIO_2015_LandUse_30m.tif"))
+CONABIO_2015_LandUse_30m <- as.factor(CONABIO_2015_LandUse_30m)
+levels(CONABIO_2015_LandUse_30m) = levels(CONABIO_2015_LandUse_30m)[[1]] %>% select(-CONABIO_2015_LandUse_30m) %>%
+  mutate(
+    #LandUse = case_when(
+            #ID == 1 ~ "Forest_Coniferous_Temperate",
+            #ID == 2 ~ "Forest_Coniferous_Subpolar",
+            #ID == 3 ~ "Forest_Evergreen_Subtropical",
+            #ID == 4 ~ "Forest_Deciduous_Subtropical",
+            #ID == 5 ~ "Forest_Deciduous_Temperate",
+            #ID == 6 ~ "Forest_Mixed",
+            #ID == 7 ~ "Scrub_Subtropical",
+            #ID == 8 ~ "Scrub_Temperate",
+            #ID == 9 ~ "Grass_Subtropical",
+            #ID == 10 ~ "Grass_Temperate",
+            #ID == 14 ~ "Wetland",
+            #ID == 15 ~ "Agriculture",
+            #ID == 16 ~ "Bare_Soil",
+            #ID == 17 ~ "Settlement",
+            #ID == 18 ~ "Water",
+            #ID == 19 ~ "Glacial"),
+        #LandUseGroups = case_when(
+            #ID == 1 ~ "Forest_High",
+            #ID == 2 ~ "Forest_High",
+            #ID == 3 ~ "Forest_Low",
+            #ID == 4 ~ "Forest_Low",
+            #ID == 5 ~ "Forest_Low",
+            #ID == 6 ~ "Forest_Low",
+            #ID == 7 ~ "Scrub",
+            #ID == 8 ~ "Scrub",
+            #ID == 9 ~ "Grass",
+            #ID == 10 ~ "Grass",
+            #ID == 14 ~ "Wetland",
+            #ID == 15 ~ "Agriculture",
+            #ID == 16 ~ "Bare_Soil",
+            #ID == 17 ~ "Settlement",
+            #ID == 18 ~ "Water",
+            #ID == 19 ~ "Glacial"),
+        #Sampling = case_when(
+            #ID == 1 ~ "Inarable_Sample_High",
+            #ID == 2 ~ "Inarable_Sample_High",
+            #ID == 3 ~ "Inarable_Sample_Med",
+            #ID == 4 ~ "Inarable_Sample_Med",
+            #ID == 5 ~ "Inarable_Sample_Med",
+            #ID == 6 ~ "Inarable_Sample_Med",
+            #ID == 7 ~ "Inarable_Sample_High",
+            #ID == 8 ~ "Inarable_Sample_High",
+            #ID == 9 ~ "Inarable_Sample_High",
+            #ID == 10 ~ "Inarable_Sample_High",
+            #ID == 14 ~ "Inarable_Sample_Med",
+            #ID == 15 ~ "Agriculture",
+            #ID == 16 ~ "Inarable_Sample_High",
+            #ID == 17 ~ "Settlement",
+            #ID == 18 ~ "Inarable_All",
+            #ID == 19 ~ "Inarable_All"),
+        #Sampling2 = case_when(
+            #ID == 1 ~ "Sample",
+            #ID == 2 ~ "Sample",
+            #ID == 3 ~ "Sample",
+            #ID == 4 ~ "Sample",
+            #ID == 5 ~ "Sample",
+            #ID == 6 ~ "Sample",
+            #ID == 7 ~ "Sample",
+            #ID == 8 ~ "Sample",
+            #ID == 9 ~ "Sample",
+            #ID == 10 ~ "Sample",
+            #ID == 14 ~ "Sample",
+            #ID == 15 ~ "Agriculture",
+            #ID == 16 ~ "Sample",
+            #ID == 17 ~ "Settlement",
+            #ID == 18 ~ "Inarable",
+            #ID == 19 ~ "Inarable"),
+        LandUseArchy = case_when(
+            ID == 1 ~ "Unknown",
+            ID == 2 ~ "Unknown",
+            ID == 3 ~ "Unknown",
+            ID == 4 ~ "Unknown",
+            ID == 5 ~ "Unknown",
+            ID == 6 ~ "Unknown",
+            ID == 7 ~ "Unknown",
+            ID == 8 ~ "Unknown",
+            ID == 9 ~ "Unknown",
+            ID == 10 ~ "Unknown",
+            ID == 14 ~ "Wetland",
+            ID == 15 ~ "Unknown",
+            ID == 16 ~ "Unknown",
+            ID == 17 ~ "Settlement",
+            ID == 18 ~ "Water",
+            ID == 19 ~ "Glacial"))
+
+activeCat(CONABIO_2015_LandUse_30m) <- "LandUseArchy"
+
+CONABIO_2015_LandUse_30m <- resample(CONABIO_2015_LandUse_30m, DEM, method = "near")
+CONABIO_2015_LandUse_30m <- crop(CONABIO_2015_LandUse_30m, DEM)
+
+writeRaster(CONABIO_2015_LandUse_30m, filename = paste0(wd$data_p, "CONABIO_2015_LandUse_30m.tif"), overwrite=TRUE)
+rm(CONABIO_2015_LandUse_30m)
+#CONABIO_2015_LandUse_30m <- rast(paste0(wd$data_p, "CONABIO_2015_LandUse_30m.tif"))
+
+#Clim_r <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
+#Clim_r_15m <- subset(Clim_r, c("tmin_04","tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10","tmin_11"))
+#Clim_r_15m <- resample(Clim_r, DEM, method = "bilinear")
+
+
+```
+
+
+
+### Dependent Variables
+
+```{r, label='Prepare Dependent Variable Data', message=FALSE,warning=FALSE}
+#########################################################
+
+SIAP_2015_Mask <- vect(paste0(wd$data_r,"SIAP_2015_Mask.gpkg"))
+SIAP_2015_Mask <- terra::rasterize(SIAP_2015_Mask, DEM, values = 1, background = NA)
+writeRaster(SIAP_2015_Mask, filename = paste0(wd$data_p, "SIAP_2015_Mask.tif"), overwrite=TRUE)
+rm(SIAP_2015_Mask)
+#SIAP_2015_Mask <- rast(paste0(wd$data_p,"SIAP_2015_Mask.tif"))
+
+
+SIAP_2015_Fields <- vect(paste0(wd$data_r,"SIAP_2015_Fields.gpkg"))
+SIAP_2015_Fields <- rasterize(SIAP_2015_Fields, DEM, values = 1, background = 0)
+SIAP_2015_Fields <- as.factor(SIAP_2015_Fields)
+levels(SIAP_2015_Fields) = levels(SIAP_2015_Fields)[[1]] %>% select(-layer) %>%
+  mutate(SIAP_2015_Fields = case_when(
+    ID == 0 ~ "Uncultivated",
+    ID == 1 ~ "Cultivated"))
+writeRaster(SIAP_2015_Fields, filename = paste0(wd$data_p, "SIAP_2015_Fields.tif"), overwrite=TRUE)
+rm(SIAP_2015_Fields)
+#SIAP_2015_Fields <- rast(paste0(wd$data_p,"SIAP_2015_Fields.tif"))
+#SIAP_2015_Fields <- mask(SIAP_2015_Fields, SIAP_2015_Mask)
+
+
+#########################################################
+
+CMex_Mask <- st_read(paste0(wd$data_r, "Municipios_Sample_Central.gpkg"))
+CMex_Mask = vect(CMex_Mask)
+CMex_Mask <- terra::rasterize(CMex_Mask, DEM, values = 1, background = NA)
+writeRaster(CMex_Mask, filename = paste0(wd$data_p, "CMex_Mask.tif"), overwrite=TRUE)
+rm(CMex_Mask)
+#CMex_Mask <- rast(paste0(wd$data_p,"CMex_Mask.tif"))
+
+CMex_Mask2 <- st_read(paste0(wd$data_r, "Municipios_Sample_Peripheral.gpkg"))
+CMex_Mask2 = vect(CMex_Mask2)
+CMex_Mask2 <- terra::rasterize(CMex_Mask2, DEM, values = 1, background = NA)
+writeRaster(CMex_Mask2, filename = paste0(wd$data_p, "CMex_Mask2.tif"), overwrite=TRUE)
+rm(CMex_Mask2)
+#CMex_Mask2 <- rast(paste0(wd$data_p,"CMex_Mask2.tif"))
+
+
+SIAP_LU_Fields <- st_read(paste0(wd$data_r, "Data2000s_poly_mod_Elevation.gpkg"))
+SIAP_LU_Fields <- st_buffer(SIAP_LU_Fields, dist=-60)
+#streams <- st_read(paste0(wd$data_r, "CMex_Streams.gpkg"))
+#streams <- st_buffer(streams, dist=15)
+#SIAP_LU_Fields <- st_difference(SIAP_LU_Fields, streams) 
+
+
+SIAP_LU_Fields_AGType <- SIAP_LU_Fields %>% select(AGType) %>% 
+  mutate(AGType = ifelse(AGType == "Riego", 2, 1))
+SIAP_LU_Fields_AGType <- SIAP_LU_Fields_AGType %>% filter(!st_is_empty(.))
+irrig <- SIAP_LU_Fields_AGType %>% filter(AGType == 2)
+irrig = vect(irrig)
+irrig <- terra::rasterize(irrig, DEM, values = 2, background = 0)
+irrig <- ifel(irrig > 0, 2, 0)
+temp <- SIAP_LU_Fields_AGType %>% filter(AGType == 1)
+temp = vect(temp)
+temp <- terra::rasterize(temp, DEM, values = 1, background = 0)
+SIAP_LU_Fields_AGType <- irrig + temp
+SIAP_LU_Fields_AGType <- ifel(SIAP_LU_Fields_AGType == 0, NA, SIAP_LU_Fields_AGType)
+SIAP_LU_Fields_AGType <- as.factor(SIAP_LU_Fields_AGType)
+levels(SIAP_LU_Fields_AGType) = levels(SIAP_LU_Fields_AGType)[[1]] %>% select(-layer) %>%
+  mutate(SIAP_LU_Fields_AGType = case_when(
+    ID == 1 ~ "Temporal",
+    ID == 2 ~ "Irrigation"))
+writeRaster(SIAP_LU_Fields_AGType, filename = paste0(wd$data_p, "SIAP_LU_Fields_AGType.tif"), overwrite=TRUE)
+rm(SIAP_LU_Fields_AGType, streams, irrig, temp)
+#SIAP_LU_Fields_AGType <- rast(paste0(wd$data_p,"SIAP_LU_Fields_AGType.tif"))
+#SIAP_LU_Fields_AGType <- mask(SIAP_LU_Fields_AGType, CMex_Mask)
+
+
+SIAP_LU_Fields = vect(SIAP_LU_Fields)
+SIAP_LU_Fields <- rasterize(SIAP_LU_Fields, DEM, values = 1, background = 0)
+SIAP_LU_Fields <- as.factor(SIAP_LU_Fields)
+levels(SIAP_LU_Fields) = levels(SIAP_LU_Fields)[[1]] %>% select(-layer) %>%
+  mutate(SIAP_LU_Fields = case_when(
+    ID == 0 ~ "Uncultivated",
+    ID == 1 ~ "Cultivated"))
+writeRaster(SIAP_LU_Fields, filename = paste0(wd$data_p, "SIAP_LU_Fields.tif"), overwrite=TRUE)
+rm(SIAP_LU_Fields)
+#SIAP_LU_Fields <- rast(paste0(wd$data_p,"SIAP_LU_Fields.tif"))
+#SIAP_LU_Fields <- mask(SIAP_LU_Fields, CMex_Mask)
+
+rm(resample_30m)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,109 @@
+---
+title: "Aztec Agricultural Productivity"
+subtitle: "Agriculture Type Model"
+author: "Rudolf Cesaretti"
+date: "Last run on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+    number_sections: true
+bibliography: References.bib
+csl: apa.csl
+link-citations: yes
+---
+
+```{css, echo=FALSE}
+pre {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+pre[class] {
+  max-height: 300px;
+}
+```
+
+
+
+
+```{r, setup, include=FALSE,echo=FALSE, message=FALSE,warning=FALSE}
+require(knitr)
+# Set so that long lines in R will be wrapped:
+opts_chunk$set(tidy.opts=list(width.cutoff=75),tidy=TRUE)
+#
+rm(list = ls())
+```
+
+
+  
+# Setup 
+
+
+```{r, label='Set Local Directory Location', message=FALSE,warning=FALSE}
+
+wd <- list()
+
+#SET YOUR LOCAL DIRECTORY LOCATION HERE:
+wd$dir <- "D:/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
+#wd$dir <- "C:/Users/TJ McMote/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
+
+wd$analysis <- paste0(wd$dir,"analysis/")
+wd$data_r <- paste0(wd$dir,"data-raw/")
+wd$data_p <- paste0(wd$dir,"data-processed/")
+wd$data_f <- paste0(wd$dir,"data-final-outputs/")
+wd$figs <- paste0(wd$dir,"figures/")
+wd$funcs <- paste0(wd$dir,"functions/")
+
+```
+
+
+
+## Load R Packages and Custom Functions
+
+
+
+```{r, label='Load Libraries', message=FALSE,warning=FALSE}
+# Package names
+packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster", 
+              "Matrix", "terra","gdistance", "lwgeom", "tidyr", "stars", 
+              "dismo", "purrr", "spatialEco", "whitebox", "classInt",
+              "ggnewscale", "lbmech", "data.table", "tidyterra","gridExtra", 
+              "cowplot", "scam", "rmarkdown", "spatialreg","spdep", "ggridges", 
+              "ggnewscale", "scales", "ggstatsplot", "stringi", "fuzzyjoin", 
+              "mgcv", "randomForest", "ranger", "exactextractr", "kableExtra",
+              "goft", "MASS", "NSM3", "ggsn", "rlang", "FSA", "philentropy", 
+              "sfdep","spdep", "Boruta", "mlbench", "caret", "readr", "DataExplorer", 
+              "tableone", "mlr3", "mlr3verse", "mlr3learners", "mlr3measures", 
+              "mlr3tuning", "mlr3mbo", "mlr3misc", "mlr3viz", "mlr3tuningspaces", 
+              "mlr3pipelines", "mlr3hyperband", "mlr3fselect", "mlr3filters", 
+              "mlr3cluster", "FSelectorRcpp", "mlr3extralearners", "mlr3spatial", 
+              "mlr3spatiotempcv", "praznik", "care", "genalg")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# load packages
+invisible(lapply(packages, library, character.only = TRUE))
+
+rm(packages,installed_packages)
+
+#Read in custom R functions located in the wd$funcs directory folder
+FUNCS <- list("RescaleSpatRast.R", "Terra_df.R", "RF_ImputeRast.R", "linear_rescale.R", "CMex_AG_Map.R")
+invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
+rm(FUNCS)
+
+```
+
+
+
+
+
+
+
+
+
+

@@ -1188,7 +1188,7 @@ Clim <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
 
 ```{r, label='Subset Environmental Data Rasters', message=FALSE,warning=FALSE}
 
-Soil_sub <- subset(Soil, c("BDRICM", "BDTICM", "AWCtS", "AWCtS_2m", "S", "Z", "C", "CF", "SOC", "CEC","OCD", "N", "SOCS"))
+Soil_sub <- subset(Soil, c("BDRICM", "BDTICM", "AWCtS", "AWCtS_2m", "AWCh1", "AWCh1_2m", "S", "Z", "C", "CF", "SOC", "CEC","OCD", "N", "SOCS"))
 
 Topo_sub <- subset(Topo, c("DEM", "Slope", "Slope_sqrt", "Accum", "TWI", "STI", "SPI","DistStreams", "DistStreams2", "ElevAboveStreams", "elev_watershed", "FloodOrder_Rel"))
 
@@ -1249,11 +1249,11 @@ Clim_sub <- subset(Clim, c("npp", "swb", "gdd10"))
 
 Clim_sub <- c(Clim_sub, pr_april, pr_may, pr_june, pr_spring45, pr_spring56, pr_summer78, pr_summer678, pr_fall, pr_sept, pr_oct, pet_april, pet_may, pet_june, pet_spring45, pet_spring56, pet_summer78, pet_summer678, pet_fall, pet_sept, pet_oct, cmi_april, cmi_may, cmi_spring45, cmi_june, cmi_spring56, cmi_summer78, cmi_summer678, cmi_fall, cmi_sept, cmi_oct, clt_april, clt_may, clt_june, clt_spring56, clt_summer678, clt_summer78, clt_fall, clt_sept, clt_oct, rsds_april, rsds_may, rsds_june, rsds_spring, rsds_summer78, rsds_summer789, rsds_sept, rsds_oct, rsds_fall)
 
-names(Clim_sub) <- c("npp", "swb", "gdd10", "pr_april", "pr_may", "pr_june", "pr_spring45", "pr_spring56", "pr_summer78", "pr_summer678", "pr_fall", "pr_sept", "pr_oct", "pet_april", "pet_may", "pet_june", "pet_spring45", "pet_spring56", "pet_summer78", "pet_summer678", "pet_fall", "pet_sept", "pet_oct", "cmi_april", "cmi_may", "cmi_spring45", "cmi_june", "cmi_spring56", "cmi_summer78", "cmi_summer678", "cmi_fall", "cmi_sept", "cmi_oct", "clt_april", "clt_may", "clt_june", "clt_spring56", "clt_summer678", "clt_summer78", "clt_fall", "clt_sept", "clt_oct", "rsds_april", "rsds_may", "rsds_may", "rsds_june", "rsds_spring", "rsds_summer78", "rsds_summer789", "rsds_sept", "rsds_oct", "rsds_fall")
+names(Clim_sub) <- c("npp", "swb", "gdd10", "pr_april", "pr_may", "pr_june", "pr_spring45", "pr_spring56", "pr_summer78", "pr_summer678", "pr_fall", "pr_sept", "pr_oct", "pet_april", "pet_may", "pet_june", "pet_spring45", "pet_spring56", "pet_summer78", "pet_summer678", "pet_fall", "pet_sept", "pet_oct", "cmi_april", "cmi_may", "cmi_spring45", "cmi_june", "cmi_spring56", "cmi_summer78", "cmi_summer678", "cmi_fall", "cmi_sept", "cmi_oct", "clt_april", "clt_may", "clt_june", "clt_spring56", "clt_summer678", "clt_summer78", "clt_fall", "clt_sept", "clt_oct", "rsds_april", "rsds_may", "rsds_june", "rsds_spring", "rsds_summer78", "rsds_summer789", "rsds_sept", "rsds_oct", "rsds_fall")
 
 writeRaster(Clim_sub, filename = paste0(wd$data_p, "Clim_sub_RF.tif"), overwrite=TRUE)
 
-rm(Clim_sub, pr_april, pr_may, pr_june, pr_spring45, pr_spring56, pr_summer78, pr_summe678r, pr_fall, pr_sept, pr_oct, pet_april, pet_may, pet_june, pet_spring45, pet_spring56, pet_summer78, pet_summer678, pet_fall, pet_sept, pet_oct, cmi_april, cmi_may, cmi_spring45, cmi_june, cmi_spring56, cmi_summer78, cmi_summer678, cmi_fall, cmi_sept, cmi_oct, clt_may, clt_june, clt_spring56, clt_summer678, clt_summer78, clt_april, clt_fall, clt_sept, clt_oct, rsds_may, rsds_june, rsds_spring, rsds_summer78, rsds_summer789, rsds_sept, rsds_oct, rsds_fall, rsds_april, Clim, Soil)
+rm(Clim_sub, pr_april, pr_may, pr_june, pr_spring45, pr_spring56, pr_summer78, pr_summer678, pr_fall, pr_sept, pr_oct, pet_april, pet_may, pet_june, pet_spring45, pet_spring56, pet_summer78, pet_summer678, pet_fall, pet_sept, pet_oct, cmi_april, cmi_may, cmi_spring45, cmi_june, cmi_spring56, cmi_summer78, cmi_summer678, cmi_fall, cmi_sept, cmi_oct, clt_may, clt_june, clt_spring56, clt_summer678, clt_summer78, clt_april, clt_fall, clt_sept, clt_oct,rsds_april, rsds_may, rsds_june, rsds_spring, rsds_summer78, rsds_summer789, rsds_sept, rsds_oct, rsds_fall, rsds_april, Clim, Soil)
 
 Clim_sub <- rast(paste0(wd$data_p, "Clim_sub_RF.tif"))
 
@@ -1294,6 +1294,7 @@ high_elev <- qqq %>% mutate(
   Municipio = "High Elevation",
   AGType = "Temporal",
   AvgYield = 0,
+  sdYield = 0,
   cvYield = NA,
   LU_Total_DensArable = 0,
   AG_Workers_DensArable = 0,
@@ -1309,6 +1310,10 @@ Data2000s_poly_rs = rbind(Data2000s_poly_rs, high_elev)
 Data2000s_poly_rs = Data2000s_poly_rs %>% mutate(AGType = factor(AGType, levels = c("Temporal", "Riego")))
 
 rm(qqq, high_elev, vv)
+
+st_write(Data2000s_poly_rs, paste0(wd$data_p, "Data2000s_poly_rescale_HighElev.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
+
+Data2000s_poly_rs <- st_read(paste0(wd$data_p, "Data2000s_poly_rescale_HighElev.gpkg"))
 
 ```
 
@@ -1366,6 +1371,9 @@ Train_sf_full = Data2000s_poly_rs %>% select(
 
 Train_sf_full = cbind(Train_sf_full, y)
 
+st_write(Train_sf_full, paste0(wd$data_p, "Train_sf_full.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
+
+
 rm(y)
 ```
 
@@ -1401,14 +1409,15 @@ Train_sf = Train_sf_full %>%
   
   mutate(AGType = factor(AGType, levels = c("Temporal", "Riego")))
 
-Train_sf_Temp_AvgYield = Train_sf %>% filter(AGType == "Temporal") %>% select(-AGType, -cvYield)
+#Train_sf_Temp_AvgYield = Train_sf %>% filter(AGType == "Temporal") %>% select(-AGType, -cvYield)
 
-Train_sf_Irrig_AvgYield = Train_sf %>% filter(AGType == "Riego") %>% select(-AGType, -cvYield)
+#Train_sf_Irrig_AvgYield = Train_sf %>% filter(AGType == "Riego") %>% select(-AGType, -cvYield)
 
 Train_sf_Both_AvgYield = Train_sf %>% select(-cvYield)
 
-#Train_sf_Both_cvYield = Train_sf %>% select(-AvgYield)
+Train_sf_Both_cvYield = Train_sf %>% select(-AvgYield)
 
+st_write(Train_sf, paste0(wd$data_p, "Train_sf.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
 
 
 ```
@@ -1507,29 +1516,43 @@ rm(Municipios2000s, AvgPctArea_ofTotal_I_Az, AvgPctArea_ofTotal_T_Az, TotalLabor
 # Shortcut Import
 
 
+```{r}
+Env_sub <- rast(paste0(wd$data_p, "Env_sub_RF.tif"))
+Data2000s_poly_rs <- st_read(paste0(wd$data_p, "Data2000s_poly_rescale_HighElev.gpkg"))
+Train_sf_full <- st_read(paste0(wd$data_p, "Train_sf_full.gpkg"))
+Train_sf <- st_read(paste0(wd$data_p, "Train_sf.gpkg"))
+Train_sf_Both_AvgYield = Train_sf %>% select(-cvYield)
+Train_sf_Both_cvYield = Train_sf %>% select(-AvgYield)
+
+Pred_Rast_Modern_Temp <- rast(paste0(wd$data_p, "Pred_Rast_Modern_Temp.tif"))
+Pred_Rast_Modern_Irrig <- rast(paste0(wd$data_p, "Pred_Rast_Modern_Irrig.tif"))
+Pred_Rast_Aztec_Temp <- rast(paste0(wd$data_p, "Pred_Rast_Aztec_Temp.tif"))
+Pred_Rast_Aztec_Irrig <- rast(paste0(wd$data_p, "Pred_Rast_Aztec_Irrig.tif"))
+```
 
 
+# Avg Yield
 
 ```{r}
 Data_sf <- st_centroid(Train_sf_Both_AvgYield) %>% select(-Estado, -Municipio, -EstadoMunicipio)
 
 Data_df = st_drop_geometry(Data_sf)
 
-Data_sf = Data_sf %>% select(AvgYield, AGType, AvgPctArea_ofTotal, TotalLabor_DensArable, Fertilizer, mean.DEM:mean.rsds_fall) %>% select(-mean.ElevAboveStreams2)
+Data_sf2 = Data_sf %>% select(AvgYield, AGType, AvgPctArea_ofTotal, TotalLabor_DensArable, Fertilizer, mean.DEM:mean.rsds_fall)
                                               
-Data_df = st_drop_geometry(Data_sf)
+Data_df2 = st_drop_geometry(Data_sf2)
 ```
 
 
 
 ```{r}
-boruta <- Boruta(AvgYield ~ ., data = Data_df, maxRuns = 500)#, doTrace = 2
+boruta <- Boruta(AvgYield ~ ., data = Data_df2, maxRuns = 500)#, doTrace = 2
 boruta_atts <- attStats(boruta)
 boruta_atts$Boruta <- scales::rescale(rank(boruta_atts$meanImp)/nrow(boruta_atts))
 boruta_atts$feature = row.names(boruta_atts)
 FeatSelect = boruta_atts %>% rowid_to_column(var = "ORD") %>% select(ORD, feature, meanImp, decision, Boruta)
 
-Data_sf_tsk = as_task_regr_st(Data_sf, target = "AvgYield", id = "Data_sf")
+Data_sf_tsk = as_task_regr_st(Data_sf2, target = "AvgYield", id = "Data_sf")
 
 methodz <- c("jmi", "mrmr", "njmim", "cmim", "disr")
 
@@ -1553,8 +1576,118 @@ FeatSelect = FeatSelect %>% rowwise() %>%
 
 
 
+```{r}
+Data_sf3 = Data_sf2 %>% select(AvgYield, AGType, AvgPctArea_ofTotal, TotalLabor_DensArable, Fertilizer, mean.DEM, mean.Accum, mean.TWI, mean.STI, mean.DistStreams, mean.ElevAboveStreams, mean.elev_watershed, mean.FloodOrder_Rel, mean.Slope_sqrt, mean.BDRICM, mean.AWCtS_2m, mean.S, mean.Z, mean.C, mean.CF, mean.CEC, mean.OCD, mean.N, mean.npp, mean.swb, mean.gdd10, mean.cmi_april, mean.cmi_may, mean.pr_june, mean.cmi_spring56, mean.cmi_sept, mean.cmi_oct, mean.pet_april, mean.rsds_may, mean.pet_june, mean.rsds_spring, mean.pet_summer78, mean.pet_summer678, mean.pet_sept, mean.rsds_sept, mean.pet_oct)
+#Data_sf3_tsk = as_task_regr_st(Data_sf2, target = "AvgYield", id = "Data_sf_set1")
+#Data_df_set1 = st_drop_geometry(Data_sf_set1)
+#Data_df_set1_tsk = as_task_regr(Data_df_set1, target = "AvgYield", id = "Data_df_set1")
+
+#Data_sf2 = Data_sf %>% select(AvgYield, AGType, AvgPctArea_ofTotal, TotalLabor_DensArable, Fertilizer, mean.DEM, mean.Accum, mean.TWI, mean.STI, mean.DistStreams, mean.ElevAboveStreams, mean.elev_watershed, mean.FloodOrder_Rel, mean.Slope_sqrt, mean.BDRICM, mean.AWCtS_2m, mean.S, mean.Z, mean.C, mean.CF, mean.CEC, mean.OCD, mean.N, mean.npp, mean.swb, mean.gdd10, mean.cmi_april, mean.cmi_may, mean.pr_june, mean.cmi_spring56, mean.cmi_sept, mean.cmi_oct, mean.pet_april, mean.rsds_may, mean.pet_june, mean.rsds_spring, mean.pet_summer78, mean.pet_summer678, mean.rsds_sept, mean.pet_oct)
+#Data_sf_set2_tsk = as_task_regr_st(Data_sf_set2, target = "AvgYield", id = "Data_sf_set2")
+#Data_df_set2 = st_drop_geometry(Data_sf_set2)
+#Data_df_set2_tsk = as_task_regr(Data_df_set2, target = "AvgYield", id = "Data_df_set2")
+
+#Data_sf2 = Data_sf %>% select(AvgYield, AGType, AvgPctArea_ofTotal, TotalLabor_DensArable, Fertilizer, mean.DEM, mean.Accum, mean.TWI, mean.STI, mean.DistStreams, mean.ElevAboveStreams, mean.elev_watershed, mean.FloodOrder_Rel, mean.Slope_sqrt, mean.BDRICM, mean.AWCtS_2m, mean.S, mean.Z, mean.C, mean.CF, mean.CEC, mean.OCD, mean.N, mean.npp, mean.swb, mean.gdd10, mean.cmi_april, mean.cmi_may, mean.pr_june, mean.cmi_spring56, mean.cmi_sept, mean.cmi_oct, mean.pet_april, mean.rsds_may, mean.pet_june, mean.rsds_spring, mean.pet_summer78, mean.pet_summer678, mean.pet_sept, mean.pet_oct)
+#Data_sf_set3_tsk = as_task_regr_st(Data_sf_set3, target = "AvgYield", id = "Data_sf_set3")
+```
 
 
+
+
+## Recursive Feature Elimination
+
+Pred_Rast_Modern_Temp = subset(Pred_Rast_Modern_Temp, c("ElevAboveStreams2"), negate=T)
+
+Pred_Rast_Modern_Temp <- Pred_Rast_Modern_Temp[[-14]]
+names(Pred_Rast_Modern_Temp) = names(Pred_Rast_Modern_Temp)
+Pred_Rast_Modern_Irrig[[14]] <- Pred_Rast_Modern_Irrig[[13]]
+Pred_Rast_Aztec_Temp[[14]] <- Pred_Rast_Aztec_Temp[[13]]
+Pred_Rast_Aztec_Irrig[[14]] <- Pred_Rast_Aztec_Irrig[[13]]
+
+```{r}
+
+FFrac = c(1.0, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.55, 0.50, 0.45, 0.40, 0.35, 0.30)
+
+names(Data_sf3) = sub("^mean\\.", "", names(Data_sf3))
+#Data_sf = Data_sf %>% select(-ElevAboveStreams2)
+Data_sf_tsk = as_task_regr_st(Data_sf3, target = "AvgYield", id = "Data_sf3")
+#nnn = Data_sf_tsk$ncol
+FEAT = ceiling(FFrac*length(Data_sf_tsk$feature_names))
+
+results <- list()
+pred_df <- list()
+
+splits = partition(Data_sf_tsk, ratio=0.67)
+
+Data_sf_train = as_task_regr_st(Data_sf3, target = "AvgYield", id = "Data_sf_train")
+Data_sf_test = as_task_regr_st(Data_sf3, target = "AvgYield", id = "Data_sf_test")
+Data_sf_train = Data_sf_train$filter(splits$train)
+Data_sf_test = Data_sf_test$filter(splits$test)
+
+names(Train_sf_full) = sub("^mean\\.", "", names(Train_sf_full))
+Data_sf_Full = st_centroid(Train_sf_full) %>% select(-Estado, -Municipio, -EstadoMunicipio, -cvYield) %>% mutate(AGType = factor(AGType, levels = c("Temporal", "Riego")))
+Data_sf_Full_tsk = as_task_regr_st(Data_sf_Full, target = "AvgYield", id = "Data_sf_Full")
+Data_sf_Full_tsk$select(Data_sf_tsk$feature_names)
+
+RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(p_int(50, 500, tags = "budget")), mtry.ratio = to_tune(0.1,0.5),#mtry = to_tune(6,12), 
+            min.node.size = 4, max.depth = to_tune(7,20), sample.fraction = to_tune(0.75,1.0),
+            num.random.splits = to_tune(1,12), num.threads = 2)
+
+at = auto_tuner(
+  tuner = tnr("hyperband", eta = 1.20, repetitions = 2),
+  learner = RegRF,
+  resampling = rsmp("holdout"),
+  measure = msr("regr.rsq"),
+  terminator = trm("combo", list(trm("run_time", secs = 120*60), trm("evals", n_evals = 3000)), any = T)
+)
+
+rr = resample(Data_sf_train, at, resampling = rsmp("cv", folds = 3), store_models = TRUE)
+
+outsample = as.numeric(rr$aggregate(msr("regr.rsq")))
+
+RegRF_tuned = lrn("regr.ranger")
+
+RegRF_tuned$param_set$values = rr$learners[[1]]$state$model$tuning_instance$result_learner_param_vals
+
+generalization = as.numeric(RegRF_tuned$train(Data_sf_train)$predict(Data_sf_test)$score(msr("regr.rsq")))
+
+# results output dataframe
+a <- data.frame(FeatSelect = c(1.0),n_Features = as.numeric(length(Data_sf_tsk$feature_names)),Perform_General = generalization, Perform_Outsample = outsample)
+#b = as.data.frame(rr$learners[[1]]$state$model$fselect_instance$result) %>% rename(fselect_rsq = regr.rsq)
+
+b = as.data.frame(t(as.matrix(rep(TRUE, (Data_sf_tsk$ncol-1)),nrow=1)))
+colnames(b) = Data_sf_tsk$feature_names
+b$features = list(Data_sf_tsk$feature_names)
+b$fselect_rsq = NA
+b$iterations = NA
+
+c = as.data.frame(rr$learners[[1]]$state$model$tuning_instance$result) %>% rename(tune_rsq = regr.rsq)
+df = cbind(a,b,c)
+results[[i]] <- df
+names(results) <- "Feat_1.0"
+
+# Train model on full data for predictions
+RegRF_trained <- RegRF_tuned$train(Data_sf_tsk)
+
+# sf Polygon / dataframe predictions
+pred = RegRF_trained$predict(task = Data_sf_Full_tsk)
+pred = as.data.frame(as.data.table(pred))
+pred$resid = pred$response - pred$truth
+names(pred) <- c("AvgYield_Predict_1.0","AvgYield_Resid_1.0")
+pred_df[[i]] <- pred
+names(pred_df) <- "Feat_1.0"
+
+# raster / terra predictions
+prediction = predict_spatial(Pred_Rast_Modern_Temp, RegRF_trained, format = "terra")
+names(prediction) <- "AvgYield_Predict_1.0_Temp"
+AvgYield_Pred <- prediction
+prediction = predict_spatial(Pred_Rast_Modern_Irrig, RegRF_trained, format = "terra")
+names(prediction) <- "AvgYield_Predict_1.0_Irrig"
+AvgYield_Pred <- c(AvgYield_Pred, prediction)
+
+
+```
 
 
 
