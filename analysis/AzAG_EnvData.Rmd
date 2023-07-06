@@ -804,8 +804,9 @@ rm(bb, ulx, uly, lrx, lry, files, URLs, var, var2, urlbase, igh, URLs, depths2, 
 
 raster("https://files.isric.org/soilgrids/latest/data/wrb/MostProbable.vrt")
 
+### 100-meter Version
 
-### Process Rasters
+#### Process Rasters
 
 ```{r, label='Load, Process and RF Impute Soil Rasters', message=FALSE, warning=FALSE}
 ###############################################
@@ -1177,7 +1178,7 @@ rm(Zi, Si, CFi, SOCi, CECi, OCDi, Ni, SOCSi, Ci, BDi, AWCtS_2mi, AWCtSi, AWCh1_2
 ```
 
 
-### Stack and Save Rasters
+#### Stack and Save Rasters
 
 ```{r, label='Stack and Save Soil Rasters', message=FALSE,warning=FALSE}
 
@@ -1192,6 +1193,26 @@ rm(BDRICM, BDRLOG, BDTICM, AWCtS, AWCtS_2m, AWCh1, AWCh1_2m, BD, S, Z, C, CF, SO
 
 ```
 
+
+
+### 30-meter Version
+
+```{r}
+
+z <- resample(Soil[[1]], resample_30m, method = "bilinear")
+
+for (i in 2:(nlyr(Soil)-1)) {
+  a = resample(Soil[[i]], resample_30m, method = "bilinear")
+  z = c(z,a)
+}
+WRB <- resample(Soil[[nlyr(Soil)]], resample_30m, method = "near") #Soil[[13]]
+Soil_30m = c(z, WRB)
+rm(z,a, WRB)
+
+writeRaster(Soil_30m, filename = paste0(wd$data_p, "Soil_r_resampled_30m.tif"), overwrite=TRUE)
+rm(Soil_30m)
+
+```
 
 
 
@@ -1626,6 +1647,26 @@ rm(pr_r, tas_r, tasmax_r, tasmin_r, pet_r, cmi_r, clt_r, rsds_r, npp_r, kg2_r, k
 rm(pr, tas, tasmax, tasmin, pet, cmi, clt, rsds, npp, kg2, kg3, kg4, fcf, swb, gdd0, gdd10, ngd0, ngd10)
 ```
 
+
+### 30-meter Version
+
+```{r}
+
+Clim_30m <- resample(Clim[[1]], resample_30m, method = "bilinear")
+
+for (i in 2:(nlyr(Clim)-1)) {
+  if (is.factor(Clim[[i]])){
+    a = resample(Clim[[i]], resample_30m, method = "near")
+  } else {
+    a = resample(Clim[[i]], resample_30m, method = "bilinear")
+  }
+  Clim_30m = c(Clim_30m,a)
+}
+
+writeRaster(Clim_30m, filename = paste0(wd$data_p, "Clim_r_resampled_30m.tif"), overwrite=TRUE)
+rm(Clim_30m,a)
+
+```
 
 
 ### Monthy Timeseries - June-August Precip and PE 2003-2018 

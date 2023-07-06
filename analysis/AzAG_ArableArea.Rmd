@@ -106,88 +106,15 @@ rm(FUNCS)
 ```{r, label='Prepare Predictor Data', message=FALSE,warning=FALSE}
 
 ### DEM and Topographic Data ###
-
-resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
-DEM <- rast(paste0(wd$data_p,"DEM_15m.tif"))
-DEM <- resample(DEM, resample_30m, method = "bilinear")
-writeRaster(DEM,paste0(wd$data_p,"DEM_30m.tif"), overwrite=TRUE)
-
-TRI <- terra::terrain(DEM, v="TRI")# calc Terrain Ruggedness Index
-slope <- terra::terrain(DEM, v="slope", unit="degrees")#Slope
-writeRaster(slope,paste0(wd$data_p,"temp_rasts/Slope_30m.tif"), overwrite=TRUE)
-
-wbt_breach_depressions(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/DEM_breach_30m.tif"))
-
-wbt_d8_flow_accumulation(paste0(wd$data_p,"temp_rasts/DEM_breach_30m.tif"), output=paste0(wd$data_p,"temp_rasts/Accum_30m.tif"), out_type = "specific contributing area")
-
-Accum <- rast(paste0(wd$data_p, "temp_rasts/Accum_30m.tif"))
-wbt_wetness_index(sca=paste0(wd$data_p,"temp_rasts/Accum_30m.tif"), slope=paste0(wd$data_p,"temp_rasts/Slope_30m.tif"), output=paste0(wd$data_p,"temp_rasts/TWI_30m.tif"), verbose_mode = FALSE)
-TWI <- rast(paste0(wd$data_p, "temp_rasts/TWI_30m.tif"))
-TWI <- focal(TWI, w=17, fun='max', na.policy="only", na.rm=T)
-wbt_stream_power_index(sca=paste0(wd$data_p,"temp_rasts/Accum_30m.tif"),slope=paste0(wd$data_p,"temp_rasts/Slope_30m.tif"),output=paste0(wd$data_p,"temp_rasts/SPI_30m.tif"),exponent = 1)
-SPI <- rast(paste0(wd$data_p, "temp_rasts/SPI_30m.tif"))
-wbt_fd8_flow_accumulation(paste0(wd$data_p,"temp_rasts/DEM_breach_30m.tif"), output=paste0(wd$data_p,"temp_rasts/Accum_fd8_30m.tif"), out_type = "specific contributing area")
-Accum_fd8 <- rast(paste0(wd$data_p, "temp_rasts/Accum_fd8_30m.tif"))
-wbt_sediment_transport_index(sca=paste0(wd$data_p,"temp_rasts/Accum_fd8_30m.tif"),slope=paste0(wd$data_p,"temp_rasts/Slope_30m.tif"),output=paste0(wd$data_p,"temp_rasts/STI_30m.tif"))
-STI <- rast(paste0(wd$data_p, "temp_rasts/STI_30m.tif"))
-
-wbt_flood_order(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/flood_order_30m.tif"))
-flood_order <- rast(paste0(wd$data_p, "temp_rasts/flood_order_30m.tif"))
-
-#wbt_extract_valleys(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/valleys_lq_30m.tif"))
-#valleys_lq <- rast(paste0(wd$data_p, "temp_rasts/valleys_lq_30m.tif"))
-
-#wbt_elev_relative_to_watershed_min_max(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/elev_watershed_30m.tif"))
-#elev_watershed <- rast(paste0(wd$data_p, "temp_rasts/elev_watershed_30m.tif"))
-
-#wbt_vertical_excess_curvature(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_vert_excess_30m.tif"))
-#curv_vert_excess <- rast(paste0(wd$data_p, "temp_rasts/curv_vert_excess_30m.tif"))
-
-#wbt_horizontal_excess_curvature(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_horiz_excess_30m.tif"))
-#curv_horiz_excess <- rast(paste0(wd$data_p, "temp_rasts/curv_horiz_excess_30m.tif"))
-
-wbt_minimal_curvature(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_min_30m.tif"))
-curv_min <- rast(paste0(wd$data_p, "temp_rasts/curv_min_30m.tif"))
-
-wbt_maximal_curvature(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_max_30m.tif"))
-curv_max <- rast(paste0(wd$data_p, "temp_rasts/curv_max_30m.tif"))
-
-wbt_mean_curvature(dem = paste0(wd$data_p,"DEM_30m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_mean_30m.tif"))
-curv_mean <- rast(paste0(wd$data_p, "temp_rasts/curv_mean_30m.tif"))
-
-
-Topo_r_30m <- c(DEM, slope, Accum_fd8, TRI, TWI, STI, SPI, flood_order, curv_min, curv_max, curv_mean) #valleys_lq, elev_watershed, curv_vert_excess, curv_horiz_excess,
-
-names(Topo_r_30m) = c("DEM", "Slope", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "flood_order", "curv_min", "curv_max", "curv_mean") #"valleys_lq", "elev_watershed", "curv_vert_excess", "curv_horiz_excess", 
-
-rm(slope, Accum, Accum_fd8, TRI, TWI, STI, SPI, flood_order, curv_min, curv_max, curv_mean, nam)#valleys_lq, elev_watershed, curv_vert_excess, curv_horiz_excess, 
-
-writeRaster(Topo_r_30m, filename = paste0(wd$data_p, "Topo_r_30m.tif"), overwrite=TRUE)
-rm(Topo_r_30m)
-#Topo_r_30m <- rast(paste0(wd$data_p, "Topo_r_30m.tif"))
+Topo_30m <- rast(paste0(wd$data_p, "Topo_r_resampled_30m.tif"))
 
 ### Soil Data ###
+Soil_30m <- rast(paste0(wd$data_p, "Soil_r_resampled_30m.tif"))
 
-Soil <- rast(paste0(wd$data_p, "Soil_r_resampled.tif"))
-
-z <- resample(Soil[[1]], DEM, method = "bilinear")
-
-for (i in 2:(nlyr(Soil)-1)) {
-  a = resample(Soil[[i]], DEM, method = "bilinear")
-  z = c(z,a)
-}
-WRB <- resample(Soil[[nlyr(Soil)]], DEM, method = "near") #Soil[[13]]
-Soil_30m = c(z, WRB)
-rm(z,a, Soil, WRB)
-
-writeRaster(Soil_30m, filename = paste0(wd$data_p, "Soil_r_30m.tif"), overwrite=TRUE)
-rm(Soil_30m)
-#Soil_30m <- rast(paste0(wd$data_p, "Soil_r_30m.tif"))
-
+### Climate Data ###
+Clim_30m <- rast(paste0(wd$data_p, "Clim_r_resampled_30m.tif"))
 
 ### Geomorphons ###
-
-
 Geomorphons <- rast(paste0(wd$data_p,"CMex_30m_Geomorphons.tif"))
 Geomorphons <- as.factor(Geomorphons)
 levels(Geomorphons) = as.data.frame(levels(Geomorphons)[[1]]) %>% select(-Geomorphons) %>%
@@ -307,9 +234,6 @@ writeRaster(CONABIO_2015_LandUse_30m, filename = paste0(wd$data_p, "CONABIO_2015
 rm(CONABIO_2015_LandUse_30m)
 #CONABIO_2015_LandUse_30m <- rast(paste0(wd$data_p, "CONABIO_2015_LandUse_30m.tif"))
 
-#Clim_r <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
-#Clim_r_15m <- subset(Clim_r, c("tmin_04","tmin_05", "tmin_06", "tmin_07", "tmin_08", "tmin_09", "tmin_10","tmin_11"))
-#Clim_r_15m <- resample(Clim_r, DEM, method = "bilinear")
 
 
 ```
@@ -358,7 +282,8 @@ rm(CMex_Mask2)
 #CMex_Mask2 <- rast(paste0(wd$data_p,"CMex_Mask2.tif"))
 
 
-SIAP_LU_Fields <- st_read(paste0(wd$data_r, "Data2000s_poly_mod_Elevation.gpkg"))
+SIAP_LU_Fields <- st_read(paste0(wd$data_p, "Data2000s_poly.gpkg"))
+#SIAP_LU_Fields <- st_read(paste0(wd$data_r, "Data2000s_poly_mod_Elevation.gpkg"))
 SIAP_LU_Fields <- st_buffer(SIAP_LU_Fields, dist=-60)
 #streams <- st_read(paste0(wd$data_r, "CMex_Streams.gpkg"))
 #streams <- st_buffer(streams, dist=15)
@@ -408,6 +333,71 @@ rm(resample_30m)
 
 
 
+#### Shortcut Import #1
+
+```{r, label='Shortcut Import #1', message=FALSE,warning=FALSE}
+
+DEM <- rast(paste0(wd$data_p, "DEM_smooth_30m.tif"))
+
+### DEM and Topographic Data ###
+Topo_30m <- rast(paste0(wd$data_p, "Topo_r_resampled_30m.tif"))
+
+### Soil Data ###
+Soil_30m <- rast(paste0(wd$data_p, "Soil_r_resampled_30m.tif"))
+
+### Climate Data ###
+Clim_30m <- rast(paste0(wd$data_p, "Clim_r_resampled_30m.tif"))
+
+Geomorphons <- rast(paste0(wd$data_p, "CMex_30m_Geomorphons.tif"))
+
+CONABIO_2015_LandUse_30m <- rast(paste0(wd$data_p, "CONABIO_2015_LandUse_30m.tif"))
+
+#SIAP_2015_Mask <- rast(paste0(wd$data_p,"SIAP_2015_Mask.tif"))
+
+#SIAP_2015_Fields <- rast(paste0(wd$data_p,"SIAP_2015_Fields.tif"))
+#SIAP_2015_Fields <- mask(SIAP_2015_Fields, SIAP_2015_Mask)
+
+CMex_Mask <- rast(paste0(wd$data_p,"CMex_Mask.tif"))
+
+SIAP_LU_Fields <- rast(paste0(wd$data_p,"SIAP_LU_Fields.tif"))
+SIAP_LU_Fields <- mask(SIAP_LU_Fields, CMex_Mask)
+
+#SIAP_2015_Fields_f <- as.factor(SIAP_2015_Fields)
+#levels(SIAP_2015_Fields_f) = levels(SIAP_2015_Fields_f)[[1]] %>% select(-layer) %>%
+#  mutate(SIAP_2015_Fields = case_when(
+#    ID == 0 ~ "Uncultivated",
+#    ID == 1 ~ "Cultivated"))
+
+#SIAP_2015_FieldsNA <- ifel(SIAP_2015_Fields == 0, NA, SIAP_2015_Fields)
+#SIAP_LU_FieldsNA <- ifel(SIAP_LU_Fields == 0, NA, SIAP_LU_Fields)
+
+#Inarable_Sampling_Area <- rast(paste0(wd$data_p, "Inarable_Sampling_Area.tif"))
+#InarableSample1 <- rast(paste0(wd$data_p, "InarableSample1.tif"))
+#InarableSample2 <- rast(paste0(wd$data_p, "InarableSample2.tif"))
+#Inarable_Sampling_Area1 <- rast(paste0(wd$data_p, "Inarable_Sampling_Area1.tif"))
+#Inarable_Sampling_Area2 <- rast(paste0(wd$data_p, "Inarable_Sampling_Area2.tif"))
+
+#Predictors = c(Topo_r_30m, Soil_30m, Geomorphons, CONABIO_2015_LandUse_30m)
+#Predictors_FieldsNA <- mask(Predictors, SIAP_2015_FieldsNA)
+#Predictors = mask(Predictors, SIAP_2015_Mask)
+```
+
+
+
+### Combine Data
+
+
+```{r}
+Cultiv <- SIAP_LU_Fields
+x = c(Cultiv, CONABIO_2015_LandUse_30m, Geomorphons, Topo_30m, Soil_30m, Clim_30m)
+#xf <- mask(x, SIAP_LU_FieldsNA)
+x = mask(x, SIAP_LU_Fields)
+
+rm(Topo_r_30m, Soil_30m, CMex_Mask, SIAP_2015_Mask, SIAP_2015_Fields, SIAP_LU_Fields)
+
+writeRaster(x, filename = paste0(wd$data_p, "Arable_Raster_Data.tif"), overwrite=TRUE)
+rm(x, dat, Geomorphons, Cultiv, CONABIO_2015_LandUse_30m)
+```
 
 
 
