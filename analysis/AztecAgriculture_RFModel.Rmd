@@ -1476,7 +1476,7 @@ high_elev <- qqq %>% mutate(
   Pop_DensArable = 0,
   PopRural_DensArable = 0,
   
-  Fertilizer = 0.7752172)
+  Fertilizer = 0)
 
 Data2000s_poly_rs = rbind(Data2000s_poly_rs, high_elev)
 
