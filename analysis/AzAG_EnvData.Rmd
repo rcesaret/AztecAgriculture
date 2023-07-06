@@ -420,13 +420,13 @@ curv_mean <- rast(paste0(wd$data_p, "temp_rasts/curv_mean_100m.tif"))
 
 
 ```{r}
-Topo <- c(DEM_100m, Slope, Slope_sqrt, Accum, Accum_fd8, TRI, TWI, STI, SPI, curv_min, curv_max, curv_mean, DistStreams, DistStreams2, ElevAboveStreams, elev_watershed, FloodOrder_Rel)#ElevAboveStreams2, 
+#Topo <- c(DEM_100m, Slope, Slope_sqrt, Accum, Accum_fd8, TRI, TWI, STI, SPI, curv_min, curv_max, curv_mean, DistStreams, DistStreams2, ElevAboveStreams, elev_watershed, FloodOrder_Rel)#ElevAboveStreams2, 
 
-names(Topo) = c("DEM", "Slope", "Slope_sqrt", "Accum", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "DistStreams", "DistStreams2", "ElevAboveStreams", "elev_watershed", "FloodOrder_Rel")#"ElevAboveStreams2", 
+#names(Topo) = c("DEM", "Slope", "Slope_sqrt", "Accum", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "DistStreams", "DistStreams2", "ElevAboveStreams", "elev_watershed", "FloodOrder_Rel")#"ElevAboveStreams2", 
 
-Topo <- crop(Topo, resample_100m, snap = "out")
-Topo_df = as.data.frame(Topo)
-plot_missing(Topo_df)
+#Topo <- crop(Topo, resample_100m, snap = "out")
+#Topo_df = as.data.frame(Topo)
+#plot_missing(Topo_df)
 ```
 
 
@@ -434,9 +434,9 @@ plot_missing(Topo_df)
 
 ```{r, label='Stack and Save Topographic Variable Rasters', message=FALSE,warning=FALSE}
 
-Topo <- c(DEM_100m, Slope, Accum, Accum_fd8, TRI, TWI, STI, SPI, curv_min, curv_max, curv_mean, DistStreams, DistStreams2, ElevAboveStreams, ElevAboveStreams2, elev_watershed, FloodOrder_Rel)
+Topo <- c(DEM_100m, Slope, Slope_sqrt, Accum, Accum_fd8, TRI, TWI, STI, SPI, curv_min, curv_max, curv_mean, DistStreams, DistStreams2, ElevAboveStreams, elev_watershed, FloodOrder_Rel)#ElevAboveStreams2, 
 
-names(Topo) = c("DEM", "Slope", "Accum", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "elev_watershed", "FloodOrder_Rel")
+names(Topo) = c("DEM", "Slope", "Slope_sqrt", "Accum", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "DistStreams", "DistStreams2", "ElevAboveStreams", "elev_watershed", "FloodOrder_Rel")#"ElevAboveStreams2", 
 
 Topo <- crop(Topo, resample_100m, snap = "out")
 
@@ -444,7 +444,7 @@ writeRaster(Topo, filename = paste0(wd$data_p, "Topo_r_resampled.tif"), overwrit
 
 Topo <- rast(paste0(wd$data_p, "Topo_r_resampled.tif"))
 
-rm(DEM_100m, Slope, Accum, Accum_fd8, TRI, TWI, STI, SPI, curv_min, curv_max, curv_mean, DistStreams, DistStreams2, ElevAboveStreams, ElevAboveStreams2, elev_watershed, FloodOrder_Rel, FloodOrder, Valleys, FlowDirect_d8_30m, FlowDirect_inf_30m, Streams, Streams2, Basins, streams_sf)
+rm(DEM_100m, Slope, Slope_sqrt, Accum, Accum_fd8, TRI, TWI, STI, SPI, curv_min, curv_max, curv_mean, DistStreams, DistStreams2, ElevAboveStreams, Isobasins, IsobasinsPoly, FlowDirect_d8_100m, FlowDirect_inf_100m, elev_watershed, FloodOrder_Rel, FloodOrder, Valleys, FlowDirect_d8_30m, FlowDirect_inf_30m, Streams, Streams2, Basins, streams_sf, DEM_smooth_100m, DEM)
 
 ```
 
@@ -635,6 +635,7 @@ BDRICM <- rast(paste0(sgwd, "BDRICM/BDRICM.tif"))
 names(BDRICM) <- "BDRICM"
 BDRICMi <- RF_ImputeRast(r = BDRICM, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
 BDRICM <- BDRICMi[[1]]
+BDRICM_250 = BDRICM
 BDRICM <- project(BDRICM, resample_100m)
 BDRICM <- resample(BDRICM, resample_100m, method = "bilinear")
 #rm(BDRICMi)
@@ -651,8 +652,9 @@ BDRLOG <- resample(BDRLOG, resample_100m, method = "bilinear")
 # Absolute depth to bedrock	cm
 BDTICM <- rast(paste0(sgwd, "BDTICM/BDTICM.tif"))
 names(BDTICM) <- "BDTICM"
-BDTICMi <- RF_ImputeRast(r = BDTICM, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+BDTICMi <- RF_ImputeRast(r = BDTICM, covs = c(DEM_250,Slope_250, BDRICM_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
 BDTICM <- BDTICMi[[1]]
+BDTICM_250 = BDTICM
 BDTICM <- project(BDTICM, resample_100m)
 BDTICM <- resample(BDTICM, resample_100m, method = "bilinear")
 #rm(BDTICMi)
@@ -669,10 +671,12 @@ AWCtS = ((DepthWeights[1]*(AWCtS_0 + AWCtS_5))+(DepthWeights[2]*(AWCtS_5 + AWCtS
 names(AWCtS) = "AWCtS"
 AWCtS_2m = ((DepthWeights[1]*(AWCtS_0 + AWCtS_5))+(DepthWeights[2]*(AWCtS_5 + AWCtS_15))+(DepthWeights[3]*(AWCtS_15 + AWCtS_30))+(DepthWeights[4]*(AWCtS_30 + AWCtS_60))+(DepthWeights[5]*(AWCtS_60 + AWCtS_100))+(100*(AWCtS_100 + AWCtS_200)))*0.5*0.005
 names(AWCtS_2m) = "AWCtS_2m"
-AWCtSi <- RF_ImputeRast(r = AWCtS, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
-AWCtS_2mi <- RF_ImputeRast(r = AWCtS_2m, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+AWCtSi <- RF_ImputeRast(r = AWCtS, covs = c(DEM_250,Slope_250,BDTICM_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+AWCtS_2mi <- RF_ImputeRast(r = AWCtS_2m, covs = c(DEM_250,Slope_250,BDTICM_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
 AWCtS <- AWCtSi[[1]]
 AWCtS_2m <- AWCtS_2mi[[1]]
+AWCtS_250 <- AWCtS
+AWCtS_2m_250 <- AWCtS_2m
 AWCtS <- project(AWCtS, resample_100m)
 AWCtS <- resample(AWCtS, resample_100m, method = "bilinear")
 AWCtS_2m <- project(AWCtS_2m, resample_100m)
@@ -691,10 +695,12 @@ AWCh1 = ((DepthWeights[1]*(AWCh1_0 + AWCh1_5))+(DepthWeights[2]*(AWCh1_5 + AWCh1
 names(AWCh1) = "AWCh1"
 AWCh1_2m = ((DepthWeights[1]*(AWCh1_0 + AWCh1_5))+(DepthWeights[2]*(AWCh1_5 + AWCh1_15))+(DepthWeights[3]*(AWCh1_15 + AWCh1_30))+(DepthWeights[4]*(AWCh1_30 + AWCh1_60))+(DepthWeights[5]*(AWCh1_60 + AWCh1_100))+(100*(AWCh1_100 + AWCh1_200)))*0.5*0.005
 names(AWCh1_2m) = "AWCh1_2m"
-AWCh1i <- RF_ImputeRast(r = AWCh1, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
-AWCh1_2mi <- RF_ImputeRast(r = AWCh1_2m, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+AWCh1i <- RF_ImputeRast(r = AWCh1, covs = c(DEM_250,BDRICM_250, AWCtS_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+AWCh1_2mi <- RF_ImputeRast(r = AWCh1_2m, covs = c(DEM_250,BDRICM_250, AWCtS_2m_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
 AWCh1 <- AWCh1i[[1]]
 AWCh1_2m <- AWCh1_2mi[[1]]
+AWCh1_250 <- AWCh1
+AWCh1_2m_250 <- AWCh1_2m
 AWCh1_temp <- AWCh1
 AWCh1_2m_temp <- AWCh1_2m
 AWCh1 <- project(AWCh1, resample_100m)
@@ -746,69 +752,20 @@ WRB <- project(WRB, resample_100m)
 WRB <- resample(WRB, resample_100m, method = "near")
 
 
-# Bulk Density
-BD_0_5 <- rast(paste0(sgwd, "BD/BD_0_5cm.vrt"))
-BD_5_15 <- rast(paste0(sgwd, "BD/BD_5_15cm.vrt"))
-BD_15_30 <- rast(paste0(sgwd, "BD/BD_15_30cm.vrt"))
-BD_30_60 <- rast(paste0(sgwd, "BD/BD_30_60cm.vrt"))
-BD_60_100 <- rast(paste0(sgwd, "BD/BD_60_100cm.vrt"))
-BD = c(BD_0_5, BD_5_15, BD_15_30, BD_30_60, BD_60_100)
-rm(BD_0_5, BD_5_15, BD_15_30, BD_30_60, BD_60_100)
-BD = weighted.mean(BD, DepthWeights, na.rm=T)
-names(BD) <- "BD"
-BDi <- RF_ImputeRast(r = BD, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
-BD <- BDi[[1]]
-BD <- project(BD, resample_100m)
-BD <- resample(BD, resample_100m, method = "bilinear")
-#rm(BDi)
 
-# Clay fraction
-C_0_5 <- rast(paste0(sgwd, "C/C_0_5cm.vrt"))
-C_5_15 <- rast(paste0(sgwd, "C/C_5_15cm.vrt"))
-C_15_30 <- rast(paste0(sgwd, "C/C_15_30cm.vrt"))
-C_30_60 <- rast(paste0(sgwd, "C/C_30_60cm.vrt"))
-C_60_100 <- rast(paste0(sgwd, "C/C_60_100cm.vrt"))
-C = c(C_0_5, C_5_15, C_15_30, C_30_60, C_60_100)
-rm(C_0_5, C_5_15, C_15_30, C_30_60, C_60_100)
-C = weighted.mean(C, DepthWeights, na.rm=T)
-names(C) <- "C"
-Ci <- RF_ImputeRast(r = C, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
-C <- Ci[[1]]
-C <- project(C, resample_100m)
-C <- resample(C, resample_100m, method = "bilinear")
-#rm(Ci)
+BDRICM_igh <- project(BDRICM_250, SGigh)
+BDRICM_igh <- resample(BDRICM_igh, SGigh, method = "bilinear")
+BDTICM_igh <- project(BDRICM_250, SGigh)
+BDTICM_igh <- resample(BDRICM_igh, SGigh, method = "bilinear")
+AWCtS_igh <- project(AWCtS_250, SGigh)
+AWCtS_igh <- resample(AWCtS_igh, SGigh, method = "bilinear")
+AWCtS_2m_igh <- project(AWCtS_2m_250, SGigh)
+AWCtS_2m_igh <- resample(AWCtS_2m_igh, SGigh, method = "bilinear")
+AWCh1_igh <- project(AWCh1_250, SGigh)
+AWCh1_igh <- resample(AWCh1_igh, SGigh, method = "bilinear")
+AWCh1_2m_igh <- project(AWCh1_2m_250, SGigh)
+AWCh1_2m_igh <- resample(AWCh1_2m_igh, SGigh, method = "bilinear")
 
-# Silt fraction
-Z_0_5 <- rast(paste0(sgwd, "Z/Z_0_5cm.vrt"))
-Z_5_15 <- rast(paste0(sgwd, "Z/Z_5_15cm.vrt"))
-Z_15_30 <- rast(paste0(sgwd, "Z/Z_15_30cm.vrt"))
-Z_30_60 <- rast(paste0(sgwd, "Z/Z_30_60cm.vrt"))
-Z_60_100 <- rast(paste0(sgwd, "Z/Z_60_100cm.vrt"))
-Z = c(Z_0_5, Z_5_15, Z_15_30, Z_30_60, Z_60_100)
-rm(Z_0_5, Z_5_15, Z_15_30, Z_30_60, Z_60_100)
-Z = weighted.mean(Z, DepthWeights, na.rm=T)
-names(Z) <- "Z"
-Zi <- RF_ImputeRast(r = Z, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
-Z <- Zi[[1]]
-Z <- project(Z, resample_100m)
-Z <- resample(Z, resample_100m, method = "bilinear")
-#rm(Zi)
-
-# Sand fraction
-S_0_5 <- rast(paste0(sgwd, "S/S_0_5cm.vrt"))
-S_5_15 <- rast(paste0(sgwd, "S/S_5_15cm.vrt"))
-S_15_30 <- rast(paste0(sgwd, "S/S_15_30cm.vrt"))
-S_30_60 <- rast(paste0(sgwd, "S/S_30_60cm.vrt"))
-S_60_100 <- rast(paste0(sgwd, "S/S_60_100cm.vrt"))
-S = c(S_0_5, S_5_15, S_15_30, S_30_60, S_60_100)
-rm(S_0_5, S_5_15, S_15_30, S_30_60, S_60_100)
-S = weighted.mean(S, DepthWeights, na.rm=T)
-names(S) <- "S"
-Si <- RF_ImputeRast(r = S, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
-S <- Si[[1]]
-S <- project(S, resample_100m)
-S <- resample(S, resample_100m, method = "bilinear")
-#rm(Si)
 
 # Coarse Fragments
 CF_0_5 <- rast(paste0(sgwd, "CF/CF_0_5cm.vrt"))
@@ -820,11 +777,97 @@ CF = c(CF_0_5, CF_5_15, CF_15_30, CF_30_60, CF_60_100)
 rm(CF_0_5, CF_5_15, CF_15_30, CF_30_60, CF_60_100)
 CF = weighted.mean(CF, DepthWeights, na.rm=T)
 names(CF) <- "CF"
-CFi <- RF_ImputeRast(r = CF, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+CFi <- RF_ImputeRast(r = CF, covs = c(DEM_igh, Slope_igh, AWCtS_igh, BDRICM_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
 CF <- CFi[[1]]
+CF_igh <- CF
 CF <- project(CF, resample_100m)
 CF <- resample(CF, resample_100m, method = "bilinear")
 #rm(CFi)
+
+
+# Bulk Density
+BD_0_5 <- rast(paste0(sgwd, "BD/BD_0_5cm.vrt"))
+BD_5_15 <- rast(paste0(sgwd, "BD/BD_5_15cm.vrt"))
+BD_15_30 <- rast(paste0(sgwd, "BD/BD_15_30cm.vrt"))
+BD_30_60 <- rast(paste0(sgwd, "BD/BD_30_60cm.vrt"))
+BD_60_100 <- rast(paste0(sgwd, "BD/BD_60_100cm.vrt"))
+BD = c(BD_0_5, BD_5_15, BD_15_30, BD_30_60, BD_60_100)
+rm(BD_0_5, BD_5_15, BD_15_30, BD_30_60, BD_60_100)
+BD = weighted.mean(BD, DepthWeights, na.rm=T)
+names(BD) <- "BD"
+BDi <- RF_ImputeRast(r = BD, covs = c(DEM_igh, Slope_igh, AWCtS_igh, AWCh1_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+BD <- BDi[[1]]
+BD_igh <- BD
+BD <- project(BD, resample_100m)
+BD <- resample(BD, resample_100m, method = "bilinear")
+#rm(BDi)
+
+
+# Silt fraction
+Z_0_5 <- rast(paste0(sgwd, "Z/Z_0_5cm.vrt"))
+Z_5_15 <- rast(paste0(sgwd, "Z/Z_5_15cm.vrt"))
+Z_15_30 <- rast(paste0(sgwd, "Z/Z_15_30cm.vrt"))
+Z_30_60 <- rast(paste0(sgwd, "Z/Z_30_60cm.vrt"))
+Z_60_100 <- rast(paste0(sgwd, "Z/Z_60_100cm.vrt"))
+Z = c(Z_0_5, Z_5_15, Z_15_30, Z_30_60, Z_60_100)
+rm(Z_0_5, Z_5_15, Z_15_30, Z_30_60, Z_60_100)
+Z = weighted.mean(Z, DepthWeights, na.rm=T)
+names(Z) <- "Z"
+Zi <- RF_ImputeRast(r = Z, covs = c(DEM_igh, Slope_igh, AWCtS_igh, AWCh1_igh, BD_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+Z <- Zi[[1]]
+Z_igh <- Z
+Z <- project(Z, resample_100m)
+Z <- resample(Z, resample_100m, method = "bilinear")
+#rm(Zi)
+
+
+# Clay fraction
+C_0_5 <- rast(paste0(sgwd, "C/C_0_5cm.vrt"))
+C_5_15 <- rast(paste0(sgwd, "C/C_5_15cm.vrt"))
+C_15_30 <- rast(paste0(sgwd, "C/C_15_30cm.vrt"))
+C_30_60 <- rast(paste0(sgwd, "C/C_30_60cm.vrt"))
+C_60_100 <- rast(paste0(sgwd, "C/C_60_100cm.vrt"))
+C = c(C_0_5, C_5_15, C_15_30, C_30_60, C_60_100)
+rm(C_0_5, C_5_15, C_15_30, C_30_60, C_60_100)
+C = weighted.mean(C, DepthWeights, na.rm=T)
+names(C) <- "C"
+Ci <- RF_ImputeRast(r = C, covs = c(DEM_igh, Slope_igh, AWCtS_igh, AWCh1_igh, Z_igh, BDTICM_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+C <- Ci[[1]]
+C_igh <- C
+C <- project(C, resample_100m)
+C <- resample(C, resample_100m, method = "bilinear")
+#rm(Ci)
+
+
+
+# Sand fraction
+S_0_5 <- rast(paste0(sgwd, "S/S_0_5cm.vrt"))
+S_5_15 <- rast(paste0(sgwd, "S/S_5_15cm.vrt"))
+S_15_30 <- rast(paste0(sgwd, "S/S_15_30cm.vrt"))
+S_30_60 <- rast(paste0(sgwd, "S/S_30_60cm.vrt"))
+S_60_100 <- rast(paste0(sgwd, "S/S_60_100cm.vrt"))
+S = c(S_0_5, S_5_15, S_15_30, S_30_60, S_60_100)
+rm(S_0_5, S_5_15, S_15_30, S_30_60, S_60_100)
+S = weighted.mean(S, DepthWeights, na.rm=T)
+names(S) <- "S"
+Si <- RF_ImputeRast(r = S, covs = c(DEM_igh, C_igh, AWCtS_igh, AWCh1_igh, Z_igh, BDTICM_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+S <- Si[[1]]
+S_igh <- S
+S <- project(S, resample_100m)
+S <- resample(S, resample_100m, method = "bilinear")
+#rm(Si)
+
+
+#Soil organic carbon stock
+SOCS <- rast(paste0(sgwd, "SOCS/SOCS_0_30cm.vrt"))
+names(SOCS) <- "SOCS"
+SOCSi <- RF_ImputeRast(r = SOCS, covs = c(DEM_igh, Slope_igh, AWCtS_igh, AWCh1_igh, BD_igh, Z_igh, C_igh, BDRICM_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+SOCS <- SOCSi[[1]]
+SOCS_igh <- SOCS
+SOCS <- project(SOCS, resample_100m)
+SOCS <- resample(SOCS, resample_100m, method = "bilinear")
+#rm(SOCSi)
+
 
 # Soil Organic Carbon content
 SOC_0_5 <- rast(paste0(sgwd, "SOC/SOC_0_5cm.vrt"))
@@ -836,27 +879,13 @@ SOC = c(SOC_0_5, SOC_5_15, SOC_15_30, SOC_30_60, SOC_60_100)
 rm(SOC_0_5, SOC_5_15, SOC_15_30, SOC_30_60, SOC_60_100)
 SOC = weighted.mean(SOC, DepthWeights, na.rm=T)
 names(SOC) <- "SOC"
-SOCi <- RF_ImputeRast(r = SOC, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+SOCi <- RF_ImputeRast(r = SOC, covs = c(DEM_igh, Slope_igh, SOCS_igh, AWCtS_igh, AWCh1_igh, BD_igh, Z_igh, C_igh, CF_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
 SOC <- SOCi[[1]]
+SOC_igh <- SOC
 SOC <- project(SOC, resample_100m)
 SOC <- resample(SOC, resample_100m, method = "bilinear")
 #rm(SOCi)
 
-# Cation Exchange Capacity
-CEC_0_5 <- rast(paste0(sgwd, "CEC/CEC_0_5cm.vrt"))
-CEC_5_15 <- rast(paste0(sgwd, "CEC/CEC_5_15cm.vrt"))
-CEC_15_30 <- rast(paste0(sgwd, "CEC/CEC_15_30cm.vrt"))
-CEC_30_60 <- rast(paste0(sgwd, "CEC/CEC_30_60cm.vrt"))
-CEC_60_100 <- rast(paste0(sgwd, "CEC/CEC_60_100cm.vrt"))
-CEC = c(CEC_0_5, CEC_5_15, CEC_15_30, CEC_30_60, CEC_60_100)
-rm(CEC_0_5, CEC_5_15, CEC_15_30, CEC_30_60, CEC_60_100)
-CEC = weighted.mean(CEC, DepthWeights, na.rm=T)
-names(CEC) <- "CEC"
-CECi <- RF_ImputeRast(r = CEC, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
-CEC <- CECi[[1]]
-CEC <- project(CEC, resample_100m)
-CEC <- resample(CEC, resample_100m, method = "bilinear")
-#rm(CECi)
 
 # Organic Carbon Density
 OCD_0_5 <- rast(paste0(sgwd, "OCD/OCD_0_5cm.vrt"))
@@ -868,8 +897,9 @@ OCD = c(OCD_0_5, OCD_5_15, OCD_15_30, OCD_30_60, OCD_60_100)
 rm(OCD_0_5, OCD_5_15, OCD_15_30, OCD_30_60, OCD_60_100)
 OCD = weighted.mean(OCD, DepthWeights, na.rm=T)
 names(OCD) <- "OCD"
-OCDi <- RF_ImputeRast(r = OCD, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+OCDi <- RF_ImputeRast(r = OCD, covs = c(DEM_igh, Slope_igh, SOC_igh, AWCtS_igh, AWCh1_igh, BD_igh, Z_igh, C_igh, BDRICM_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
 OCD <- OCDi[[1]]
+OCD_igh <- OCD
 OCD <- project(OCD, resample_100m)
 OCD <- resample(OCD, resample_100m, method = "bilinear")
 #rm(OCDi)
@@ -884,24 +914,35 @@ N = c(N_0_5, N_5_15, N_15_30, N_30_60, N_60_100)
 rm(N_0_5, N_5_15, N_15_30, N_30_60, N_60_100)
 N = weighted.mean(N, DepthWeights, na.rm=T)
 names(N) <- "N"
-Ni <- RF_ImputeRast(r = N, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+Ni <- RF_ImputeRast(r = N, covs = c(DEM_igh, Slope_igh, AWCtS_igh, BD_igh, Z_igh, CF_igh, OCD_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
 N <- Ni[[1]]
 N <- project(N, resample_100m)
 N <- resample(N, resample_100m, method = "bilinear")
 #rm(Ni)
 
-#Soil organic carbon stock
-SOCS <- rast(paste0(sgwd, "SOCS/SOCS_0_30cm.vrt"))
-names(SOCS) <- "SOCS"
-SOCSi <- RF_ImputeRast(r = SOCS, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
-SOCS <- SOCSi[[1]]
-SOCS <- project(SOCS, resample_100m)
-SOCS <- resample(SOCS, resample_100m, method = "bilinear")
-#rm(SOCSi)
 
-rm(DepthWeights, m2, m, resample_250m, resample_igh, SGigh, DEM_igh, Slope_igh, DEM_250, Slope_250, SG250, DEM_100m, sgwd)
+
+# Cation Exchange Capacity
+CEC_0_5 <- rast(paste0(sgwd, "CEC/CEC_0_5cm.vrt"))
+CEC_5_15 <- rast(paste0(sgwd, "CEC/CEC_5_15cm.vrt"))
+CEC_15_30 <- rast(paste0(sgwd, "CEC/CEC_15_30cm.vrt"))
+CEC_30_60 <- rast(paste0(sgwd, "CEC/CEC_30_60cm.vrt"))
+CEC_60_100 <- rast(paste0(sgwd, "CEC/CEC_60_100cm.vrt"))
+CEC = c(CEC_0_5, CEC_5_15, CEC_15_30, CEC_30_60, CEC_60_100)
+rm(CEC_0_5, CEC_5_15, CEC_15_30, CEC_30_60, CEC_60_100)
+CEC = weighted.mean(CEC, DepthWeights, na.rm=T)
+names(CEC) <- "CEC"
+CECi <- RF_ImputeRast(r = CEC, covs = c(DEM_igh, S_igh, BDRICM_igh, BDTICM_igh, C_igh, CF_igh, AWCtS_2m_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+CEC <- CECi[[1]]
+CEC <- project(CEC, resample_100m)
+CEC <- resample(CEC, resample_100m, method = "bilinear")
+#rm(CECi)
+
+
+rm(DepthWeights, m2, m, resample_250m, resample_igh, SGigh, DEM_igh, Slope_igh, DEM_250, Slope_250, SG250, DEM_100m, sgwd, AWCtS_2m_250, AWCtS_250, AWCh1_2m_250, AWCh1_250, BDTICM_250, BDRLOG_250, BDRICM_250, Z_igh, S_igh, CF_igh, SOC_igh, CEC_igh, OCD_igh, N_igh, SOCS_igh, C_igh, BD_igh, AWCtS_2m_igh, AWCtS_igh, AWCh1_igh, AWCh1_2m_igh, BDTICM_igh, BDRLOG_igh, BDRICM_igh)
 
 rm(Zi, Si, CFi, SOCi, CECi, OCDi, Ni, SOCSi, Ci, BDi, AWCtS_2mi, AWCtSi, AWCh1_2mi, AWCh1i, AWCh1i, AWCh1_2mi, BDTICMi, BDRLOGi, BDRICMi)
+
 ```
 
 
@@ -917,120 +958,6 @@ writeRaster(Soil, filename = paste0(wd$data_p, "Soil_r_resampled.tif"), overwrit
 
 #Remove unnecessary variables
 rm(BDRICM, BDRLOG, BDTICM, AWCtS, AWCtS_2m, AWCh1, AWCh1_2m, BD, S, Z, C, CF, SOC, CEC, OCD, N, SOCS, WRB)
-
-```
-
-
-### Function to Interpolate Missing Soil Raster Values Using Random Forest Model
-
-```{r, label='Function for RF soil raster imputation of missing values', message=FALSE,warning=FALSE, eval = FALSE}
-
-resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
-resample_100m <- disagg(resample_30m, 3)
-resample_100m <- aggregate(resample_100m, 10)
-
-DEM_100m <- Topo[[1]]
-Slope <- Topo[[2]]
-Municipios2000s <- st_read(paste0(wd$data_r, "AG_Model_2000s/CMex_Municipios_2000s.gpkg"))
-
-resample_100m_b = resample_100m
-values(resample_100m_b) <- 1
-m <- mask(resample_100m_b, Municipios2000s)#Data2000s_poly)
-
-r = SOCS
-rnam = names(r)
-covs = c(DEM_100m,Slope)
-Mask = m
-SampFrac = 0.3
-save_mem = FALSE
-
-library(tidyverse)
-library(terra)
-library(ranger)
-
-RF_ImputeRast <- function(r, # Terra SpatRast raster object
-                          rnam = names(r), # name for df variable for raster values from focal SpatRast object
-                          covs = NULL, # Terra SpatRast raster object with 1 or more stacked layers 
-                          Mask = NULL, # mask of focal area under consideration. Used in reducing the sample for the training dataset; training dataset first excludes areas outside of the mask before applying the sampling fraction
-                          SampFrac = 0.3, # sampling fraction for training dataset; applied after mask exclusions, if present (see Mask, above)
-                          save_mem = FALSE # whether the save.memory parameter should be used for the ranger random forest function
-) {
-  
-  if (!is.null(Mask)){
-    m_df = Terra_df(Mask, "mask")
-    names(m_df) <- c("x", "y", "mask", "outside")
-    r_df = Terra_df(r, rnam)
-    r_df = merge(r_df, m_df, all = F, sort = F)
-  } else {
-    r_df = Terra_df(r, rnam)
-  }
-  
-  if (!is.null(covs)){
-    out_list <- list()  # or result_vector <- c()
-    for (i in 1:nlyr(covs)) {
-      out_list[[i]] = Terra_df(covs[[i]], names(covs[[i]]))
-      out_list[[i]] = out_list[[i]] %>% select(-na_cells)
-    }
-    covs_df <- Reduce(function(x, y) merge(x, y, all = F, sort = F), out_list)
-    r_df = merge(r_df, covs_df, all = F, sort = F)
-  }
-  
-  if (!is.null(Mask)){
-    
-    train = r_df %>% filter(outside == F) %>% filter(complete.cases(.)) %>% 
-      select(-na_cells, -outside, -mask) %>% sample_frac(SampFrac)
-    
-  } else {
-    
-    train = r_df %>% filter(complete.cases(.)) %>% select(-na_cells) %>% 
-      sample_frac(SampFrac)
-  }
-  
-  f <- names(train)
-  f <- f[f != names(r)]
-  form <- paste(names(r), "~", paste(f, collapse = " + "))
-  form <- as.formula(form)
-  
-  model <- ranger(
-    formula = form,
-    data = train,
-    save.memory = save_mem 
-  )
-  
-  if (!is.null(Mask)){
-    
-    pred = r_df %>% select(-na_cells, -outside, -mask) %>% select(-!!sym(rnam)) %>% filter(complete.cases(.))
-    
-  } else {
-    
-    pred = r_df %>% select(-na_cells) %>% select(-!!sym(rnam)) %>% filter(complete.cases(.))
-    
-  }
-  
-  predicted_vals <- predict(model, pred)
-  pred$pred <- predicted_vals$predictions
-  
-  x = r_df %>% left_join(pred, by = f)
-  
-  r2 = r
-  raster_values <- values(r2)
-  missing_values <- is.na(raster_values)
-  df_values <- x$pred[missing_values]
-  r2[missing_values] <- df_values
-  names(r2) <- rnam
-  
-  out <- list()
-  out[[1]] <- r2
-  out[[2]] <- model$r.squared
-  out[[3]] <- model$prediction.error
-  out[[4]] <- model$num.trees
-  
-  return(out)
-}
-
-
-writeRaster(r2,paste0(wd$data_r,"C_RF_interpolated.tif"), overwrite=TRUE)
-
 
 ```
 
@@ -1467,17 +1394,6 @@ writeRaster(Clim_r, filename = paste0(wd$data_p, "Clim_r_resampled.tif"), overwr
 rm(pr_r, tas_r, tasmax_r, tasmin_r, pet_r, cmi_r, clt_r, rsds_r, npp_r, kg2_r, kg3_r, kg4_r, fcf_r, swb_r, gdd0_r, gdd10_r, ngd0_r, ngd10_r)
 rm(pr, tas, tasmax, tasmin, pet, cmi, clt, rsds, npp, kg2, kg3, kg4, fcf, swb, gdd0, gdd10, ngd0, ngd10)
 ```
-
-
-
-### !!! CHELSA-TraCE21k – 1km climate timeseries since the LGM
-
-https://chelsa-climate.org/chelsa-trace21k/
-
-CHELSA-TraCE21k data provides monthly climate data for temperature and precipitation at 30 arcsec spatial resolution in 100-yeartime steps for the last 21,000 years. Paleo orography at high spatial resolution and at each timestep is created by combining high resolution information on glacial cover from current and Last Glacial Maximum (LGM) glacier databases with the interpolation of a dynamic ice sheet model (ICE6G) and a coupling to mean annual temperatures from CCSM3-TraCE21k. Based on the reconstructed paleo orography, mean annual temperature and precipitation was downscaled using the CHELSA V1.2 algorithm.
-
-
-Time ID == 12-20
 
 
 
