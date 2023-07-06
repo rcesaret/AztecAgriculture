@@ -495,6 +495,13 @@ rbind(generalization,insample,outsample)
 
 
 ```{r}
+Pred_Rast_Modern_Temp = subset(Pred_Rast_Modern_Temp, c("ElevAboveStreams2"), negate=T)
+
+Pred_Rast_Modern_Temp <- Pred_Rast_Modern_Temp[[-14]]
+names(Pred_Rast_Modern_Temp) = names(Pred_Rast_Modern_Temp)
+Pred_Rast_Modern_Irrig[[14]] <- Pred_Rast_Modern_Irrig[[13]]
+Pred_Rast_Aztec_Temp[[14]] <- Pred_Rast_Aztec_Temp[[13]]
+Pred_Rast_Aztec_Irrig[[14]] <- Pred_Rast_Aztec_Irrig[[13]]
 
 FFrac = c(1.0, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.55, 0.50, 0.45, 0.40, 0.35, 0.30)
 
@@ -540,10 +547,10 @@ RegRF_tuned = lrn("regr.ranger")
 
 RegRF_tuned$param_set$values = rr$learners[[1]]$state$model$tuning_instance$result_learner_param_vals
 
-generalization = as.numeric(RegRF_tuned$train(temp_train)$predict(temp_test)$score(msr("regr.rsq")))
+generalization = as.numeric(RegRF_tuned$train(Data_sf_set3_train)$predict(Data_sf_set3_test)$score(msr("regr.rsq")))
 
 # results output dataframe
-a <- data.frame(FeatSelect = c(1.0),n_Features = temp_task$ncol,Perform_General = generalization, Perform_Outsample = outsample)
+a <- data.frame(FeatSelect = c(1.0),n_Features = as.numeric(length(Data_sf_set3_tsk$feature_names)),Perform_General = generalization, Perform_Outsample = outsample)
 #b = as.data.frame(rr$learners[[1]]$state$model$fselect_instance$result) %>% rename(fselect_rsq = regr.rsq)
 
 b = as.data.frame(t(as.matrix(rep(TRUE, (Data_sf_set3_tsk$ncol-1)),nrow=1)))
