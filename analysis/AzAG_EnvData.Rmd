@@ -1,0 +1,1955 @@
+---
+title: "Aztec Agricultural Productivity Model"
+subtitle: "Environmental Data"
+author: "Rudolf Cesaretti"
+date: "Last run on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+    number_sections: true
+bibliography: References.bib
+csl: apa.csl
+link-citations: yes
+---
+
+```{css, echo=FALSE}
+pre {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+pre[class] {
+  max-height: 300px;
+}
+```
+
+```{r, setup, include=FALSE,echo=FALSE, message=FALSE,warning=FALSE}
+require(knitr)
+# Set so that long lines in R will be wrapped:
+opts_chunk$set(tidy.opts=list(width.cutoff=75),tidy=TRUE)
+#
+rm(list = ls())
+```
+
+This R markdown document prepares the data used in the Aztec agricultural productivity random forest model, which is undertaken in Part 2 (the subsequent R markdown script). This involves the following:
+
+  1. Load, reorganize and integrate the modern agricultural analogue dataset, which includes:
+      + Contemporary municipio polygons from INEGI
+      + 2010 municipal population census statistics
+      + 2007 municipal agricultural census statistics
+      + FASII and INEGI geospatial land use polygons from the 2000s and 2010s
+      + SIAP 2003-2021 crop yield data
+      + 
+  2. Load, Resample and Calculate topographic variable rasters, which include:
+      + 
+      + 
+      + 
+      + 
+      + 
+      + 
+      + 
+      + 
+      + 
+  3. Load, resample and RF impute ISRIC SoilGrids250 rasters, which include:
+      + 
+      + 
+      + 
+      + 
+      + 
+  4. Load and resample CHELSA monthly climate variable rasters, which include:
+      + 
+      + 
+      + 
+  
+  Topographic/environmental metrics
+  
+Function to Interpolate Missing Soil Raster Values Using Random Forest Model
+
+Function for RF soil raster imputation of missing values
+
+Resample raster data to 100m x 100m
+
+CRS = WGS84 UTM Zone 14N (EPSG: 32614)
+
+
+# Setup 
+
+All of the data and scripts are downloadable from the [Aztec Agriculture github repository](https://https://github.com/rcesaret/AztecAgriculture), which can be downloaded locally as a .zip folder or cloned to your own account.
+
+Either way, once you have done so, you will need to modify the working directory (setwd("C:/...)") path and "dir" variables in the code chunk below to match the repository location on your computer.
+
+```{r, label='Set Local Directory Location', message=FALSE,warning=FALSE}
+
+wd <- list()
+
+#SET YOUR LOCAL DIRECTORY LOCATION HERE:
+wd$dir <- "D:/Dropbox (ASU)/AztecAgricultureModel/AztecAgriculture/"
+#wd$dir <- "C:/Users/TJ McMote/Dropbox (ASU)/Huexotzinco/HuexTlaxAnal2022/HuexTlax2022Analysis/"
+
+wd$analysis <- paste0(wd$dir,"analysis/")
+wd$data_r <- paste0(wd$dir,"data-raw/")
+wd$data_p <- paste0(wd$dir,"data-processed/")
+wd$data_f <- paste0(wd$dir,"data-final-outputs/")
+wd$figs <- paste0(wd$dir,"figures/")
+wd$funcs <- paste0(wd$dir,"functions/")
+
+```
+
+
+
+## Load R Packages and Custom Functions
+
+```{r, label='Load Libraries', message=FALSE,warning=FALSE}
+# Package names
+packages <- c("tidyverse", "rgdal", "rgeos", "sp", "sf", "GISTools", "raster", 
+              "Matrix", "terra","gdistance", "lwgeom", "tidyr", "stars", "dismo", 
+              "purrr", "spatialEco", "whitebox", "classInt","ggnewscale", "lbmech", 
+              "data.table", "tidyterra","gridExtra", "cowplot", "scam", "rmarkdown", 
+              "spatialreg","spdep", "ggridges", "ggnewscale", "scales", "ggstatsplot",
+              "stringi", "fuzzyjoin", "mgcv", "randomForest", "ranger", "kableExtra", 
+              "Boruta", "mlbench", "caret", "readr", "ClimDatDownloadR", "scPDSI",
+              "geoknife", "rnoaa", "ncdf4", "gdalUtils", "zoo", "fields", "gstat", 
+              "DataExplorer", "tableone")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# load packages
+invisible(lapply(packages, library, character.only = TRUE))
+
+rm(packages,installed_packages)
+
+#Read in custom R functions located in the wd$funcs directory folder
+FUNCS <- list("RescaleSpatRast.R", "Terra_df.R", "RF_ImputeRast.R")#"splitByAttributes.R", 
+invisible(lapply(FUNCS, function(x) source(paste0(wd$funcs,x))))
+rm(FUNCS)
+
+```
+
+
+
+
+
+
+
+
+
+# Topographic Variables
+
+## Load Rasters
+
+
+Digital Elevation Model (DEM)
+
+NASA Shuttle Radar Topography Mission Global 1 arc second V003
+1 arc second (~30 meter) resolution
+
+https://lpdaac.usgs.gov/products/srtmgl1v003/
+https://www2.jpl.nasa.gov/srtm/index.html
+
+
+```{r, label='Load Topo Rasters', message=FALSE,warning=FALSE}
+resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
+resample_100m <- disagg(resample_30m, 3)
+resample_100m <- aggregate(resample_100m, 10)
+
+## Import INEGI lidar-derived 15-meter DEM
+## Continuo de Elevaciones Mexicanas 3.0 (2012)
+## https://www.inegi.org.mx/app/geo2/elevacionesmex/#:~:text=El%20Continuo%20de%20Elevaciones%20Mexicano,le%20integran%20valores%20que%20representan
+
+
+DEM <- rast(paste0(wd$data_r,"SRTM_CMex_UTM14N.tif"))
+#DEM_100m <- disagg(DEM, 3)
+#DEM_100m <- aggregate(DEM_100m, 10)
+#DEM_100m <- resample(DEM, DEM_100m, method = "bilinear")
+#writeRaster(DEM_100m,paste0(wd$data_p,"DEM_100m.tif"), overwrite=TRUE)
+```
+
+## Smooth DEM
+
+```{r, label='Smooth DEM', message=FALSE,warning=FALSE}
+
+Lake <- st_read(paste0(wd$data_r, "BOM_Lake_Poly3.gpkg"))
+
+DEM_NoLake <- mask(DEM, Lake, inverse=TRUE)
+DEM_Lake <- mask(DEM, Lake, inverse=FALSE)
+
+DEM_Lake <- focal(DEM_Lake, w=3, fun='mean', na.rm=T)
+DEM_Lake <- focal(DEM_Lake, w=5, fun='mean', na.rm=T)
+DEM_Lake <- focal(DEM_Lake, w=3, fun='mean', na.rm=T)
+DEM_Lake <- focal(DEM_Lake, w=5, fun='mean', na.rm=T)
+DEM_Lake <- focal(DEM_Lake, w=7, fun='mean', na.rm=T)
+DEM_Lake <- focal(DEM_Lake, w=9, fun='mean', na.rm=T)
+DEM_Lake <- focal(DEM_Lake, w=11, fun='mean', na.rm=T)
+DEM_Lake <- focal(DEM_Lake, w=13, fun='mean', na.rm=T)
+DEM_Lake <- focal(DEM_Lake, w=15, fun='mean', na.rm=T)
+DEM_Lake <- focal(DEM_Lake, w=17, fun='mean', na.rm=T)
+DEM_Lake <- mask(DEM_Lake, Lake, inverse=FALSE)
+
+DEM_smooth <- mosaic(DEM_Lake, DEM_NoLake)
+DEM_smooth <- focal(DEM_smooth, w=3, fun='mean', na.rm=T)
+DEM_smooth <- focal(DEM_smooth, w=5, fun='mean', na.rm=T)
+DEM_smooth <- focal(DEM_smooth, w=7, fun='mean', na.rm=T)
+
+writeRaster(DEM_smooth,paste0(wd$data_p,"DEM_smooth_30m.tif"), overwrite=TRUE)
+
+#DEM_NoLake <- spatialEco::raster.gaussian.smooth(DEM_NoLake, sigma = 2*30, n=5, type=mean)
+#DEM_NoLake <- spatialEco::raster.gaussian.smooth(DEM_NoLake, sigma = 2*30, n=7, type=mean)
+
+#e <- ext(DEM)
+#DEM2 = DEM
+#ext(DEM2) <- c(500000, 508000, 2149000, 2160000)
+#ext(r) <- c(490000, 514000, 2125000, 2160000)
+#DEM3 <- crop(DEM, DEM2, snap = "out")
+
+temp <- disagg(DEM_smooth, 3)
+temp <- aggregate(temp, 10)
+DEM_smooth_100m <- resample(DEM_smooth, temp, method = "bilinear")
+
+
+writeRaster(DEM_smooth_100m,paste0(wd$data_p,"DEM_smooth_100m.tif"), overwrite=TRUE)
+#writeRaster(DEM_smooth_100m,paste0(wd$data_p,"DEM_smooth_100m.tif"), overwrite=TRUE)
+#DEM <- rast(paste0(wd$data_p,"DEM_15m.tif"))
+
+
+
+rm(temp, DEM_Lake, DEM_NoLake, Lake)
+```
+
+
+## Calculate Topographic Variable Rasters
+
+```{r, label='Calculate Topographic Variable Rasters', message=FALSE,warning=FALSE}
+
+
+DEM_100m <- rast(paste0(wd$data_p,"DEM_smooth_100m.tif"))
+
+#create temp directory for rasters we will delete later
+# we will stack and save these together at the end of this chunk
+
+##### dir.create(paste0(wd$data_p,"temp_rasts"))
+
+######### TRI ######### 
+
+TRI <- terra::terrain(DEM_100m, v="TRI")# calc Terrain Ruggedness Index
+
+Slope <- terra::terrain(DEM_100m, v="slope", unit="degrees")#Slope
+Slope_sqrt <- Slope^0.5
+
+writeRaster(Slope,paste0(wd$data_p,"temp_rasts/Slope_100m.tif"), overwrite=TRUE)
+
+######################################################
+
+wbt_breach_depressions_least_cost(dem = paste0(wd$data_p,"DEM_smooth_100m.tif"), output = paste0(wd$data_p,"temp_rasts/DEM_breach.tif"), dist = 5)
+
+######################################################
+
+wbt_d8_flow_accumulation(paste0(wd$data_p,"temp_rasts/DEM_breach.tif"), output=paste0(wd$data_p,"temp_rasts/Accum.tif"), out_type = "specific contributing area")
+Accum <- rast(paste0(wd$data_p, "temp_rasts/Accum.tif"))
+
+######### TWI ######### 
+
+wbt_wetness_index(sca=paste0(wd$data_p,"temp_rasts/Accum.tif"), slope=paste0(wd$data_p,"temp_rasts/Slope_100m.tif"), output=paste0(wd$data_p,"temp_rasts/TWI.tif"), verbose_mode = FALSE)
+TWI <- rast(paste0(wd$data_p, "temp_rasts/TWI.tif"))
+TWI <- ifel(is.na(TWI), max(terra::values(TWI), na.rm=T), TWI)
+writeRaster(TWI,paste0(wd$data_p,"temp_rasts/TWI.tif"), overwrite=TRUE)
+#TWI <- focal(TWI, w=17, fun='max', na.policy="only", na.rm=T)
+#
+
+
+######### SPI ######### 
+
+wbt_stream_power_index(sca=paste0(wd$data_p,"temp_rasts/Accum.tif"),slope=paste0(wd$data_p,"temp_rasts/Slope_100m.tif"),output=paste0(wd$data_p,"temp_rasts/SPI.tif"),exponent = 1)
+SPI <- rast(paste0(wd$data_p, "temp_rasts/SPI.tif"))
+
+######### STI ######### 
+
+wbt_fd8_flow_accumulation(paste0(wd$data_p,"temp_rasts/DEM_breach.tif"), output=paste0(wd$data_p,"temp_rasts/Accum_fd8.tif"), out_type = "specific contributing area")
+Accum_fd8 <- rast(paste0(wd$data_p, "temp_rasts/Accum_fd8.tif"))
+
+wbt_sediment_transport_index(sca=paste0(wd$data_p,"temp_rasts/Accum_fd8.tif"),slope=paste0(wd$data_p,"temp_rasts/Slope_100m.tif"),output=paste0(wd$data_p,"temp_rasts/STI.tif"))
+STI <- rast(paste0(wd$data_p, "temp_rasts/STI.tif"))
+
+######################################################
+
+wbt_d_inf_pointer(dem = paste0(wd$data_p,"DEM_smooth_100m.tif"), output = paste0(wd$data_p,"temp_rasts/FlowDirect_inf_100m.tif"))
+FlowDirect_inf_100m <- rast(paste0(wd$data_p, "temp_rasts/FlowDirect_inf_100m.tif"))
+
+wbt_d8_pointer(dem = paste0(wd$data_p,"DEM_smooth_100m.tif"), output = paste0(wd$data_p,"temp_rasts/FlowDirect_d8_100m.tif"))
+FlowDirect_d8_100m <- rast(paste0(wd$data_p, "temp_rasts/FlowDirect_d8_100m.tif"))
+
+######################################################
+
+wbt_extract_streams(flow_accum = paste0(wd$data_p,"temp_rasts/Accum_fd8.tif"), output = paste0(wd$data_p,"temp_rasts/Streams_100m.tif"), threshold =7500)
+Streams <- rast(paste0(wd$data_p, "temp_rasts/Streams_100m.tif"))
+
+######################################################
+
+wbt_isobasins(dem = paste0(wd$data_p,"temp_rasts/DEM_breach.tif"), 
+              output = paste0(wd$data_p,"temp_rasts/Isobasins_100m.tif"), 
+              size = 30000)
+Isobasins <- rast(paste0(wd$data_p, "temp_rasts/Isobasins_100m.tif"))
+Isobasins <- as.factor(Isobasins)
+writeRaster(Isobasins,paste0(wd$data_p,"temp_rasts/Isobasins30km_100m.tif"), overwrite=TRUE)
+
+IsobasinsPoly <- as.polygons(Isobasins)
+IsobasinsPoly <- st_as_sf(IsobasinsPoly)
+IsobasinsPoly$Area = as.numeric(st_area(IsobasinsPoly))/10000/100
+
+st_write(IsobasinsPoly, paste0(wd$data_p, "IsobasinsPoly.gpkg"), driver = "GPKG", overwrite=TRUE, append=FALSE)
+
+Municipios2000s <- st_read(paste0(wd$data_p, "Municipios2000s_Data.gpkg"))
+intersected_polygons <- st_intersection(IsobasinsPoly, Municipios2000s)
+IsobasinsPoly = IsobasinsPoly %>% filter(Isobasins_100m %in% unique(intersected_polygons$Isobasins_100m))
+st_write(IsobasinsPoly, paste0(wd$data_p, "IsobasinsPoly.gpkg"), driver = "GPKG", overwrite=TRUE, append=FALSE)
+rm(intersected_polygons,Municipios2000s)
+
+
+
+
+######################################################
+
+IsobasinsPoly <- st_read(paste0(wd$data_p, "IsobasinsPoly.gpkg"))
+IsobasinsPoly <- rownames_to_column(IsobasinsPoly, var = "ID")
+IsobasinsPoly$n_cells <- NA
+for (i in 1:length(IsobasinsPoly$ID)){
+  elev <- DEM_100m
+  bp <- IsobasinsPoly %>% filter(ID == i)
+  bp <- vect(bp)
+  elev <- mask(elev, bp)
+  writeRaster(elev,paste0(wd$data_p,"elev.tif"), overwrite=TRUE)
+  wbt_flood_order(dem = paste0(wd$data_p,"elev.tif"), output = paste0(wd$data_p,"BasinRasts_100m/flood_order_basin",i,".tif"))
+}
+raster_files <- list.files(path = paste0(wd$data_p,"BasinRasts_100m/"), pattern = ".tif$", full.names = TRUE)
+raster_list <- list()
+for (file in raster_files) {
+  raster <- rast(file)
+  raster_list[[file]] <- raster
+}
+rm(raster)
+z = sprc(raster_list)
+FloodOrder <- merge(z)
+
+writeRaster(FloodOrder,paste0(wd$data_p,"FloodOrder_100m.tif"), overwrite=TRUE)
+FloodOrder <- rast(paste0(wd$data_p, "FloodOrder_100m.tif"))
+BP = extract(DEM_100m, IsobasinsPoly, fun=ncell)
+IsobasinsPoly$n_cells = BP[,2]
+rm(BP)
+bp <- terra::rasterize(IsobasinsPoly, DEM_100m, field = "n_cells", background = NA)
+writeRaster(bp,paste0(wd$data_p,"Basin_ncells_100m.tif"), overwrite=TRUE)
+bp <- rast(paste0(wd$data_p, "Basin_ncells_100m.tif"))
+FloodOrder_Rel = FloodOrder / bp
+FloodOrder_Rel <- ifel(FloodOrder_Rel > 1, 1, FloodOrder_Rel)
+writeRaster(FloodOrder_Rel,paste0(wd$data_p,"FloodOrder_Rel_100m.tif"), overwrite=TRUE)
+FloodOrder_Rel <- rast(paste0(wd$data_p, "FloodOrder_Rel_100m.tif"))
+#rm(out, bp, elev, clipped, bplist)
+
+rm(IsobasinsPoly,i,bp, elev,BP,z,raster_list)
+
+########################################################
+
+streams_sf <- st_read(paste0(wd$data_r, "CMex_Hydro_Streams_All.gpkg"))
+streams_sf <- streams_sf %>% mutate(Order = case_when(
+  ORDER_1 == -1 ~ 1,
+  ORDER_1 == 1 ~ 1,
+  ORDER_1 == 2 ~ 1,
+  ORDER_1 == 3 ~ 1,
+  ORDER_1 == 4 ~ 2,
+  ORDER_1 == 5 ~ 2,
+  ORDER_1 == 6 ~ 2,
+  ORDER_1 == 7 ~ 3
+))
+Streams2 <- terra::rasterize(streams_sf, DEM_100m, values = 1, background = NA)
+writeRaster(Streams2,paste0(wd$data_p,"Streams2_100m.tif"), overwrite=TRUE)
+
+######################################################
+
+#distance from streams
+DistStreams <- distance(Streams)
+writeRaster(DistStreams,paste0(wd$data_p,"DistStreams_100m.tif"), overwrite=TRUE)
+DistStreams2 <- distance(Streams2)
+writeRaster(DistStreams2,paste0(wd$data_p,"DistStreams2_100m.tif"), overwrite=TRUE)
+#raster <- lines(DEM[], streams_sf, attrib=streams_sf$Order, width=streams_sf$Order, alongLines=TRUE)
+
+######################################################
+
+wbt_elevation_above_stream(dem = paste0(wd$data_p,"temp_rasts/DEM_breach.tif"), streams = paste0(wd$data_p,"temp_rasts/Streams_100m.tif"), output = paste0(wd$data_p,"temp_rasts/ElevAboveStreams_100m.tif"))
+ElevAboveStreams <- rast(paste0(wd$data_p, "temp_rasts/ElevAboveStreams_100m.tif"))
+
+######################################################
+
+#wbt_elevation_above_stream(dem = paste0(wd$data_p,"temp_rasts/DEM_breach.tif"), streams = paste0(wd$data_p,"Streams2_100m.tif"), output = paste0(wd$data_p,"ElevAboveStreams2_100m.tif"))
+#ElevAboveStreams2 <- rast(paste0(wd$data_p, "ElevAboveStreams2_100m.tif"))
+
+######################################################
+
+wbt_extract_valleys(dem = paste0(wd$data_p,"DEM_smooth_100m.tif"), variant = 'JandR', line_thin = F, output =  paste0(wd$data_p,"temp_rasts/valleys_JandR_100m.tif"))
+Valleys <- rast(paste0(wd$data_p, "temp_rasts/valleys_JandR_100m.tif"))
+
+######################################################
+
+IsobasinsPoly <- st_read(paste0(wd$data_p, "IsobasinsPoly.gpkg"))
+IsobasinsPoly <- rownames_to_column(IsobasinsPoly, var = "ID")
+#BasinsPoly <- vect(BasinsPoly)
+Isobasins <- terra::rasterize(IsobasinsPoly, DEM_100m, field = "ID", background = NA)
+writeRaster(Isobasins,paste0(wd$data_p,"Isobasins_100m.tif"), overwrite=TRUE)
+Isobasins <- rast(paste0(wd$data_p, "Isobasins_100m.tif"))
+
+######################################################
+
+wbt_elev_relative_to_watershed_min_max(dem = paste0(wd$data_p,"DEM_smooth_100m.tif"), watersheds = paste0(wd$data_p,"Isobasins_100m.tif"), output = paste0(wd$data_p,"temp_rasts/elev_watershed_100m.tif"))
+elev_watershed <- rast(paste0(wd$data_p, "temp_rasts/elev_watershed_100m.tif"))
+
+wbt_minimal_curvature(dem = paste0(wd$data_p,"DEM_smooth_100m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_min_100m.tif"))
+curv_min <- rast(paste0(wd$data_p, "temp_rasts/curv_min_100m.tif"))
+
+wbt_maximal_curvature(dem = paste0(wd$data_p,"DEM_smooth_100m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_max_100m.tif"))
+curv_max <- rast(paste0(wd$data_p, "temp_rasts/curv_max_100m.tif"))
+
+wbt_mean_curvature(dem = paste0(wd$data_p,"DEM_smooth_100m.tif"), output = paste0(wd$data_p,"temp_rasts/curv_mean_100m.tif"))
+curv_mean <- rast(paste0(wd$data_p, "temp_rasts/curv_mean_100m.tif"))
+
+
+```
+
+
+
+
+```{r}
+Topo <- c(DEM_100m, Slope, Slope_sqrt, Accum, Accum_fd8, TRI, TWI, STI, SPI, curv_min, curv_max, curv_mean, DistStreams, DistStreams2, ElevAboveStreams, elev_watershed, FloodOrder_Rel)#ElevAboveStreams2, 
+
+names(Topo) = c("DEM", "Slope", "Slope_sqrt", "Accum", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "DistStreams", "DistStreams2", "ElevAboveStreams", "elev_watershed", "FloodOrder_Rel")#"ElevAboveStreams2", 
+
+Topo <- crop(Topo, resample_100m, snap = "out")
+Topo_df = as.data.frame(Topo)
+plot_missing(Topo_df)
+```
+
+
+## Stack and Save Rasters
+
+```{r, label='Stack and Save Topographic Variable Rasters', message=FALSE,warning=FALSE}
+
+Topo <- c(DEM_100m, Slope, Accum, Accum_fd8, TRI, TWI, STI, SPI, curv_min, curv_max, curv_mean, DistStreams, DistStreams2, ElevAboveStreams, ElevAboveStreams2, elev_watershed, FloodOrder_Rel)
+
+names(Topo) = c("DEM", "Slope", "Accum", "Accum_fd8", "TRI", "TWI", "STI", "SPI", "curv_min", "curv_max", "curv_mean", "DistStreams", "DistStreams2", "ElevAboveStreams", "ElevAboveStreams2", "elev_watershed", "FloodOrder_Rel")
+
+Topo <- crop(Topo, resample_100m, snap = "out")
+
+writeRaster(Topo, filename = paste0(wd$data_p, "Topo_r_resampled.tif"), overwrite=TRUE)
+
+Topo <- rast(paste0(wd$data_p, "Topo_r_resampled.tif"))
+
+rm(DEM_100m, Slope, Accum, Accum_fd8, TRI, TWI, STI, SPI, curv_min, curv_max, curv_mean, DistStreams, DistStreams2, ElevAboveStreams, ElevAboveStreams2, elev_watershed, FloodOrder_Rel, FloodOrder, Valleys, FlowDirect_d8_30m, FlowDirect_inf_30m, Streams, Streams2, Basins, streams_sf)
+
+```
+
+
+# Soil Data
+
+
+## ISRIC  SoilGrids250
+
+https://www.isric.org/explore/soilgrids
+
+https://www.isric.org/sites/default/files/soilgrids250m_global_gridded_preprint.pdf
+
+
+```{r SoilGrids250Vars, echo = FALSE, warning = FALSE, message = FALSE, results = 'asis', fig.pos='!h'}
+library(kableExtra)
+
+Variable <- c("AWCtS", "AWCh1", "BDRICM", "BDRLOG", "BDTICM", "BD", "S", "Z", "C", "SOC", "CEC", "OCD", "N", "SOCS", "WRB")
+Description <- c("Available soil water capacity for saturated water content (volumetric fraction) for tS", "	Available soil water capacity (volumetric fraction) with FC = pF 2.0", "Depth to bedrock (R horizon) up to 200 cm", "Probability of occurrence of R horizon", "Absolute depth to bedrock", "Bulk density (fine earth fraction)", "Weight percentage of the sand particles (0.05–2 mm)", "Weight percentage of the silt particles (0.0002–0.05 mm)", "Weight percentage of the clay particles (<0.0002 mm)", "Soil organic carbon content", "Cation exchange capacity at ph 7", "Soil organic carbon density", "Nitrogen content", "Soil organic carbon stock", "World Reference Base (2006) Soil Groups")
+Units <- c("percentage", "percentage", "cm", "percentage", "cm", "kg/m^3", "percentage", "percentage", "percentage", "permille", "	cmolc/kg", "kg/m^3", "cg/kg", "ton/ha", "type (factor)")
+
+data.frame(Variable, Description, Units) %>% 
+    kbl(format = 'html',
+        escape = FALSE,
+        caption = "SoilGrids250 Rasters / Variables") %>% 
+    kable_styling(font_size = 22) %>%
+    gsub("font-size: initial !important;", 
+         "font-size: 22pt !important;", 
+         .)
+
+rm(Variable, Description, Units)
+```
+
+
+### Download Rasters
+
+#### 2017 Data
+
+```{r, label='Download 2017 SoilGrids250 Rasters', message=FALSE, warning=FALSE}
+o = raster(paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/pet/CHELSA_pet_penman_01_1981-2010_V.2.1.tif"))
+
+layers = 1:7
+depths = c(0,5,15,30,60,100,200)
+URLs <- paste0("/vsicurl/https://files.isric.org/soilgrids/former/2017-03-10/data/AWCtS_M_sl",layers,"_250m_ll.tif")
+URLs <- c(URLs, "/vsicurl/https://files.isric.org/soilgrids/former/2017-03-10/data/BDRICM_M_250m_ll.tif", "/vsicurl/https://files.isric.org/soilgrids/former/2017-03-10/data/BDRLOG_M_250m_ll.tif", "/vsicurl/https://files.isric.org/soilgrids/former/2017-03-10/data/BDTICM_M_250m_ll.tif")
+URLs <- c(URLs, "/vsicurl/https://files.isric.org/soilgrids/latest/data/wrb/MostProbable.vrt")
+URLs <- c(URLs, paste0("/vsicurl/https://files.isric.org/soilgrids/former/2017-03-10/data/AWCh1_M_sl",layers,"_250m_ll.tif"))
+
+files <- paste0("AWCtS_",depths,"cm.tif")
+files <- paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/AWCtS/", files)
+files <- c(files, "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/BDRICM/BDRICM.tif", "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/BDRLOG/BDRLOG.tif", "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/BDTICM/BDTICM.tif")
+files <- c(files, "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/WRB/WRB.vrt")
+files <- c(files, paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/AWCh1/AWCh1_",depths,"cm.tif"))
+
+raster("https://files.isric.org/soilgrids/former/2017-03-10/data/AWCtS_M_sl1_250m_ll.tif")
+
+(bbox <- st_bbox(o))
+ulx = bbox$xmin
+uly = bbox$ymax
+lrx= bbox$xmax
+lry = bbox$ymin
+(bb <- c(ulx, uly, lrx, lry))
+
+for (i in 12:18) {
+  gdal_translate(URLs[i], files[i],
+               tr=c(0.002083333, 0.002083333),
+               projwin=bb,
+               projwin_srs ="+proj=longlat +datum=WGS84 +no_defs",
+               verbose=TRUE)
+}
+
+rm(bb,ulx, uly, lrx, lry, files, URLs, layers, o)
+```
+
+#### Current Data
+
+
+```{r, label='Download Current SoilGrids250 Rasters', message=FALSE, warning=FALSE}
+
+var2 = c("N", "CF", "C", "OCD", "SOCS", "S", "Z", "SOC", "BD", "CEC")
+urlbase = "/vsicurl/https://files.isric.org/soilgrids/latest/data/"
+var = c("nitrogen", "cfvo", "clay", "ocd", "ocs", "sand", "silt", "soc", "bdod", "cec")
+depths = c("0-5","5-15","15-30","30-60","60-100")
+depths2 = c("0_5","5_15","15_30","30_60","60_100")
+
+URLs <- vector("character", length = 0)
+
+for (i in 1:length(var)) {
+  temp <- paste0(urlbase, var[i], "/", var[i], "_", depths, "cm_mean.vrt")
+  URLs <- c(URLs, temp)
+}
+URLs <- c(URLs, "/vsicurl/https://files.isric.org/soilgrids/latest/data/ocs/ocs_0-30cm_mean.vrt")
+URLs <- c(URLs, "/vsicurl/https://files.isric.org/soilgrids/latest/data/wrb/MostProbable.vrt")
+
+files <- vector("character", length = 0)
+
+for (i in 1:length(var)) {
+  temp <- paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/", var2[i], "/", var2[i], "_", depths2, "cm.vrt")
+  files <- c(files, temp)
+}
+files <- c(files, "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/SOCS/SOCS_0_30cm.vrt")
+
+
+raster("https://files.isric.org/soilgrids/latest/data/nitrogen/nitrogen_0-5cm_mean.vrt")
+
+igh = raster(paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/pet/CHELSA_pet_penman_01_1981-2010_V.2.1.tif"))
+igh <- projectRaster(igh, crs = "+proj=igh +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs")
+
+(bbox <- st_bbox(igh))
+ulx = bbox$xmin
+uly = bbox$ymax
+lrx= bbox$xmax
+lry = bbox$ymin
+(bb <- c(ulx, uly, lrx, lry))
+for (i in 46:50) {
+#for (i in 1:length(files)) {
+  gdal_translate(URLs[i], files[i],
+               tr=c(250, 250),
+               projwin=bb,
+               projwin_srs ="+proj=igh +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
+               verbose=TRUE)
+}
+
+rm(bb, ulx, uly, lrx, lry, files, URLs, var, var2, urlbase, igh, URLs, depths2, depths, temp)
+```
+
+raster("https://files.isric.org/soilgrids/latest/data/wrb/MostProbable.vrt")
+
+
+### Process Rasters
+
+```{r, label='Load, Process and RF Impute Soil Rasters', message=FALSE, warning=FALSE}
+###############################################
+#resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
+#resample_100m <- disagg(resample_30m, 3)
+#resample_100m <- aggregate(resample_100m, 10)
+#Topo <- rast(paste0(wd$data_p, "Topo_r_resampled.tif"))
+###############################################
+
+sgwd = "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/SoilGrids250/"
+  
+# Covariates for input into RF_ImputeRast function
+DEM_100m <- Topo[[1]]
+SG250 <- rast(paste0(sgwd, "BDTICM/BDTICM.tif"))
+terra::values(SG250) <- 1
+DEM_250 <- project(DEM_100m, SG250)
+DEM_250 <- resample(DEM_250, SG250, method = "bilinear")
+Slope_250 <- terra::terrain(DEM_250, v="slope", unit="degrees")
+
+SGigh <- rast(paste0(sgwd, "BD/BD_0_5cm.vrt"))
+terra::values(SGigh) <- 1
+DEM_igh <- project(DEM_100m, SGigh)
+DEM_igh <- resample(DEM_igh, SGigh, method = "bilinear")
+Slope_igh <- terra::terrain(DEM_igh, v="slope", unit="degrees")
+
+# Create Municipios Mask Raster for input into RF_ImputeRast function
+Municipios2000s <- st_read(paste0(wd$data_r, "AG_Model_2000s/CMex_Municipios_2000s.gpkg"))
+resample_250m <- project(resample_100m, SG250)
+terra::values(resample_250m) <- 1
+names(resample_250m) <- "resample_250m"
+Municipios2000s = vect(Municipios2000s)
+Municipios2000s <- project(Municipios2000s, SG250)
+m <- mask(resample_250m, Municipios2000s)
+rm(Municipios2000s)
+
+Municipios2000s <- st_read(paste0(wd$data_r, "AG_Model_2000s/CMex_Municipios_2000s.gpkg"))
+resample_igh <- project(resample_100m, SGigh)
+terra::values(resample_igh) <- 1
+names(resample_igh) <- "resample_igh"
+Municipios2000s = vect(Municipios2000s)
+Municipios2000s <- project(Municipios2000s, SGigh)
+m2 <- mask(resample_igh, Municipios2000s)
+rm(Municipios2000s)
+
+#Municipios2000s <- st_read(paste0(wd$data_r, "AG_Model_2000s/CMex_Municipios_2000s.gpkg"))
+#resample_100m_b = resample_100m
+#values(resample_100m_b) <- 1
+#m <- mask(resample_100m_b, Municipios2000s)
+#rm(resample_100m_b,Municipios2000s)
+
+# Depths for each of the first three SoilGrids250 levels 
+# for taking the weighted average for 0-30cm
+DepthWeights = c(5,10,15,30,40) 
+
+
+# Depth to bedrock (R horizon) up to 200 cm
+BDRICM <- rast(paste0(sgwd, "BDRICM/BDRICM.tif"))
+names(BDRICM) <- "BDRICM"
+BDRICMi <- RF_ImputeRast(r = BDRICM, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+BDRICM <- BDRICMi[[1]]
+BDRICM <- project(BDRICM, resample_100m)
+BDRICM <- resample(BDRICM, resample_100m, method = "bilinear")
+#rm(BDRICMi)
+
+#	Probability of occurrence of R horizon	percentage
+BDRLOG <- rast(paste0(sgwd, "BDRLOG/BDRLOG.tif"))
+names(BDRLOG) <- "BDRLOG"
+BDRLOGi <- RF_ImputeRast(r = BDRLOG, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+BDRLOG <- BDRLOGi[[1]]
+BDRLOG <- project(BDRLOG, resample_100m)
+BDRLOG <- resample(BDRLOG, resample_100m, method = "bilinear")
+#rm(BDRLOGi)
+
+# Absolute depth to bedrock	cm
+BDTICM <- rast(paste0(sgwd, "BDTICM/BDTICM.tif"))
+names(BDTICM) <- "BDTICM"
+BDTICMi <- RF_ImputeRast(r = BDTICM, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+BDTICM <- BDTICMi[[1]]
+BDTICM <- project(BDTICM, resample_100m)
+BDTICM <- resample(BDTICM, resample_100m, method = "bilinear")
+#rm(BDTICMi)
+
+# Available soil water capacity for saturated water content (volumetric fraction) for tS
+AWCtS_0 <- rast(paste0(sgwd, "AWCtS/AWCtS_0cm.tif"))
+AWCtS_5 <- rast(paste0(sgwd, "AWCtS/AWCtS_5cm.tif"))
+AWCtS_15 <- rast(paste0(sgwd, "AWCtS/AWCtS_15cm.tif"))
+AWCtS_30 <- rast(paste0(sgwd, "AWCtS/AWCtS_30cm.tif"))
+AWCtS_60 <- rast(paste0(sgwd, "AWCtS/AWCtS_60cm.tif"))
+AWCtS_100 <- rast(paste0(sgwd, "AWCtS/AWCtS_100cm.tif"))
+AWCtS_200 <- rast(paste0(sgwd, "AWCtS/AWCtS_200cm.tif"))
+AWCtS = ((DepthWeights[1]*(AWCtS_0 + AWCtS_5))+(DepthWeights[2]*(AWCtS_5 + AWCtS_15))+(DepthWeights[3]*(AWCtS_15 + AWCtS_30))+(DepthWeights[4]*(AWCtS_30 + AWCtS_60))+(DepthWeights[5]*(AWCtS_60 + AWCtS_100)))*0.5*0.01
+names(AWCtS) = "AWCtS"
+AWCtS_2m = ((DepthWeights[1]*(AWCtS_0 + AWCtS_5))+(DepthWeights[2]*(AWCtS_5 + AWCtS_15))+(DepthWeights[3]*(AWCtS_15 + AWCtS_30))+(DepthWeights[4]*(AWCtS_30 + AWCtS_60))+(DepthWeights[5]*(AWCtS_60 + AWCtS_100))+(100*(AWCtS_100 + AWCtS_200)))*0.5*0.005
+names(AWCtS_2m) = "AWCtS_2m"
+AWCtSi <- RF_ImputeRast(r = AWCtS, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+AWCtS_2mi <- RF_ImputeRast(r = AWCtS_2m, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+AWCtS <- AWCtSi[[1]]
+AWCtS_2m <- AWCtS_2mi[[1]]
+AWCtS <- project(AWCtS, resample_100m)
+AWCtS <- resample(AWCtS, resample_100m, method = "bilinear")
+AWCtS_2m <- project(AWCtS_2m, resample_100m)
+AWCtS_2m <- resample(AWCtS_2m, resample_100m, method = "bilinear")
+rm(AWCtS_0,AWCtS_5,AWCtS_15,AWCtS_30,AWCtS_60,AWCtS_100,AWCtS_200)
+
+# Available soil water capacity (volumetric fraction) with FC = pF 2.0
+AWCh1_0 <- rast(paste0(sgwd, "AWCh1/AWCh1_0cm.tif"))
+AWCh1_5 <- rast(paste0(sgwd, "AWCh1/AWCh1_5cm.tif"))
+AWCh1_15 <- rast(paste0(sgwd, "AWCh1/AWCh1_15cm.tif"))
+AWCh1_30 <- rast(paste0(sgwd, "AWCh1/AWCh1_30cm.tif"))
+AWCh1_60 <- rast(paste0(sgwd, "AWCh1/AWCh1_60cm.tif"))
+AWCh1_100 <- rast(paste0(sgwd, "AWCh1/AWCh1_100cm.tif"))
+AWCh1_200 <- rast(paste0(sgwd, "AWCh1/AWCh1_200cm.tif"))
+AWCh1 = ((DepthWeights[1]*(AWCh1_0 + AWCh1_5))+(DepthWeights[2]*(AWCh1_5 + AWCh1_15))+(DepthWeights[3]*(AWCh1_15 + AWCh1_30))+(DepthWeights[4]*(AWCh1_30 + AWCh1_60))+(DepthWeights[5]*(AWCh1_60 + AWCh1_100)))*0.5*0.01
+names(AWCh1) = "AWCh1"
+AWCh1_2m = ((DepthWeights[1]*(AWCh1_0 + AWCh1_5))+(DepthWeights[2]*(AWCh1_5 + AWCh1_15))+(DepthWeights[3]*(AWCh1_15 + AWCh1_30))+(DepthWeights[4]*(AWCh1_30 + AWCh1_60))+(DepthWeights[5]*(AWCh1_60 + AWCh1_100))+(100*(AWCh1_100 + AWCh1_200)))*0.5*0.005
+names(AWCh1_2m) = "AWCh1_2m"
+AWCh1i <- RF_ImputeRast(r = AWCh1, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+AWCh1_2mi <- RF_ImputeRast(r = AWCh1_2m, covs = c(DEM_250,Slope_250), Mask = m, SampFrac = 0.3, save_mem = FALSE)
+AWCh1 <- AWCh1i[[1]]
+AWCh1_2m <- AWCh1_2mi[[1]]
+AWCh1_temp <- AWCh1
+AWCh1_2m_temp <- AWCh1_2m
+AWCh1 <- project(AWCh1, resample_100m)
+AWCh1 <- resample(AWCh1, resample_100m, method = "bilinear")
+AWCh1_2m <- project(AWCh1_2m, resample_100m)
+AWCh1_2m <- resample(AWCh1_2m, resample_100m, method = "bilinear")
+rm(AWCh1_0,AWCh1_5,AWCh1_15,AWCh1_30,AWCh1_60,AWCh1_100,AWCh1_200)
+
+# World Reference Base (2006) Soil Groups
+WRB <- rast(paste0(sgwd, "WRB/WRB.vrt"))
+WRB <- as.numeric(WRB)
+WRB <- ifel(is.na(WRB), 99, WRB)
+WRB <- as.factor(WRB)
+levels(WRB) = levels(WRB)[[1]] %>% rename(WRB = RSG) %>% 
+  mutate(WRB = case_when(
+    ID == 0 ~ "Acrisols",
+    ID == 1 ~ "Albeluvisols",
+    ID == 2 ~ "Alisols",
+    ID == 3 ~ "Andosols",
+    ID == 4 ~ "Arenosols",
+    ID == 5 ~ "Calcisols",
+    ID == 6 ~ "Cambisols",
+    ID == 7 ~ "Chernozems",
+    ID == 8 ~ "Cryosols",
+    ID == 9 ~ "Durisols",
+    ID == 10 ~ "Ferralsols",
+    ID == 11 ~ "Fluvisols",
+    ID == 12 ~ "Gleysols",
+    ID == 13 ~ "Gypsisols",
+    ID == 14 ~ "Histosols",
+    ID == 15 ~ "Kastanozems",
+    ID == 16 ~ "Leptosols",
+    ID == 17 ~ "Lixisols",
+    ID == 18 ~ "Luvisols",
+    ID == 19 ~ "Nitisols",
+    ID == 20 ~ "Phaeozems",
+    ID == 21 ~ "Planosols",
+    ID == 22 ~ "Plinthosols",
+    ID == 23 ~ "Podzols",
+    ID == 24 ~ "Regosols",
+    ID == 25 ~ "Solonchaks",
+    ID == 26 ~ "Solonetz",
+    ID == 27 ~ "Stagnosols",
+    ID == 28 ~ "Umbrisols",
+    ID == 29 ~ "Vertisols",
+    ID == 99 ~ "NoData"))
+names(WRB) <- "WRB"
+WRB <- project(WRB, resample_100m)
+WRB <- resample(WRB, resample_100m, method = "near")
+
+
+# Bulk Density
+BD_0_5 <- rast(paste0(sgwd, "BD/BD_0_5cm.vrt"))
+BD_5_15 <- rast(paste0(sgwd, "BD/BD_5_15cm.vrt"))
+BD_15_30 <- rast(paste0(sgwd, "BD/BD_15_30cm.vrt"))
+BD_30_60 <- rast(paste0(sgwd, "BD/BD_30_60cm.vrt"))
+BD_60_100 <- rast(paste0(sgwd, "BD/BD_60_100cm.vrt"))
+BD = c(BD_0_5, BD_5_15, BD_15_30, BD_30_60, BD_60_100)
+rm(BD_0_5, BD_5_15, BD_15_30, BD_30_60, BD_60_100)
+BD = weighted.mean(BD, DepthWeights, na.rm=T)
+names(BD) <- "BD"
+BDi <- RF_ImputeRast(r = BD, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+BD <- BDi[[1]]
+BD <- project(BD, resample_100m)
+BD <- resample(BD, resample_100m, method = "bilinear")
+#rm(BDi)
+
+# Clay fraction
+C_0_5 <- rast(paste0(sgwd, "C/C_0_5cm.vrt"))
+C_5_15 <- rast(paste0(sgwd, "C/C_5_15cm.vrt"))
+C_15_30 <- rast(paste0(sgwd, "C/C_15_30cm.vrt"))
+C_30_60 <- rast(paste0(sgwd, "C/C_30_60cm.vrt"))
+C_60_100 <- rast(paste0(sgwd, "C/C_60_100cm.vrt"))
+C = c(C_0_5, C_5_15, C_15_30, C_30_60, C_60_100)
+rm(C_0_5, C_5_15, C_15_30, C_30_60, C_60_100)
+C = weighted.mean(C, DepthWeights, na.rm=T)
+names(C) <- "C"
+Ci <- RF_ImputeRast(r = C, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+C <- Ci[[1]]
+C <- project(C, resample_100m)
+C <- resample(C, resample_100m, method = "bilinear")
+#rm(Ci)
+
+# Silt fraction
+Z_0_5 <- rast(paste0(sgwd, "Z/Z_0_5cm.vrt"))
+Z_5_15 <- rast(paste0(sgwd, "Z/Z_5_15cm.vrt"))
+Z_15_30 <- rast(paste0(sgwd, "Z/Z_15_30cm.vrt"))
+Z_30_60 <- rast(paste0(sgwd, "Z/Z_30_60cm.vrt"))
+Z_60_100 <- rast(paste0(sgwd, "Z/Z_60_100cm.vrt"))
+Z = c(Z_0_5, Z_5_15, Z_15_30, Z_30_60, Z_60_100)
+rm(Z_0_5, Z_5_15, Z_15_30, Z_30_60, Z_60_100)
+Z = weighted.mean(Z, DepthWeights, na.rm=T)
+names(Z) <- "Z"
+Zi <- RF_ImputeRast(r = Z, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+Z <- Zi[[1]]
+Z <- project(Z, resample_100m)
+Z <- resample(Z, resample_100m, method = "bilinear")
+#rm(Zi)
+
+# Sand fraction
+S_0_5 <- rast(paste0(sgwd, "S/S_0_5cm.vrt"))
+S_5_15 <- rast(paste0(sgwd, "S/S_5_15cm.vrt"))
+S_15_30 <- rast(paste0(sgwd, "S/S_15_30cm.vrt"))
+S_30_60 <- rast(paste0(sgwd, "S/S_30_60cm.vrt"))
+S_60_100 <- rast(paste0(sgwd, "S/S_60_100cm.vrt"))
+S = c(S_0_5, S_5_15, S_15_30, S_30_60, S_60_100)
+rm(S_0_5, S_5_15, S_15_30, S_30_60, S_60_100)
+S = weighted.mean(S, DepthWeights, na.rm=T)
+names(S) <- "S"
+Si <- RF_ImputeRast(r = S, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+S <- Si[[1]]
+S <- project(S, resample_100m)
+S <- resample(S, resample_100m, method = "bilinear")
+#rm(Si)
+
+# Coarse Fragments
+CF_0_5 <- rast(paste0(sgwd, "CF/CF_0_5cm.vrt"))
+CF_5_15 <- rast(paste0(sgwd, "CF/CF_5_15cm.vrt"))
+CF_15_30 <- rast(paste0(sgwd, "CF/CF_15_30cm.vrt"))
+CF_30_60 <- rast(paste0(sgwd, "CF/CF_30_60cm.vrt"))
+CF_60_100 <- rast(paste0(sgwd, "CF/CF_60_100cm.vrt"))
+CF = c(CF_0_5, CF_5_15, CF_15_30, CF_30_60, CF_60_100)
+rm(CF_0_5, CF_5_15, CF_15_30, CF_30_60, CF_60_100)
+CF = weighted.mean(CF, DepthWeights, na.rm=T)
+names(CF) <- "CF"
+CFi <- RF_ImputeRast(r = CF, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+CF <- CFi[[1]]
+CF <- project(CF, resample_100m)
+CF <- resample(CF, resample_100m, method = "bilinear")
+#rm(CFi)
+
+# Soil Organic Carbon content
+SOC_0_5 <- rast(paste0(sgwd, "SOC/SOC_0_5cm.vrt"))
+SOC_5_15 <- rast(paste0(sgwd, "SOC/SOC_5_15cm.vrt"))
+SOC_15_30 <- rast(paste0(sgwd, "SOC/SOC_15_30cm.vrt"))
+SOC_30_60 <- rast(paste0(sgwd, "SOC/SOC_30_60cm.vrt"))
+SOC_60_100 <- rast(paste0(sgwd, "SOC/SOC_60_100cm.vrt"))
+SOC = c(SOC_0_5, SOC_5_15, SOC_15_30, SOC_30_60, SOC_60_100)
+rm(SOC_0_5, SOC_5_15, SOC_15_30, SOC_30_60, SOC_60_100)
+SOC = weighted.mean(SOC, DepthWeights, na.rm=T)
+names(SOC) <- "SOC"
+SOCi <- RF_ImputeRast(r = SOC, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+SOC <- SOCi[[1]]
+SOC <- project(SOC, resample_100m)
+SOC <- resample(SOC, resample_100m, method = "bilinear")
+#rm(SOCi)
+
+# Cation Exchange Capacity
+CEC_0_5 <- rast(paste0(sgwd, "CEC/CEC_0_5cm.vrt"))
+CEC_5_15 <- rast(paste0(sgwd, "CEC/CEC_5_15cm.vrt"))
+CEC_15_30 <- rast(paste0(sgwd, "CEC/CEC_15_30cm.vrt"))
+CEC_30_60 <- rast(paste0(sgwd, "CEC/CEC_30_60cm.vrt"))
+CEC_60_100 <- rast(paste0(sgwd, "CEC/CEC_60_100cm.vrt"))
+CEC = c(CEC_0_5, CEC_5_15, CEC_15_30, CEC_30_60, CEC_60_100)
+rm(CEC_0_5, CEC_5_15, CEC_15_30, CEC_30_60, CEC_60_100)
+CEC = weighted.mean(CEC, DepthWeights, na.rm=T)
+names(CEC) <- "CEC"
+CECi <- RF_ImputeRast(r = CEC, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+CEC <- CECi[[1]]
+CEC <- project(CEC, resample_100m)
+CEC <- resample(CEC, resample_100m, method = "bilinear")
+#rm(CECi)
+
+# Organic Carbon Density
+OCD_0_5 <- rast(paste0(sgwd, "OCD/OCD_0_5cm.vrt"))
+OCD_5_15 <- rast(paste0(sgwd, "OCD/OCD_5_15cm.vrt"))
+OCD_15_30 <- rast(paste0(sgwd, "OCD/OCD_15_30cm.vrt"))
+OCD_30_60 <- rast(paste0(sgwd, "OCD/OCD_30_60cm.vrt"))
+OCD_60_100 <- rast(paste0(sgwd, "OCD/OCD_60_100cm.vrt"))
+OCD = c(OCD_0_5, OCD_5_15, OCD_15_30, OCD_30_60, OCD_60_100)
+rm(OCD_0_5, OCD_5_15, OCD_15_30, OCD_30_60, OCD_60_100)
+OCD = weighted.mean(OCD, DepthWeights, na.rm=T)
+names(OCD) <- "OCD"
+OCDi <- RF_ImputeRast(r = OCD, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+OCD <- OCDi[[1]]
+OCD <- project(OCD, resample_100m)
+OCD <- resample(OCD, resample_100m, method = "bilinear")
+#rm(OCDi)
+
+# Nitrogen
+N_0_5 <- rast(paste0(sgwd, "N/N_0_5cm.vrt"))
+N_5_15 <- rast(paste0(sgwd, "N/N_5_15cm.vrt"))
+N_15_30 <- rast(paste0(sgwd, "N/N_15_30cm.vrt"))
+N_30_60 <- rast(paste0(sgwd, "N/N_30_60cm.vrt"))
+N_60_100 <- rast(paste0(sgwd, "N/N_60_100cm.vrt"))
+N = c(N_0_5, N_5_15, N_15_30, N_30_60, N_60_100)
+rm(N_0_5, N_5_15, N_15_30, N_30_60, N_60_100)
+N = weighted.mean(N, DepthWeights, na.rm=T)
+names(N) <- "N"
+Ni <- RF_ImputeRast(r = N, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+N <- Ni[[1]]
+N <- project(N, resample_100m)
+N <- resample(N, resample_100m, method = "bilinear")
+#rm(Ni)
+
+#Soil organic carbon stock
+SOCS <- rast(paste0(sgwd, "SOCS/SOCS_0_30cm.vrt"))
+names(SOCS) <- "SOCS"
+SOCSi <- RF_ImputeRast(r = SOCS, covs = c(DEM_igh, Slope_igh), Mask = m2, SampFrac = 0.3, save_mem = FALSE)
+SOCS <- SOCSi[[1]]
+SOCS <- project(SOCS, resample_100m)
+SOCS <- resample(SOCS, resample_100m, method = "bilinear")
+#rm(SOCSi)
+
+rm(DepthWeights, m2, m, resample_250m, resample_igh, SGigh, DEM_igh, Slope_igh, DEM_250, Slope_250, SG250, DEM_100m, sgwd)
+
+rm(Zi, Si, CFi, SOCi, CECi, OCDi, Ni, SOCSi, Ci, BDi, AWCtS_2mi, AWCtSi, AWCh1_2mi, AWCh1i, AWCh1i, AWCh1_2mi, BDTICMi, BDRLOGi, BDRICMi)
+```
+
+
+### Stack and Save Rasters
+
+```{r, label='Stack and Save Soil Rasters', message=FALSE,warning=FALSE}
+
+#Stack Rasters
+Soil = c(BDRICM, BDRLOG, BDTICM, AWCtS, AWCtS_2m, AWCh1, AWCh1_2m, BD, S, Z, C, CF, SOC, CEC, OCD, N, SOCS, WRB)
+
+# Export Soil Raster Stack
+writeRaster(Soil, filename = paste0(wd$data_p, "Soil_r_resampled.tif"), overwrite=TRUE)
+
+#Remove unnecessary variables
+rm(BDRICM, BDRLOG, BDTICM, AWCtS, AWCtS_2m, AWCh1, AWCh1_2m, BD, S, Z, C, CF, SOC, CEC, OCD, N, SOCS, WRB)
+
+```
+
+
+### Function to Interpolate Missing Soil Raster Values Using Random Forest Model
+
+```{r, label='Function for RF soil raster imputation of missing values', message=FALSE,warning=FALSE, eval = FALSE}
+
+resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
+resample_100m <- disagg(resample_30m, 3)
+resample_100m <- aggregate(resample_100m, 10)
+
+DEM_100m <- Topo[[1]]
+Slope <- Topo[[2]]
+Municipios2000s <- st_read(paste0(wd$data_r, "AG_Model_2000s/CMex_Municipios_2000s.gpkg"))
+
+resample_100m_b = resample_100m
+values(resample_100m_b) <- 1
+m <- mask(resample_100m_b, Municipios2000s)#Data2000s_poly)
+
+r = SOCS
+rnam = names(r)
+covs = c(DEM_100m,Slope)
+Mask = m
+SampFrac = 0.3
+save_mem = FALSE
+
+library(tidyverse)
+library(terra)
+library(ranger)
+
+RF_ImputeRast <- function(r, # Terra SpatRast raster object
+                          rnam = names(r), # name for df variable for raster values from focal SpatRast object
+                          covs = NULL, # Terra SpatRast raster object with 1 or more stacked layers 
+                          Mask = NULL, # mask of focal area under consideration. Used in reducing the sample for the training dataset; training dataset first excludes areas outside of the mask before applying the sampling fraction
+                          SampFrac = 0.3, # sampling fraction for training dataset; applied after mask exclusions, if present (see Mask, above)
+                          save_mem = FALSE # whether the save.memory parameter should be used for the ranger random forest function
+) {
+  
+  if (!is.null(Mask)){
+    m_df = Terra_df(Mask, "mask")
+    names(m_df) <- c("x", "y", "mask", "outside")
+    r_df = Terra_df(r, rnam)
+    r_df = merge(r_df, m_df, all = F, sort = F)
+  } else {
+    r_df = Terra_df(r, rnam)
+  }
+  
+  if (!is.null(covs)){
+    out_list <- list()  # or result_vector <- c()
+    for (i in 1:nlyr(covs)) {
+      out_list[[i]] = Terra_df(covs[[i]], names(covs[[i]]))
+      out_list[[i]] = out_list[[i]] %>% select(-na_cells)
+    }
+    covs_df <- Reduce(function(x, y) merge(x, y, all = F, sort = F), out_list)
+    r_df = merge(r_df, covs_df, all = F, sort = F)
+  }
+  
+  if (!is.null(Mask)){
+    
+    train = r_df %>% filter(outside == F) %>% filter(complete.cases(.)) %>% 
+      select(-na_cells, -outside, -mask) %>% sample_frac(SampFrac)
+    
+  } else {
+    
+    train = r_df %>% filter(complete.cases(.)) %>% select(-na_cells) %>% 
+      sample_frac(SampFrac)
+  }
+  
+  f <- names(train)
+  f <- f[f != names(r)]
+  form <- paste(names(r), "~", paste(f, collapse = " + "))
+  form <- as.formula(form)
+  
+  model <- ranger(
+    formula = form,
+    data = train,
+    save.memory = save_mem 
+  )
+  
+  if (!is.null(Mask)){
+    
+    pred = r_df %>% select(-na_cells, -outside, -mask) %>% select(-!!sym(rnam)) %>% filter(complete.cases(.))
+    
+  } else {
+    
+    pred = r_df %>% select(-na_cells) %>% select(-!!sym(rnam)) %>% filter(complete.cases(.))
+    
+  }
+  
+  predicted_vals <- predict(model, pred)
+  pred$pred <- predicted_vals$predictions
+  
+  x = r_df %>% left_join(pred, by = f)
+  
+  r2 = r
+  raster_values <- values(r2)
+  missing_values <- is.na(raster_values)
+  df_values <- x$pred[missing_values]
+  r2[missing_values] <- df_values
+  names(r2) <- rnam
+  
+  out <- list()
+  out[[1]] <- r2
+  out[[2]] <- model$r.squared
+  out[[3]] <- model$prediction.error
+  out[[4]] <- model$num.trees
+  
+  return(out)
+}
+
+
+writeRaster(r2,paste0(wd$data_r,"C_RF_interpolated.tif"), overwrite=TRUE)
+
+
+```
+
+
+
+
+
+# Climate Data
+
+## CHELSA
+
+### Climatologies 1981-2010
+
+
+#### Download Rasters
+https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/bio/CHELSA_fcf_1981-2010_V.2.1.tif
+
+
+
+```{r, label='Download Climatologies', message=FALSE,warning=FALSE}
+
+################ URLs ############################
+
+HTTP <- "/vsicurl/https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/climatologies/1981-2010/"
+var <- c("pr", "pet", "tas", "tasmax", "tasmin", "cmi", "clt")
+var2 <- c("pr", "pet_penman", "tas", "tasmax", "tasmin", "cmi", "clt")
+month <- c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12")
+URLs <- vector("character", length = 0)
+
+for (i in 1:length(var)) {
+
+    temp <- paste0(HTTP, var[i], "/CHELSA_", var2[i], "_", month, "_1981-2010_V.2.1.tif")
+    URLs <- c(URLs, temp)
+
+}
+
+var <- "bio"
+var2 <- c("fcf", "gdd10", "gdd0", "kg2", "kg3", "kg4", "ngd10", "ngd0", "npp", "swb")
+
+#for (i in 1:length(var)) {
+
+  temp <- paste0(HTTP, var, "/CHELSA_", var2, "_1981-2010_V.2.1.tif")
+  URLs <- c(URLs, temp)
+  
+  temp <- paste0(HTTP, "rsds/CHELSA_rsds_1981-2010_", month, "_V.2.1.tif")
+  URLs <- c(URLs, temp)
+
+#}
+
+#################### File Names ######################
+
+options(timeout=10000)
+files <- paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/", gsub(HTTP, "", URLs))
+
+################### CRS and Extents ##################
+
+raster(URLs[1])
+
+EXT <- raster(paste0(wd$data_p, "Topo_r_resampled.tif"))
+EXT <- rast(projectRaster(EXT[[1]], crs="epsg:4326"))
+o = rast(paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/pet/CHELSA_pet_penman_01_1981-2010_V.2.1.tif"))
+o <- crop(o, EXT, snap = "out")
+
+(bbox <- st_bbox(o))
+ulx = bbox$xmin
+uly = bbox$ymax
+lrx= bbox$xmax
+lry = bbox$ymin
+(bb <- c(ulx, uly, lrx, lry))
+
+################### Download ######################
+#for (i in 2:12) {
+for (i in 95:length(URLs)) {
+  gdal_translate(URLs[i], files[i],
+               tr=c(0.008333333, 0.008333333),
+               projwin=bb,
+               projwin_srs ="+proj=longlat +datum=WGS84 +no_defs",
+               verbose=TRUE)
+}
+
+rm(bb,ulx, uly, lrx, lry, files, URLs, month, var, var2, o, HTTP, EXT)
+
+
+```
+
+
+
+#### Process Rasters
+
+
+```{r, label='Process Climatologies', message=FALSE,warning=FALSE}
+chwd = "D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/"
+prj = "epsg:32614"
+t <- raster(paste0(wd$data_p, "Topo_r_resampled.tif"))
+EXT <- rast(projectRaster(t[[1]], crs="epsg:4326"))
+t = rast(t[[1]])
+
+###############################################
+resample_30m <- rast(paste0(wd$data_r, "resample_30m.tif"))
+resample_100m <- disagg(resample_30m, 3)
+resample_100m <- aggregate(resample_100m, 10)
+###############################################
+
+
+##############################################################
+
+# Potential evapotranspiration for each month; calculated with the Penman-Monteith equation
+pet_01 = rast(paste0(chwd, "pet/CHELSA_pet_penman_01_1981-2010_V.2.1.tif"))
+pet_02 = rast(paste0(chwd, "pet/CHELSA_pet_penman_02_1981-2010_V.2.1.tif"))
+pet_03 = rast(paste0(chwd, "pet/CHELSA_pet_penman_03_1981-2010_V.2.1.tif"))
+pet_04 = rast(paste0(chwd, "pet/CHELSA_pet_penman_04_1981-2010_V.2.1.tif"))
+pet_05 = rast(paste0(chwd, "pet/CHELSA_pet_penman_05_1981-2010_V.2.1.tif"))
+pet_06 = rast(paste0(chwd, "pet/CHELSA_pet_penman_06_1981-2010_V.2.1.tif"))
+pet_07 = rast(paste0(chwd, "pet/CHELSA_pet_penman_07_1981-2010_V.2.1.tif"))
+pet_08 = rast(paste0(chwd, "pet/CHELSA_pet_penman_08_1981-2010_V.2.1.tif"))
+pet_09 = rast(paste0(chwd, "pet/CHELSA_pet_penman_09_1981-2010_V.2.1.tif"))
+pet_10 = rast(paste0(chwd, "pet/CHELSA_pet_penman_10_1981-2010_V.2.1.tif"))
+pet_11 = rast(paste0(chwd, "pet/CHELSA_pet_penman_11_1981-2010_V.2.1.tif"))
+pet_12 = rast(paste0(chwd, "pet/CHELSA_pet_penman_12_1981-2010_V.2.1.tif"))
+pet = c(pet_01, pet_02, pet_03, pet_04, pet_05, pet_06, pet_07, pet_08, pet_09, pet_10, pet_11, pet_12)
+names(pet) <- c("pet_01", "pet_02", "pet_03", "pet_04", "pet_05", "pet_06", "pet_07", "pet_08", "pet_09", "pet_10", "pet_11", "pet_12")
+#pet <- crop(pet, EXT, snap = "out")
+pet_temp <- pet
+pet <- project(pet, t)
+#scoff(pet) <- cbind(0.01, 0)
+rm(pet_01, pet_02, pet_03, pet_04, pet_05, pet_06, pet_07, pet_08, pet_09, pet_10, pet_11, pet_12)
+pet <- resample(pet, resample_100m, method = "bilinear")
+
+
+##############################################################
+
+# Daily mean air temperature at 2 metres from hourly ERA5 data for each month
+tas_01 = rast(paste0(chwd, "tas/CHELSA_tas_01_1981-2010_V.2.1.tif"))
+tas_02 = rast(paste0(chwd, "tas/CHELSA_tas_02_1981-2010_V.2.1.tif"))
+tas_03 = rast(paste0(chwd, "tas/CHELSA_tas_03_1981-2010_V.2.1.tif"))
+tas_04 = rast(paste0(chwd, "tas/CHELSA_tas_04_1981-2010_V.2.1.tif"))
+tas_05 = rast(paste0(chwd, "tas/CHELSA_tas_05_1981-2010_V.2.1.tif"))
+tas_06 = rast(paste0(chwd, "tas/CHELSA_tas_06_1981-2010_V.2.1.tif"))
+tas_07 = rast(paste0(chwd, "tas/CHELSA_tas_07_1981-2010_V.2.1.tif"))
+tas_08 = rast(paste0(chwd, "tas/CHELSA_tas_08_1981-2010_V.2.1.tif"))
+tas_09 = rast(paste0(chwd, "tas/CHELSA_tas_09_1981-2010_V.2.1.tif"))
+tas_10 = rast(paste0(chwd, "tas/CHELSA_tas_10_1981-2010_V.2.1.tif"))
+tas_11 = rast(paste0(chwd, "tas/CHELSA_tas_11_1981-2010_V.2.1.tif"))
+tas_12 = rast(paste0(chwd, "tas/CHELSA_tas_12_1981-2010_V.2.1.tif"))
+tas = c(tas_01, tas_02, tas_03, tas_04, tas_05, tas_06, tas_07, tas_08, tas_09, tas_10, tas_11, tas_12)
+#tas <- crop(tas, EXT, snap = "out")
+tas <- project(tas, t)
+#scoff(tas) <- cbind(0.1, -273.15)
+names(tas) <- c("tas_01", "tas_02", "tas_03", "tas_04", "tas_05", "tas_06", "tas_07", "tas_08", "tas_09", "tas_10", "tas_11", "tas_12")
+rm(tas_01, tas_02, tas_03, tas_04, tas_05, tas_06, tas_07, tas_08, tas_09, tas_10, tas_11, tas_12)
+tas <- resample(tas, resample_100m, method = "bilinear")
+
+
+##############################################################
+
+# Daily maximum air temperature at 2 metres from hourly ERA5 data for each month
+tasmax_01 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_01_1981-2010_V.2.1.tif"))
+tasmax_02 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_02_1981-2010_V.2.1.tif"))
+tasmax_03 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_03_1981-2010_V.2.1.tif"))
+tasmax_04 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_04_1981-2010_V.2.1.tif"))
+tasmax_05 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_05_1981-2010_V.2.1.tif"))
+tasmax_06 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_06_1981-2010_V.2.1.tif"))
+tasmax_07 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_07_1981-2010_V.2.1.tif"))
+tasmax_08 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_08_1981-2010_V.2.1.tif"))
+tasmax_09 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_09_1981-2010_V.2.1.tif"))
+tasmax_10 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_10_1981-2010_V.2.1.tif"))
+tasmax_11 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_11_1981-2010_V.2.1.tif"))
+tasmax_12 = rast(paste0(chwd, "tasmax/CHELSA_tasmax_12_1981-2010_V.2.1.tif"))
+tasmax = c(tasmax_01, tasmax_02, tasmax_03, tasmax_04, tasmax_05, tasmax_06, tasmax_07, tasmax_08, tasmax_09, tasmax_10, tasmax_11, tasmax_12)
+#tasmax <- crop(tasmax, EXT, snap = "out")
+tasmax <- project(tasmax, t)
+#scoff(tasmax) <- cbind(0.1, -273.15)
+names(tasmax) <- c("tasmax_01", "tasmax_02", "tasmax_03", "tasmax_04", "tasmax_05", "tasmax_06", "tasmax_07", "tasmax_08", "tasmax_09", "tasmax_10", "tasmax_11", "tasmax_12")
+rm(tasmax_01, tasmax_02, tasmax_03, tasmax_04, tasmax_05, tasmax_06, tasmax_07, tasmax_08, tasmax_09, tasmax_10, tasmax_11, tasmax_12)
+tasmax <- resample(tasmax, resample_100m, method = "bilinear")
+
+
+##############################################################
+
+# Daily minimum air temperature at 2 metres from hourly ERA5 data for each month
+tasmin_01 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_01_1981-2010_V.2.1.tif"))
+tasmin_02 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_02_1981-2010_V.2.1.tif"))
+tasmin_03 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_03_1981-2010_V.2.1.tif"))
+tasmin_04 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_04_1981-2010_V.2.1.tif"))
+tasmin_05 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_05_1981-2010_V.2.1.tif"))
+tasmin_06 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_06_1981-2010_V.2.1.tif"))
+tasmin_07 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_07_1981-2010_V.2.1.tif"))
+tasmin_08 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_08_1981-2010_V.2.1.tif"))
+tasmin_09 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_09_1981-2010_V.2.1.tif"))
+tasmin_10 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_10_1981-2010_V.2.1.tif"))
+tasmin_11 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_11_1981-2010_V.2.1.tif"))
+tasmin_12 = rast(paste0(chwd, "tasmin/CHELSA_tasmin_12_1981-2010_V.2.1.tif"))
+tasmin = c(tasmin_01, tasmin_02, tasmin_03, tasmin_04, tasmin_05, tasmin_06, tasmin_07, tasmin_08, tasmin_09, tasmin_10, tasmin_11, tasmin_12)
+#tasmin <- crop(tasmin, EXT, snap = "out")
+tasmin <- project(tasmin, t)
+#scoff(tasmin) <- cbind(0.1, -273.15)
+names(tasmin) <- c("tasmin_01", "tasmin_02", "tasmin_03", "tasmin_04", "tasmin_05", "tasmin_06", "tasmin_07", "tasmin_08", "tasmin_09", "tasmin_10", "tasmin_11", "tasmin_12")
+rm(tasmin_01, tasmin_02, tasmin_03, tasmin_04, tasmin_05, tasmin_06, tasmin_07, tasmin_08, tasmin_09, tasmin_10, tasmin_11, tasmin_12)
+tasmin <- resample(tasmin, resample_100m, method = "bilinear")
+
+
+##############################################################
+
+# Precipitation Amount (mass per unit area; kg/m^2). 
+pr_01 = rast(paste0(chwd, "pr/CHELSA_pr_01_1981-2010_V.2.1.tif"))
+pr_02 = rast(paste0(chwd, "pr/CHELSA_pr_02_1981-2010_V.2.1.tif"))
+pr_03 = rast(paste0(chwd, "pr/CHELSA_pr_03_1981-2010_V.2.1.tif"))
+pr_04 = rast(paste0(chwd, "pr/CHELSA_pr_04_1981-2010_V.2.1.tif"))
+pr_05 = rast(paste0(chwd, "pr/CHELSA_pr_05_1981-2010_V.2.1.tif"))
+pr_06 = rast(paste0(chwd, "pr/CHELSA_pr_06_1981-2010_V.2.1.tif"))
+pr_07 = rast(paste0(chwd, "pr/CHELSA_pr_07_1981-2010_V.2.1.tif"))
+pr_08 = rast(paste0(chwd, "pr/CHELSA_pr_08_1981-2010_V.2.1.tif"))
+pr_09 = rast(paste0(chwd, "pr/CHELSA_pr_09_1981-2010_V.2.1.tif"))
+pr_10 = rast(paste0(chwd, "pr/CHELSA_pr_10_1981-2010_V.2.1.tif"))
+pr_11 = rast(paste0(chwd, "pr/CHELSA_pr_11_1981-2010_V.2.1.tif"))
+pr_12 = rast(paste0(chwd, "pr/CHELSA_pr_12_1981-2010_V.2.1.tif"))
+pr = c(pr_01, pr_02, pr_03, pr_04, pr_05, pr_06, pr_07, pr_08, pr_09, pr_10, pr_11, pr_12)
+names(pr) <- c("pr_01", "pr_02", "pr_03", "pr_04", "pr_05", "pr_06", "pr_07", "pr_08", "pr_09", "pr_10", "pr_11", "pr_12")
+#pr <- crop(pr, EXT, snap = "out")
+pr_temp = pr
+pr <- project(pr, t)
+#scoff(pr) <- cbind(0.1, 0)
+rm(pr_01, pr_02, pr_03, pr_04, pr_05, pr_06, pr_07, pr_08, pr_09, pr_10, pr_11, pr_12)
+pr <- resample(pr, resample_100m, method = "bilinear")
+
+
+##############################################################
+
+# Total % cloud cover for each month
+clt_01 = rast(paste0(chwd, "clt/CHELSA_clt_01_1981-2010_V.2.1.tif"))
+clt_02 = rast(paste0(chwd, "clt/CHELSA_clt_02_1981-2010_V.2.1.tif"))
+clt_03 = rast(paste0(chwd, "clt/CHELSA_clt_03_1981-2010_V.2.1.tif"))
+clt_04 = rast(paste0(chwd, "clt/CHELSA_clt_04_1981-2010_V.2.1.tif"))
+clt_05 = rast(paste0(chwd, "clt/CHELSA_clt_05_1981-2010_V.2.1.tif"))
+clt_06 = rast(paste0(chwd, "clt/CHELSA_clt_06_1981-2010_V.2.1.tif"))
+clt_07 = rast(paste0(chwd, "clt/CHELSA_clt_07_1981-2010_V.2.1.tif"))
+clt_08 = rast(paste0(chwd, "clt/CHELSA_clt_08_1981-2010_V.2.1.tif"))
+clt_09 = rast(paste0(chwd, "clt/CHELSA_clt_09_1981-2010_V.2.1.tif"))
+clt_10 = rast(paste0(chwd, "clt/CHELSA_clt_10_1981-2010_V.2.1.tif"))
+clt_11 = rast(paste0(chwd, "clt/CHELSA_clt_11_1981-2010_V.2.1.tif"))
+clt_12 = rast(paste0(chwd, "clt/CHELSA_clt_12_1981-2010_V.2.1.tif"))
+clt = c(clt_01, clt_02, clt_03, clt_04, clt_05, clt_06, clt_07, clt_08, clt_09, clt_10, clt_11, clt_12)
+#clt <- crop(clt, EXT, snap = "out")
+clt <- project(clt, t)
+#scoff(clt) <- cbind(0.01, 0)
+names(clt) <- c("clt_01", "clt_02", "clt_03", "clt_04", "clt_05", "clt_06", "clt_07", "clt_08", "clt_09", "clt_10", "clt_11", "clt_12")
+rm(clt_01, clt_02, clt_03, clt_04, clt_05, clt_06, clt_07, clt_08, clt_09, clt_10, clt_11, clt_12, r2)
+clt <- resample(clt, resample_100m, method = "bilinear")
+
+
+##############################################################
+
+# Surface downwelling shortwave flux in air
+rsds_01 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_01_V.2.1.tif"))
+rsds_02 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_02_V.2.1.tif"))
+rsds_03 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_03_V.2.1.tif"))
+rsds_04 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_04_V.2.1.tif"))
+rsds_05 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_05_V.2.1.tif"))
+rsds_06 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_06_V.2.1.tif"))
+rsds_07 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_07_V.2.1.tif"))
+rsds_08 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_08_V.2.1.tif"))
+rsds_09 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_09_V.2.1.tif"))
+rsds_10 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_10_V.2.1.tif"))
+rsds_11 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_11_V.2.1.tif"))
+rsds_12 = rast(paste0(chwd, "rsds/CHELSA_rsds_1981-2010_12_V.2.1.tif"))
+rsds = c(rsds_01, rsds_02, rsds_03, rsds_04, rsds_05, rsds_06, rsds_07, rsds_08, rsds_09, rsds_10, rsds_11, rsds_12)
+#rsds <- crop(rsds, EXT, snap = "out")
+rsds <- project(rsds, t)
+#scoff(rsds) <- cbind(0.001, 0)
+names(rsds) <- c("rsds_01", "rsds_02", "rsds_03", "rsds_04", "rsds_05", "rsds_06", "rsds_07", "rsds_08", "rsds_09", "rsds_10", "rsds_11", "rsds_12")
+rm(rsds_01, rsds_02, rsds_03, rsds_04, rsds_05, rsds_06, rsds_07, rsds_08, rsds_09, rsds_10, rsds_11, rsds_12)
+rsds <- resample(rsds, resample_100m, method = "bilinear")
+
+
+##############################################################
+
+# Climate moisture index (CMI) for each month
+
+cmi_01 = rast(paste0(chwd, "cmi/CHELSA_cmi_01_1981-2010_V.2.1.tif"))
+cmi_02 = rast(paste0(chwd, "cmi/CHELSA_cmi_02_1981-2010_V.2.1.tif"))
+cmi_03 = rast(paste0(chwd, "cmi/CHELSA_cmi_03_1981-2010_V.2.1.tif"))
+cmi_04 = rast(paste0(chwd, "cmi/CHELSA_cmi_04_1981-2010_V.2.1.tif"))
+cmi_05 = rast(paste0(chwd, "cmi/CHELSA_cmi_05_1981-2010_V.2.1.tif"))
+cmi_06 = rast(paste0(chwd, "cmi/CHELSA_cmi_06_1981-2010_V.2.1.tif"))
+cmi_07 = rast(paste0(chwd, "cmi/CHELSA_cmi_07_1981-2010_V.2.1.tif"))
+cmi_08 = rast(paste0(chwd, "cmi/CHELSA_cmi_08_1981-2010_V.2.1.tif"))
+cmi_09 = rast(paste0(chwd, "cmi/CHELSA_cmi_09_1981-2010_V.2.1.tif"))
+cmi_10 = rast(paste0(chwd, "cmi/CHELSA_cmi_10_1981-2010_V.2.1.tif"))
+cmi_11 = rast(paste0(chwd, "cmi/CHELSA_cmi_11_1981-2010_V.2.1.tif"))
+cmi_12 = rast(paste0(chwd, "cmi/CHELSA_cmi_12_1981-2010_V.2.1.tif"))
+cmi = c(cmi_01, cmi_02, cmi_03, cmi_04, cmi_05, cmi_06, cmi_07, cmi_08, cmi_09, cmi_10, cmi_11, cmi_12)
+#cmi <- crop(cmi, EXT, snap = "out")
+cmi <- project(cmi, t)
+#scoff(cmi) <- cbind(0.1, 0)
+names(cmi) <- c("cmi_01", "cmi_02", "cmi_03", "cmi_04", "cmi_05", "cmi_06", "cmi_07", "cmi_08", "cmi_09", "cmi_10", "cmi_11", "cmi_12")
+rm(cmi_01, cmi_02, cmi_03, cmi_04, cmi_05, cmi_06, cmi_07, cmi_08, cmi_09, cmi_10, cmi_11, cmi_12, r2)
+cmi <- resample(cmi, resample_100m, method = "bilinear")
+
+
+##############################################################
+
+#Net primary productivity Calculated based on the ‘Miami model’, Lieth, H., 1972. "Modelling the primary productivity of the earth. Nature and resources", UNESCO, VIII, 2:5-10.
+npp = rast(paste0(chwd, "bio/CHELSA_npp_1981-2010_V.2.1.tif"))
+#npp <- crop(npp, EXT, snap = "out")
+npp <- project(npp, t)
+#scoff(npp) <- cbind(0.1, 0)
+names(npp) <- "npp"
+npp <- resample(npp, resample_100m, method = "bilinear")
+
+
+##############################################################
+
+#Köppen-Geiger climate classification
+#kg0 = rast(paste0(chwd, "bio/CHELSA_kg0_1981-2010_V.2.1.tif"))
+#kg0 <- crop(kg0, EXT, snap = "out")
+#kg0 <- project(kg0, t)
+#names(kg0) <- "kg0"
+#kg0 <- as.factor(kg0)
+#kg0_classes <- read.csv(paste0(chwd,"bio/kg0_classes.csv"))
+#levels(kg0) <- kg0_classes
+#kg0 <- resample(kg0, resample_100m, method = "near")
+#rm(kg0_classes)
+
+#Köppen-Geiger climate classification r after Peel et al. 2007 Peel, M. C., Finlayson, B. L., McMahon, T. A. (2007): Updated world map of the Koeppen-Geiger climate classification. Hydrology and earth system sciences discussions, 4(2), 439-473. Free Access.
+kg2 = rast(paste0(chwd, "bio/CHELSA_kg2_1981-2010_V.2.1.tif"))
+#kg2 <- crop(kg2, EXT, snap = "out")
+kg2 <- project(kg2, t)
+kg2 <- as.factor(kg2)
+kg2_classes <- read.csv(paste0(chwd,"bio/kg2_classes.csv"))
+levels(kg2) <- kg2_classes
+names(kg2) <- "KoppenGeiger"
+kg2 <- resample(kg2, resample_100m, method = "near")
+rm(kg2_classes)
+
+##############################################################
+
+#Wissmann 1939 climate classification
+kg3 = rast(paste0(chwd, "bio/CHELSA_kg3_1981-2010_V.2.1.tif"))
+#kg3 <- crop(kg3, EXT, snap = "out")
+kg3 <- project(kg3, t)
+kg3 <- as.factor(kg3)
+kg3_classes <- read.csv(paste0(chwd,"bio/kg3_classes.csv"))
+levels(kg3) <- kg3_classes
+names(kg3) <- "Wissmann"
+kg3 <- resample(kg3, resample_100m, method = "near")
+rm(kg3_classes)
+
+##############################################################
+
+#Thornthwaite 1931 
+kg4 = rast(paste0(chwd, "bio/CHELSA_kg4_1981-2010_V.2.1.tif"))
+#kg4 <- crop(kg4, EXT, snap = "out")
+kg4 <- project(kg4, t)
+kg4 <- as.factor(kg4)
+kg4_classes <- read.csv(paste0(chwd,"bio/kg4_classes.csv"))
+levels(kg4) <- kg4_classes
+names(kg4) <- "Thornthwaite"
+kg4 <- resample(kg4, resample_100m, method = "near")
+rm(kg4_classes)
+
+##############################################################
+
+#Troll-Pfaffen climate classification
+#kg5 = rast(paste0(chwd, "bio/CHELSA_kg5_1981-2010_V.2.1.tif"))
+#kg5 <- crop(kg5, EXT, snap = "out")
+#kg5 <- project(kg5, t)
+#names(kg5) <- "kg5"
+#kg5 <- as.factor(kg5)
+#kg5_classes <- read.csv(paste0(chwd,"bio/kg5_classes.csv"))
+#levels(kg5) <- kg5_classes
+#kg5 <- resample(kg5, resample_100m, method = "near")
+#rm(kg5_classes)
+
+#Frost change frequency; count; Number of events in which tmin or tmax go above, or below 0°C
+fcf = rast(paste0(chwd, "bio/CHELSA_fcf_1981-2010_V.2.1.tif"))
+#fcf <- crop(fcf, EXT, snap = "out")
+fcf <- project(fcf, t)
+names(fcf) <- "fcf"
+fcf <- resample(fcf, resample_100m, method = "bilinear")
+
+
+# Number of growing degree days Number of days at which tas > 10°C
+ngd10 = rast(paste0(chwd, "bio/CHELSA_ngd10_1981-2010_V.2.1.tif"))
+#ngd10 <- crop(ngd10, EXT, snap = "out")
+ngd10 <- project(ngd10, t)
+names(ngd10) <- "ngd10"
+ngd10 <- resample(ngd10, resample_100m, method = "bilinear")
+
+
+# Number of growing degree days Number of days at which tas > 0°C
+ngd0 = rast(paste0(chwd, "bio/CHELSA_ngd0_1981-2010_V.2.1.tif"))
+#ngd0 <- crop(ngd0, EXT, snap = "out")
+ngd0 <- project(ngd0, t)
+names(ngd0) <- "ngd0"
+ngd0 <- resample(ngd0, resample_100m, method = "bilinear")
+
+
+# Growing degree days heat sum above 10°C heat sum of all days above the 10°C temperature accumulated over 1 year
+gdd10 = rast(paste0(chwd, "bio/CHELSA_gdd10_1981-2010_V.2.1.tif"))
+#gdd10 <- crop(gdd10, EXT, snap = "out")
+gdd10 <- project(gdd10, t)
+names(gdd10) <- "gdd10"
+gdd10 <- resample(gdd10, resample_100m, method = "bilinear")
+
+
+# Growing degree days heat sum above 0°C heat sum of all days above the 0°C temperature accumulated over 1 year
+gdd0 = rast(paste0(chwd, "bio/CHELSA_gdd0_1981-2010_V.2.1.tif"))
+#gdd0 <- crop(gdd0, EXT, snap = "out")
+gdd0 <- project(gdd0, t)
+names(gdd0) <- "gdd0"
+gdd0 <- resample(gdd0, resample_100m, method = "bilinear")
+
+
+# Soil water balance
+swb = rast(paste0(chwd, "bio/CHELSA_swb_1981-2010_V.2.1.tif"))
+#swb <- crop(swb, EXT, snap = "out")
+swb <- project(swb, t)
+names(swb) <- "swb"
+swb <- resample(swb, resample_100m, method = "bilinear")
+
+
+
+
+```
+
+#### Stack and Save Rasters
+
+```{r, label='Stack and Save Climatologies', message=FALSE,warning=FALSE}
+
+Clim <- c(pr, tas, tasmax, tasmin, pet, cmi, clt, rsds, npp, kg2, kg3, kg4, fcf, swb, gdd10, ngd10)
+
+writeRaster(Clim_r, filename = paste0(wd$data_p, "Clim_r_resampled.tif"), overwrite=TRUE)
+
+rm(pr_r, tas_r, tasmax_r, tasmin_r, pet_r, cmi_r, clt_r, rsds_r, npp_r, kg2_r, kg3_r, kg4_r, fcf_r, swb_r, gdd0_r, gdd10_r, ngd0_r, ngd10_r)
+rm(pr, tas, tasmax, tasmin, pet, cmi, clt, rsds, npp, kg2, kg3, kg4, fcf, swb, gdd0, gdd10, ngd0, ngd10)
+```
+
+
+
+### !!! CHELSA-TraCE21k – 1km climate timeseries since the LGM
+
+https://chelsa-climate.org/chelsa-trace21k/
+
+CHELSA-TraCE21k data provides monthly climate data for temperature and precipitation at 30 arcsec spatial resolution in 100-yeartime steps for the last 21,000 years. Paleo orography at high spatial resolution and at each timestep is created by combining high resolution information on glacial cover from current and Last Glacial Maximum (LGM) glacier databases with the interpolation of a dynamic ice sheet model (ICE6G) and a coupling to mean annual temperatures from CCSM3-TraCE21k. Based on the reconstructed paleo orography, mean annual temperature and precipitation was downscaled using the CHELSA V1.2 algorithm.
+
+
+Time ID == 12-20
+
+
+
+### Monthy Timeseries - June-August Precip and PE 2003-2018 
+
+
+#### Download Rasters
+
+```{r, label='Download Timeseries', message=FALSE,warning=FALSE}
+
+HTTP <- "/vsicurl/https://os.zhdk.cloud.switch.ch/envicloud/chelsa/chelsa_V2/GLOBAL/monthly/"
+var <- c("pet", "pr")
+var2 <- c("pet_penman", "pr")
+month <- c("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12")
+year <- as.character(c(2002:2018))
+URLs <- vector("character", length = 0)
+
+for (i in 1:length(var)) {
+  for (j in 1:length(year)) {
+    temp <- paste0(HTTP, var[i], "/CHELSA_", var2[i], "_", month, "_", year[j], "_V.2.1.tif")
+    URLs <- c(URLs, temp)
+  }
+}
+options(timeout=10000)
+
+nom <- vector("character", length = 0)
+for (i in 1:length(var)) {
+  for (j in 1:length(year)) {
+    temp <- paste0(var[i], "/", var[i], "_", year[j], "_", month, ".tif")
+    nom <- c(nom, temp)
+  }
+}
+
+files <- paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/timeseries_",nom)
+
+raster(URLs[1])
+
+EXT <- raster(paste0(wd$data_p, "Topo_r_resampled.tif"))
+EXT <- rast(projectRaster(EXT[[1]], crs="epsg:4326"))
+o = rast(paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/pet/CHELSA_pet_penman_01_1981-2010_V.2.1.tif"))
+o <- crop(o, EXT, snap = "out")
+
+(bbox <- st_bbox(o))
+ulx = bbox$xmin
+uly = bbox$ymax
+lrx= bbox$xmax
+lry = bbox$ymin
+(bb <- c(ulx, uly, lrx, lry))
+
+for (i in 1:length(URLs)) {
+  gdal_translate(URLs[i], files[i],
+               tr=c(0.008333333, 0.008333333),
+               projwin=bb,
+               projwin_srs ="+proj=longlat +datum=WGS84 +no_defs",
+               verbose=TRUE)
+}
+
+rm(bb,ulx, uly, lrx, lry, files, URLs, month, year, var, var2, o, EXT, bbox, chwd)
+
+
+```
+
+
+
+
+#### Process Rasters
+
+
+Potential Soil Moisture Storage Capacity... what are the units?? see Palmer
+Palmer 1965 Paper
+https://www.droughtmanagement.info/literature/USWB_Meteorological_Drought_1965.pdf
+The term volumetric water content (VWC) refers to a given volume of water contained in given volume of substrate (soil or any other soiless media that can soak water). this makes the term have a unit of measurement m3/m3. that means a given m3 of water contained in a given m3 of soil or other media. In short the units (m3/m3) cancels out virtually. So if your device measure for instance 20 % VWC in a soil depth of say 40 cm, it means, of the 40 cm depth in the soil there contains 20 % water. Hence the water content in terms of depth (cm),i.e. 40 cm soil depth is 20% of 40 cm=20/100 * 40 cm= 8 cm. if you wanted to have your final answer in mm then you convert 8 cm to mm which you multiply by 10 as the conversion factor from cm to mm. Your final answer therefore = 80 mm. this 80 mm you have as your final answer means, when you dig 40 cm deep in the earth of soil you will have 80 mm of water in that soil. I hope it is clear.
+https://www.researchgate.net/post/How-can-I-convert-Satellite-Soil-Moisture-data-m3-m3-into-mm
+https://gsif.r-forge.r-project.org/AWCPTF.html
+https://www.sciencedirect.com/science/article/pii/S0277379116302244#bib120
+https://agupubs.onlinelibrary.wiley.com/doi/epdf/10.1002/jgrd.50355?src=getftr
+https://en.wikipedia.org/wiki/Available_water_capacity
+convert [Potential Soil Moisture Storage Capacity] to correct units
+ 
+Inputs: pet, pr, [soil water capacity]
+
+Downsample pr and pet to SoilGrids250
+
+convert raster timeseries to matrix for each variable (pr, pet)
+convert [Potential Soil Moisture Storage Capacity] to vector
+output matrix of PDSI
+
+loop over these inputs rows for pr, pet, and 1st element for soil moisture
+
+file:///C:/Users/rcesaret/Downloads/chelsa_file_specification_bioclim_plus%20(2).pdf
+Do I take the MEAN of June-July-August???
+
+CHELSA_Clim_PDSI_JunAug = mosaic(pdsi_r[[6]], pdsi_r[[7]], pdsi_r[[8]])
+
+```{r, label='Process Timeseries', message=FALSE,warning=FALSE}
+
+
+raster_files <- list.files(path = paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/timeseries_pet/"), pattern = ".tif$", full.names = TRUE)
+pet_ts <- rast(raster_files[[1]])
+
+for (i in 2:length(raster_files)) {
+  raster <- rast(raster_files[[i]])
+  pet_ts <- c(pet_ts, raster)
+}
+
+npet = gsub("pet/", "", nom[1:204])
+npet = gsub(".tif", "", npet)
+names(pet_ts) <- npet
+
+npet = gsub("pet_", "", npet)
+npet = gsub("_", "-", npet)
+npet = as.yearmon(npet)
+terra::time(pet_ts)<-npet
+
+rm(raster, npet, raster_files)
+
+
+raster_files <- list.files(path = paste0("D:/Dropbox (ASU)/AztecAgricultureModel/GIS_Data/CHELSA/timeseries_pr/"), pattern = ".tif$", full.names = TRUE)
+pr_ts <- rast(raster_files[[1]])
+
+for (i in 2:length(raster_files)) {
+  raster <- rast(raster_files[[i]])
+  pr_ts <- c(pr_ts, raster)
+}
+
+npr = gsub("pr/", "", nom[205:408])
+npr = gsub(".tif", "", npr)
+names(pr_ts) <- npr
+
+npr = gsub("pr_", "", npr)
+npr = gsub("_", "-", npr)
+npr = as.yearmon(npr)
+terra::time(pr_ts)<-npr
+pr_ts = pr_ts/100 # CHELSA documentation states that we need to divide monthly pr by 100 
+
+rm(raster, npr, raster_files)
+
+# upload orig AWC raster
+# convert AWC to mm == (AWC/100)*1000 to convert from m^3/m^3 to mm/m 100cm.......... or 2000 for 200cm
+AWCh1_temp = AWCh1_temp*10
+AWCh1_2m_temp = AWCh1_2m_temp*10
+# Downsample pr and pet to SoilGrids250 resolution
+AWC = resample(AWCh1_temp, pr_ts[[1]])
+AWC2 = resample(AWCh1_2m_temp, pr_ts[[1]])
+names(AWC) = "AWC"
+
+```
+
+
+
+#### Calculate scPDSI
+
+loop over these inputs rows for pr, pet, and 1st element for soil moisture
+
+```{r, label='Calculate scPDSI', message=FALSE,warning=FALSE}
+
+#########################################################
+# Self Calibrating Palmer Drought Severity Index (scPDSI)
+#########################################################
+
+AWC_df = as.data.frame(terra::values(AWC))
+AWC_df <- rownames_to_column(AWC_df, var = "Cells")
+AWC_df$Cells <- as.numeric(AWC_df$Cells)
+pr_df = as.data.frame(pr_ts[[1]])
+#pr_df <- rownames_to_column(pr_df, var = "Cells")
+pet_df = as.data.frame(pet_ts[[1]])
+#pet_df <- rownames_to_column(pet_df, var = "Cells")
+
+for (i in 2:204) {
+  p = as.data.frame(pr_ts[[i]])
+  pr_df <- cbind(pr_df, p)
+  pe = as.data.frame(pet_ts[[i]])
+  pet_df <- cbind(pet_df, pe)
+}
+rm(p, pe)
+pr_mat <- as.matrix(pr_df)
+pet_mat <- as.matrix(pet_df)
+
+pdsi_mat = pet_mat 
+pdsi_mat[!is.na(pdsi_mat)] <- NA
+
+for (i in 1:nrow(AWC_df)) {
+  a = ifelse(is.nan(AWC_df$AWC[i]), AWC_df$AWC[i-1], AWC_df$AWC[i])
+  pdsi_temp = pdsi(pr_mat[i,], pet_mat[i,], AWC = a, start=2002, end=2018)
+  pdsi_mat[i,] <- as.numeric(pdsi_temp[["X"]])
+}
+
+pdsi_temp = pr_ts[[1]]
+
+terra::values(pdsi_temp) <- pdsi_mat[,1]
+pdsi_ts <- pdsi_temp
+
+for (i in 2:204) {
+  terra::values(pdsi_temp) <- pdsi_mat[,i]
+  pdsi_ts <- c(pdsi_ts, pdsi_temp)
+}
+
+np = gsub("pr/", "", nom[205:408])
+np = gsub(".tif", "", np)
+np = gsub("pr", "pdsi", np)
+names(pdsi_ts) <- np
+
+
+np = gsub("pdsi_", "", np)
+np = gsub("_", "-", np)
+np = as.yearmon(np)
+terra::time(pdsi_ts)<-np
+
+pdsi_ts_latlon <- rast(paste0(wd$data_p, "pdsi_ts_latlon.tif"))
+
+writeRaster(pdsi_ts, filename = paste0(wd$data_p, "pdsi_ts_latlon.tif"), overwrite=TRUE)
+pdsi_ts = resample(pdsi_ts, AWCh1_temp, method="bilinear")
+pdsi_ts <- project(pdsi_ts, resample_100m)
+pdsi_ts = resample(pdsi_ts, resample_100m, method="bilinear")
+writeRaster(pdsi_ts, filename = paste0(wd$data_p, "pdsi_ts_100m.tif"), overwrite=TRUE)
+
+rm(a, pdsi_rast, pdsi_temp, pdsi_mat, np, AWC_df, pet_df, pr_df, pet_mat, pr_mat)
+
+
+
+```
+
+
+```{r}
+# Assuming your SpatRaster stack is named 'raster_stack'
+
+# Subset the months of June, July, and August for the years 2003-2018
+pdsi_ts_JunAug <- subset(pdsi_ts_latlon, which(substr(time(pdsi_ts_latlon), 5, 6) %in% c(".4", ".5") & as.integer(substr(time(pdsi_ts_latlon), 1, 4)) >= 2003))
+
+# Calculate the average of June-August for each year
+pdsi_ts_JunAug_Avg =tapp(pdsi_ts_JunAug, index="years", fun=mean)
+
+# Take the inter-annual mean of the June-August averages across all years
+pdsi_JunAug_2003_2018_mean <- mosaic(pdsi_ts_JunAug_Avg, mean)
+pdsi_JunAug_2003_2018_mean <- app(pdsi_ts_JunAug_Avg, mean)
+```
+
+
+
+## Mexican Drought Atlas
+
+Mexican Drought Atlas (MXDA) 600 Year scPDSI Reconstructions
+
+Stahle, D.W., E.R. Cook, D.J. Burnette, J. Villanueva, J. Cerano, J.N. Burns, D. Griffin, B.I. Cook, R. Acuña, M.C.A. Torbenson, P. Szejner, and I.M. Howard, 2016:  The Mexican Drought Atlas:  Tree-ring reconstructions of the soil moisture balance during the late pre-Hispanic, colonial, and modern eras.  Quaternary Science Reviews, 149, 34-60.
+
+ summer (June-August) reconstructions of the self-calibrating Palmer Drought Severity Index (PDSI) on a 0.5° latitude/longitude grid centered over Mexico from AD 1400-2012.  The reconstructions are derived from 252 tree-ring chronologies over subtropical North America.
+
+
+Central Mexico included from AD 1400-2005
+
+http://drought.memphis.edu/MXDA/
+https://www.sciencedirect.com/science/article/pii/S0277379116302244
+https://www.ncei.noaa.gov/access/paleo-search/study/20353
+
+### Import Data from NOAA
+
+```{r}
+MXDA_Reconstructed_JJA_PDSI <- rast("C:/Users/rcesaret/Downloads/MXDA_Reconstructed_JJA_PDSI.tif")
+MXDA_Instrumental_PDSI <- rast("C:/Users/rcesaret/Downloads/MXDA_Instrumental_PDSI.tif")
+#MXDA_Reconstructed_JJA_PDSI <- ifel(MXDA_Reconstructed_JJA_PDSI < 1000, NA, MXDA_Reconstructed_JJA_PDSI)
+
+recon_data_url <- "http://www1.ncdc.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-recon-jja-scpdsi-1400-2012.txt"
+grid_points_url <- "http://www1.ncdc.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-grid-points.txt"
+instr_data_url <- "https://www.ncei.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-inst-jja-scpdsi-1901-2012.txt"
+
+recon_data <- read.table(recon_data_url, header = TRUE, sep = "\t")
+recon_data <- data.frame(do.call(rbind, strsplit(recon_data[,1], "\\s+")))
+z <- paste0("scPDSI_", as.character(recon_data[,2]))
+recon_data <- as.data.frame(t(as.matrix(recon_data[,-c(1:2)])))
+colnames(recon_data) <- z
+row.names(recon_data) <- NULL
+rownames(recon_data) <- 1:nrow(recon_data)
+
+grid_points <- read.table(grid_points_url, header = F)
+names(grid_points) <- c("Lon", "Lat", "UNK_1", "UNK_2", "Variable")
+
+instr_data <- read.table(instr_data_url, header = TRUE, sep = "\t")
+instr_data <- as.data.frame(instr_data[-c(1:3),])
+instr_data <- data.frame(do.call(rbind, strsplit(instr_data[,1], "\\s+")))
+z <- paste0("scPDSI_", as.character(instr_data[,2]))
+instr_data <- as.data.frame(t(as.matrix(instr_data[,-c(1:2)])))
+colnames(instr_data) <- z
+row.names(instr_data) <- NULL
+rownames(instr_data) <- 1:nrow(instr_data)
+
+instr_data <- cbind(grid_points[,c(1:2)], instr_data)
+recon_data <- cbind(grid_points[,c(1:2)], recon_data)
+
+instr_scPDSI <- rast(instr_data, type="xyz", extent = ext(MXDA_Instrumental_PDSI), crs="epsg:4326")
+recon_scPDSI <- rast(recon_data, type="xyz", extent = ext(MXDA_Reconstructed_JJA_PDSI), crs="epsg:4326")
+
+writeRaster(instr_scPDSI, filename = paste0(wd$data_r, "MXDA_instr_scPDSI.tif"), overwrite=TRUE)
+writeRaster(recon_scPDSI, filename = paste0(wd$data_r, "MXDA_recon_scPDSI.tif"), overwrite=TRUE)
+
+rm(recon_data, instr_data, z, grid_points, recon_data_url, grid_points_url, instr_data_url, MXDA_Reconstructed_JJA_PDSI, MXDA_Instrumental_PDSI)
+
+```
+zzz = instr_scPDSI[[81:110]]
+
+zzzm = mosaic(zzz[[1]], zzz[[2]], zzz[[3]], zzz[[4]], zzz[[5]], zzz[[6]], zzz[[7]], zzz[[8]], zzz[[9]], 
+zzz[[10]], zzz[[11]], zzz[[12]], zzz[[13]], zzz[[14]], zzz[[15]], zzz[[16]], zzz[[17]], zzz[[18]], zzz[[19]], 
+zzz[[20]], zzz[[21]], zzz[[22]], zzz[[23]], zzz[[24]], zzz[[25]], zzz[[26]], zzz[[27]], zzz[[28]], zzz[[29]], zzz[[30]])
+zzzm2 <- crop(zzzm, EXT, snap = "out")
+
+### Downscale
+
+```{r}
+instr_scPDSI <- rast(paste0(wd$data_r, "MXDA_instr_scPDSI.tif"))
+recon_scPDSI <- rast(paste0(wd$data_r, "MXDA_recon_scPDSI.tif"))
+
+spatialEco::raster.downscale(
+  x,
+  y,
+  scatter = FALSE,
+  full.res = FALSE,
+  residuals = FALSE,
+  se = FALSE,
+  p = 0.95,
+  uncertainty = c("none", "prediction", "confidence")
+)
+
+```
+
+https://rdrr.io/cran/spatialEco/man/raster.downscale.html
+
+
+
+
+
+#Unused
+
+```{r}
+Clim_r <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
+target_CRS = crs(Clim_r)
+t <- rast(paste0(wd$data_p, "Topo_r_resampled.tif"))
+EXT <- project(t[[1]],"epsg:4326")
+
+
+# Read the NetCDF file as a RasterBrick object using the raster package
+NADApdsi04 <- raster::brick(paste0(wd$data_r, "NADApdsi04.nc"))
+# Convert the RasterBrick to a SpatRasterStack object using terra
+NADApdsi04 <- terra::rast(NADApdsi04)
+
+years = rev(-1:2003)
+time(NADApdsi04, tstep="years")<-years
+varnames(NADApdsi04)<-"scPDSI"
+names(NADApdsi04) <- paste0("scPDSI_", years)
+NADApdsi04 <- subset(NADApdsi04, names(NADApdsi04)[1:604])
+q <- subset(NADApdsi04, names(NADApdsi04)[1:3])
+q <- crop(q, EXT, snap = "out")
+NADApdsi04 <- crop(NADApdsi04, EXT, snap = "out")
+
+NADApdsi04 <- app(NADApdsi04, FUN = function(x) project(x, crs = target_CRS))
+
+
+# Read the NetCDF file as a RasterBrick object using the raster package
+MADApdsiz <- raster::brick(paste0(wd$data_r, "MADApdsi-z.nc"))
+# Convert the RasterBrick to a SpatRasterStack object using terra
+MADApdsiz <- terra::rast(MADApdsiz)
+MADApdsiz
+plot(MADApdsiz[[1]])
+
+# Read the NetCDF file as a RasterBrick object using the raster package
+nada_hd2_cl <- raster::brick(paste0(wd$data_r, "nada_hd2_cl.nc"))
+# Convert the RasterBrick to a SpatRasterStack object using terra
+nada_hd2_cl <- terra::rast(nada_hd2_cl)
+recon_data_url <- "http://www1.ncdc.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-recon-jja-scpdsi-1400-2012.txt"
+grid_points_url <- "http://www1.ncdc.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-grid-points.txt"
+instr_data_url <- "https://www.ncei.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-inst-jja-scpdsi-1901-2012.txt"
+
+recon_data <- read.table(recon_data_url, header = TRUE, sep = "\t")
+recon_data <- data.frame(do.call(rbind, strsplit(recon_data[,1], "\\s+")))
+z <- paste0("scPDSI_", as.character(recon_data[,2]))
+recon_data <- as.data.frame(t(as.matrix(recon_data[,-c(1:2)])))
+colnames(recon_data) <- z
+row.names(recon_data) <- NULL
+rownames(recon_data) <- 1:nrow(recon_data)
+
+grid_points <- read.table(grid_points_url, header = F)
+names(grid_points) <- c("Lon", "Lat", "UNK_1", "UNK_2", "Variable")
+
+instr_data <- read.table(instr_data_url, header = TRUE, sep = "\t")
+instr_data <- as.data.frame(instr_data[-c(1:3),])
+instr_data <- data.frame(do.call(rbind, strsplit(instr_data[,1], "\\s+")))
+z <- paste0("scPDSI_", as.character(instr_data[,2]))
+instr_data <- as.data.frame(t(as.matrix(instr_data[,-c(1:2)])))
+colnames(instr_data) <- z
+row.names(instr_data) <- NULL
+rownames(instr_data) <- 1:nrow(instr_data)
+
+instr_data <- cbind(grid_points[,c(1:2)], instr_data)
+recon_data <- cbind(grid_points[,c(1:2)], recon_data)
+
+instr_scPDSI <- rast(instr_data, type="xyz", extent = ext(MXDA_Reconstructed_JJA_PDSI), crs="epsg:4326")
+instr_scPDSI <- rast(instr_data, type="xyz", extent = ext(MXDA_Reconstructed_JJA_PDSI), crs="epsg:4326")
+
+MXDA_Reconstructed_JJA_PDSI.tif
+
+instr_data[, c(1:2,3)]
+nclimgrid_pmdi2017 <- raster::brick("C:/Users/rcesaret/Downloads/nclimgrid_pmdi-2017.nc")
+nclimgrid_pmdi2017 <- terra::rast(nclimgrid_pmdi2017)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+install.packages("rnoaa")
+library(rnoaa)
+
+data <- ncdc(datasetid = "paleo", stationid = "GHCND:USW00023129", 
+             startdate = "1850-01-01", enddate = "2010-12-31")
+
+data_list <- list()
+for (year in years) {
+  for (variable in variables) {
+    data <- ncdc(datasetid = "GHCND", stationid = "GHCND:USW00023272", datatypeid = variable,
+                 startdate = paste0(year, "-01-01"), enddate = paste0(year, "-12-31"),
+                 limit = 1000, token = "YOUR_TOKEN")
+    data_list[[paste(variable, year, sep = "_")]] <- data
+  }
+}
+```
+
+
+
+The "Living Blended Drought Atlas (LBDA)" North American Drought Reconstruction for the last 2000 years
+
+Cook, E.R., Seager, R., Heim, R.R., Vose, R.S., Herweijer, C., and Woodhouse, C. 2010. Megadroughts in North America: Placing IPCC projections of hydroclimatic change in a long-term paleoclimate context. Journal of Quaternary Science, 25(1), 48-61. doi: 10.1002/jqs.1303
+
+
+NOAA Study Page:
+https://www.ncei.noaa.gov/access/paleo-search/study/19119
+
+
+
+```{r}
+# Instrumental PMDI metadata - one line per grid point data set
+#CC	GRDBX	LON	LAT	AV.ELEV	%LAND	IBYR	CO	AWC	B	H	TLA
+LBDA_metadata <- read.csv(paste0(wd$data_r,"LBDA_PMDI_Instrumental_metadata.csv"))
+
+
+
+URL = "https://www.ncei.noaa.gov/pub/data/paleo/drought/LBDA2010/LBDA_PMDI_Instrumental_metadata.txt"
+LBDA_metadata <- read.table(URL, header = TRUE, sep = "", skip = 1)
+
+# 	Reconstructed PMDI - one column per grid point
+"https://www.ncei.noaa.gov/pub/data/paleo/drought/LBDA2010/LBDA_PMDI_JJA_Recons.txt"
+```
+
+	Reconstructed PMDI calibration/verification statistics
+https://www.ncei.noaa.gov/pub/data/paleo/drought/LBDA2010/LBDA_PMDI_JJA_Recons_cal-ver_stats.txt
+
+	Instrumental PMDI data used for calibration/verification
+https://www.ncei.noaa.gov/pub/data/paleo/drought/LBDA2010/LBDA_PMDI_Instrumental_data.txt
+
+recon_data_url <- "http://www1.ncdc.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-recon-jja-scpdsi-1400-2012.txt"
+grid_points_url <- "http://www1.ncdc.noaa.gov/pub/data/paleo/treering/reconstructions/mexico/mxda/mxda-grid-points.txt"
+
+recon_data <- read.table(recon_data_url, header = TRUE, sep = "\t")
+grid_points <- read.table(grid_points_url, header = F)
+
+
+
