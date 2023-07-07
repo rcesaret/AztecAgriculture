@@ -542,12 +542,12 @@ rm(intersected_polygons,Municipios2000s)
 
 
 
-######################################################
+###################################################### 1:length(IsobasinsPoly$ID)
 
 IsobasinsPoly <- st_read(paste0(wd$data_p, "IsobasinsPoly.gpkg"))
 IsobasinsPoly <- rownames_to_column(IsobasinsPoly, var = "ID")
 IsobasinsPoly$n_cells <- NA
-for (i in 1:length(IsobasinsPoly$ID)){
+for (i in 129:130){
   elev <- DEM_30m
   bp <- IsobasinsPoly %>% filter(ID == i)
   bp <- vect(bp)
@@ -618,8 +618,8 @@ ElevAboveStreams <- rast(paste0(wd$data_p, "temp_rasts/ElevAboveStreams_30m.tif"
 
 ######################################################
 
-wbt_extract_valleys(dem = paste0(wd$data_p,"DEM_smooth_30m.tif"), variant = 'JandR', line_thin = F, output =  paste0(wd$data_p,"temp_rasts/valleys_JandR_30m.tif"))
-Valleys <- rast(paste0(wd$data_p, "temp_rasts/valleys_JandR_30m.tif"))
+#wbt_extract_valleys(dem = paste0(wd$data_p,"DEM_smooth_30m.tif"), variant = 'JandR', line_thin = F, output =  paste0(wd$data_p,"temp_rasts/valleys_JandR_30m.tif"))
+#Valleys <- rast(paste0(wd$data_p, "temp_rasts/valleys_JandR_30m.tif"))
 
 ######################################################
 
@@ -1198,6 +1198,7 @@ rm(BDRICM, BDRLOG, BDTICM, AWCtS, AWCtS_2m, AWCh1, AWCh1_2m, BD, S, Z, C, CF, SO
 ### 30-meter Version
 
 ```{r}
+Soil <- rast(paste0(wd$data_p, "Soil_r_resampled.tif"))
 
 z <- resample(Soil[[1]], resample_30m, method = "bilinear")
 
@@ -1651,6 +1652,8 @@ rm(pr, tas, tasmax, tasmin, pet, cmi, clt, rsds, npp, kg2, kg3, kg4, fcf, swb, g
 ### 30-meter Version
 
 ```{r}
+Clim <- rast(paste0(wd$data_p, "Clim_r_resampled.tif"))
+
 
 Clim_30m <- resample(Clim[[1]], resample_30m, method = "bilinear")
 

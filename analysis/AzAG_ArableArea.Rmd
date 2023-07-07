@@ -406,9 +406,9 @@ rm(x, dat, Geomorphons, Cultiv, CONABIO_2015_LandUse_30m)
 
 
 
+x = read_stars(tif)[, 1:50, 1:50, 1:2]
 
-
-
+st_as_sf(x, as_points = TRUE, merge = FALSE)
 
 
 

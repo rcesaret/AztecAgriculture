@@ -1596,17 +1596,11 @@ Data_sf3 = Data_sf2 %>% select(AvgYield, AGType, AvgPctArea_ofTotal, TotalLabor_
 
 ## Recursive Feature Elimination
 
-Pred_Rast_Modern_Temp = subset(Pred_Rast_Modern_Temp, c("ElevAboveStreams2"), negate=T)
 
-Pred_Rast_Modern_Temp <- Pred_Rast_Modern_Temp[[-14]]
-names(Pred_Rast_Modern_Temp) = names(Pred_Rast_Modern_Temp)
-Pred_Rast_Modern_Irrig[[14]] <- Pred_Rast_Modern_Irrig[[13]]
-Pred_Rast_Aztec_Temp[[14]] <- Pred_Rast_Aztec_Temp[[13]]
-Pred_Rast_Aztec_Irrig[[14]] <- Pred_Rast_Aztec_Irrig[[13]]
 
 ```{r}
 
-FFrac = c(1.0, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.55, 0.50, 0.45, 0.40, 0.35, 0.30)
+FFrac = c(1.0, 0.95, 0.90, 0.85, 0.975, 0.925, 0.875, 0.825, 0.80, 0.775, 0.75, 0.725, 0.70, 0.675, 0.65, 0.625, 0.60, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3)
 
 names(Data_sf3) = sub("^mean\\.", "", names(Data_sf3))
 #Data_sf = Data_sf %>% select(-ElevAboveStreams2)
@@ -1664,8 +1658,8 @@ b$iterations = NA
 
 c = as.data.frame(rr$learners[[1]]$state$model$tuning_instance$result) %>% rename(tune_rsq = regr.rsq)
 df = cbind(a,b,c)
-results[[i]] <- df
-names(results) <- "Feat_1.0"
+results[[1]] <- df
+names(results)[1] <- "Feat_1.0"
 
 # Train model on full data for predictions
 RegRF_trained <- RegRF_tuned$train(Data_sf_tsk)
@@ -1674,9 +1668,9 @@ RegRF_trained <- RegRF_tuned$train(Data_sf_tsk)
 pred = RegRF_trained$predict(task = Data_sf_Full_tsk)
 pred = as.data.frame(as.data.table(pred))
 pred$resid = pred$response - pred$truth
-names(pred) <- c("AvgYield_Predict_1.0","AvgYield_Resid_1.0")
-pred_df[[i]] <- pred
-names(pred_df) <- "Feat_1.0"
+names(pred) <- c("ID", "AvgYield_Actual", "AvgYield_Predict_1.0", "AvgYield_Resid_1.0")
+pred_df[[1]] <- pred
+names(pred_df)[1] <- "Feat_1.0"
 
 # raster / terra predictions
 prediction = predict_spatial(Pred_Rast_Modern_Temp, RegRF_trained, format = "terra")
@@ -1691,18 +1685,22 @@ writeRaster(AvgYield_Pred, filename = paste0(wd$data_p, "AvgYield_Pred.tif"), ov
 
 
 
-```{r}
-  i = 2
+### Inner Loop
 
+
+```{r}
+  i = 15
+
+# for (i in 2:length(FFrac)){
 
 rfecv = fselect(
-  fselector = fs("rfecv", n_features = FEAT[i], feature_fraction = 0.95),
+  fselector = fs("rfecv", n_features = FEAT[i], feature_fraction = FFrac[i]),
   task = Data_sf_Full_tsk,
   learner = RegRF_trained,
   resampling = rsmp("cv", folds = 3),
   measure = msr("regr.rsq")#,  store_models = TRUE
 )
-
+#   rfecv$result
   temp_task = as_task_regr_st(Data_sf3, target = "AvgYield", id = "temp_task")
   temp_task$select(rfecv$result_feature_set)
   temp_train = as_task_regr_st(Data_sf3, target = "AvgYield", id = "temp_train")
@@ -1723,14 +1721,14 @@ rfecv = fselect(
   RegRF_tuned = lrn("regr.ranger")
     
   # Set the tuned parameter values
-  RegRF_tuned$param_set$values = rr$learners[[1]]$state$model$learner$tuning_instance$result_learner_param_vals
+  RegRF_tuned$param_set$values = rr$learners[[1]]$state$model$tuning_instance$result_learner_param_vals
   
   generalization = as.numeric(RegRF_tuned$train(temp_train)$predict(temp_test)$score(msr("regr.rsq")))
   
   # results output dataframe
   a <- data.frame(FeatSelect = FFrac[i],n_Features = temp_task$ncol,Perform_General = generalization, Perform_Outsample = outsample)
-  b = as.data.frame(rr$learners[[1]]$state$model$fselect_instance$result) %>% rename(fselect_rsq = regr.rsq)
-  c = as.data.frame(rr$learners[[1]]$state$model$learner$tuning_instance$result) %>% rename(tune_rsq = regr.rsq)
+  b = as.data.frame(rfecv$result) %>% rename(fselect_rsq = regr.rsq)
+  c = as.data.frame(rr$learners[[1]]$state$model$tuning_instance$result) %>% rename(tune_rsq = regr.rsq)
     # Train model on full data for predictions
   df = cbind(a,b,c)
   results[[i]] <- df
@@ -1743,7 +1741,8 @@ rfecv = fselect(
   pred = RegRF_trained2$predict(task = Data_sf_Full_tsk)
   pred = as.data.frame(as.data.table(pred))
   pred$resid = pred$response - pred$truth
-  names(pred) <- c(paste0("AvgYield_Predict_",FFrac[i]),paste0("AvgYield_Resid_",FFrac[i]))
+  names(pred) <- names(pred_df[[1]]) <- c("ID", "AvgYield_Actual", paste0("AvgYield_Predict_",FFrac[i]), paste0("AvgYield_Resid_",FFrac[i]))
+  pred = pred[,-c(1:2)]
   pred_df[[i]] <- pred
   names(pred_df)[i] <- paste0("Feat_",FFrac[i])
 
@@ -1756,7 +1755,359 @@ rfecv = fselect(
   AvgYield_Pred <- c(AvgYield_Pred, prediction)
   #pred_rast[[i]] <- pred
   #names(pred_rast) <- c(names(pred_rast),paste0("Feat_",FFrac[i]))
+  
+# }
 ```
+
+
+### Assess Results
+
+```{r}
+
+names(pred_df) = NULL
+rfecvFeatSelectSeries_AvgYield_predictions = do.call(cbind, c(pred_df, deparse.level=0))
+Data2000s_poly_rs_FSpred = cbind(Data2000s_poly_rs,rfecvFeatSelectSeries_AvgYield_predictions)
+st_write(Data2000s_poly_rs_FSpred, paste0(wd$data_p, "Data2000s_poly_rs_HighElev_FSpred.gpkg"), driver = "GPKG", overwrite=T, append=FALSE)
+write.csv(st_drop_geometry(Data2000s_poly_rs_FSpred), paste0(wd$data_p,"Data2000s_poly_rs_HighElev_rfecvFS_predictions.csv"))
+
+
+results[[1]]  = results[[1]] %>% select(!!!syms(names(results[[2]])))
+rfecvFeatSelectSeries_AvgYield_results = do.call(rbind, results)
+rfecvFeatSelectSeries_AvgYield_results <- rfecvFeatSelectSeries_AvgYield_results %>%
+  rowwise() %>% mutate(n_Features = sum(c_across(AGType:swb) == TRUE))
+x = rfecvFeatSelectSeries_AvgYield_results %>% ungroup()
+
+x$features <- lapply(x$features, function(x) paste(toString(x), collapse = ", "))
+y <- do.call( rbind, x$features)
+x$features <- y
+
+x$learner_param_vals <- lapply(x$learner_param_vals, function(x) paste(toString(x), collapse = ", "))
+y <- do.call( rbind, x$learner_param_vals)
+x$learner_param_vals <- y
+
+x$x_domain <- lapply(x$x_domain, function(x) paste(toString(x), collapse = ", "))
+y <- do.call( rbind, x$x_domain)
+x$x_domain <- y
+write.csv(x, paste0(wd$data_p,"rfecvFeatSelectSeries_AvgYield_results.csv"))
+
+
+writeRaster(AvgYield_Pred, filename = paste0(wd$data_p, "AvgYield_Pred_FeatSelect.tif"), overwrite=TRUE)
+AvgYield_Pred_FeatSelect <- rast(paste0(wd$data_p, "AvgYield_Pred_FeatSelect.tif"))
+
+
+#rm(AvgYield_Pred, pred_df, results)
+
+
+
+```
+
+
+## Final Model and Predictions
+
+
+### Final Model
+
+* 0.5 == 50% of 40 features == 20 features
+* R-squared (Generalization) == 0.878
+* num.trees = 140
+* mtry.ratio = 0.466312354754882
+* max.depth = 15
+* sample.fraction = 0.927035579649592
+* num.random.splits = 10
+* min.node.size = 4
+* splitrule = "extratrees"
+* importance = "permutation"
+
+AGType
+AWCtS
+AvgPctArea_ofTotal
+CEC
+DEM
+Fertilizer
+FloodOrder_Rel
+N
+OCD
+Slope_sqrt
+TWI
+TotalLabor_DensArable
+clt_april
+cmi_may
+cmi_summer78
+npp
+pet_june
+pr_june
+rsds_may
+swb
+
+            
+
+```{r}
+
+```
+
+
+### Modern Predictions
+
+```{r}
+
+```
+
+
+
+
+### Aztec Predictions
+
+```{r}
+
+```
+
+
+
+
+
+
+# C.V. Yield
+
+```{r}
+Data_sf <- st_centroid(Train_sf_Both_cvYield) %>% select(-Estado, -Municipio, -EstadoMunicipio) %>% mutate(AGType = factor(AGType, levels = c("Temporal", "Riego")))
+
+Data_df = st_drop_geometry(Data_sf)
+
+Data_sf2 = Data_sf %>% select(cvYield, AGType, AvgPctArea_ofTotal, TotalLabor_DensArable, Fertilizer, mean.DEM:mean.rsds_fall)
+                                              
+Data_df2 = st_drop_geometry(Data_sf2)
+```
+
+
+
+## Boruta Feature Selection
+
+```{r}
+boruta <- Boruta(cvYield ~ ., data = Data_df2, maxRuns = 500)#, doTrace = 2
+boruta_atts <- attStats(boruta)
+boruta_atts$Boruta <- scales::rescale(rank(boruta_atts$meanImp)/nrow(boruta_atts))
+boruta_atts$feature = row.names(boruta_atts)
+FeatSelect = boruta_atts %>% rowid_to_column(var = "ORD") %>% select(ORD, feature, meanImp, decision, Boruta)
+
+Data_sf_tsk = as_task_regr_st(Data_sf2, target = "AvgYield", id = "Data_sf")
+
+methodz <- c("jmi", "mrmr", "njmim", "cmim", "disr")
+
+for (i in 1:length(methodz)){
+  temp = flt(methodz[i])
+  temp$calculate(Data_sf_tsk)
+  temp = as.data.table(temp)
+  temp = as.data.frame(temp)
+  names(temp)[2] <- methodz[i]
+  FeatSelect = FeatSelect %>% left_join(temp, by="feature")
+}
+
+FeatSelect = FeatSelect %>% rowwise() %>%
+  mutate(Arith_Mean = (jmi + mrmr + njmim + cmim + disr)/5,
+         Geom_Mean = (jmi * mrmr * njmim * cmim * disr)^(1/5)) %>% ungroup()
+
+
+
+```
+
+
+
+
+```{r}
+Data_sf3 = Data_sf2 %>% select(cvYield, AGType, AvgPctArea_ofTotal, TotalLabor_DensArable, Fertilizer, mean.DEM, mean.Slope_sqrt, mean.Accum, mean.TWI, mean.STI, mean.DistStreams, mean.ElevAboveStreams, mean.FloodOrder_Rel, mean.BDRICM, mean.BDTICM, mean.AWCtS, mean.S, mean.Z, mean.C, mean.CF, mean.OCD, mean.CEC, mean.N, mean.swb, mean.gdd10, mean.cmi_april, mean.pr_june, mean.cmi_may, mean.cmi_oct, mean.pr_sept, mean.cmi_summer78, mean.rsds_may, mean.pet_oct, mean.pet_summer78, mean.npp, mean.clt_april, mean.rsds_april, mean.pet_june, mean.clt_june, mean.pet_sept, mean.rsds_sept)
+#Data_sf3_tsk = as_task_regr_st(Data_sf2, target = "AvgYield", id = "Data_sf_set1")
+#Data_df_set1 = st_drop_geometry(Data_sf_set1)
+#Data_df_set1_tsk = as_task_regr(Data_df_set1, target = "AvgYield", id = "Data_df_set1")
+
+```
+
+
+
+
+## Recursive Feature Elimination
+
+
+
+```{r}
+
+FFrac = c(1.0, 0.975, 0.95, 0.925, 0.90, 0.875, 0.85, 0.825, 0.80, 0.775, 0.75, 0.725, 0.70, 0.675, 0.65, 0.625, 0.60)
+
+names(Data_sf3) = sub("^mean\\.", "", names(Data_sf3))
+#Data_sf = Data_sf %>% select(-ElevAboveStreams2)
+Data_sf_tsk = as_task_regr_st(Data_sf3, target = "cvYield", id = "Data_sf3")
+#nnn = Data_sf_tsk$ncol
+FEAT = ceiling(FFrac*length(Data_sf_tsk$feature_names))
+
+results <- list()
+pred_df <- list()
+
+splits = partition(Data_sf_tsk, ratio=0.67)
+
+Data_sf_train = as_task_regr_st(Data_sf3, target = "cvYield", id = "Data_sf_train")
+Data_sf_test = as_task_regr_st(Data_sf3, target = "cvYield", id = "Data_sf_test")
+Data_sf_train = Data_sf_train$filter(splits$train)
+Data_sf_test = Data_sf_test$filter(splits$test)
+
+names(Train_sf_full) = sub("^mean\\.", "", names(Train_sf_full))
+Data_sf_Full = st_centroid(Train_sf_full) %>% select(-Estado, -Municipio, -EstadoMunicipio, -cvYield) %>% mutate(AGType = factor(AGType, levels = c("Temporal", "Riego")))
+Data_sf_Full_tsk = as_task_regr_st(Data_sf_Full, target = "cvYield", id = "Data_sf_Full")
+Data_sf_Full_tsk$select(Data_sf_tsk$feature_names)
+
+RegRF = lrn("regr.ranger", splitrule = "extratrees", importance = "permutation",
+            num.trees  = to_tune(p_int(50, 500, tags = "budget")), mtry.ratio = to_tune(0.1,0.5),#mtry = to_tune(6,12), 
+            min.node.size = 4, max.depth = to_tune(7,20), sample.fraction = to_tune(0.75,1.0),
+            num.random.splits = to_tune(1,12), num.threads = 2)
+
+at = auto_tuner(
+  tuner = tnr("hyperband", eta = 1.20, repetitions = 2),
+  learner = RegRF,
+  resampling = rsmp("holdout"),
+  measure = msr("regr.rsq"),
+  terminator = trm("combo", list(trm("run_time", secs = 120*60), trm("evals", n_evals = 3000)), any = T)
+)
+
+rr = resample(Data_sf_train, at, resampling = rsmp("cv", folds = 3), store_models = TRUE)
+
+outsample = as.numeric(rr$aggregate(msr("regr.rsq")))
+
+RegRF_tuned = lrn("regr.ranger")
+
+RegRF_tuned$param_set$values = rr$learners[[1]]$state$model$tuning_instance$result_learner_param_vals
+
+generalization = as.numeric(RegRF_tuned$train(Data_sf_train)$predict(Data_sf_test)$score(msr("regr.rsq")))
+
+# results output dataframe
+a <- data.frame(FeatSelect = c(1.0),n_Features = as.numeric(length(Data_sf_tsk$feature_names)),Perform_General = generalization, Perform_Outsample = outsample)
+#b = as.data.frame(rr$learners[[1]]$state$model$fselect_instance$result) %>% rename(fselect_rsq = regr.rsq)
+
+b = as.data.frame(t(as.matrix(rep(TRUE, (Data_sf_tsk$ncol-1)),nrow=1)))
+colnames(b) = Data_sf_tsk$feature_names
+b$features = list(Data_sf_tsk$feature_names)
+b$fselect_rsq = NA
+b$iterations = NA
+
+c = as.data.frame(rr$learners[[1]]$state$model$tuning_instance$result) %>% rename(tune_rsq = regr.rsq)
+df = cbind(a,b,c)
+results[[1]] <- df
+names(results)[1] <- "Feat_1.0"
+
+# Train model on full data for predictions
+RegRF_trained <- RegRF_tuned$train(Data_sf_tsk)
+
+# sf Polygon / dataframe predictions
+pred = RegRF_trained$predict(task = Data_sf_Full_tsk)
+pred = as.data.frame(as.data.table(pred))
+pred$resid = pred$response - pred$truth
+names(pred) <- c("ID", "cvYield_Actual", "cvYield_Predict_1.0", "cvYield_Resid_1.0")
+pred_df[[1]] <- pred
+names(pred_df)[1] <- "Feat_1.0"
+
+# raster / terra predictions
+prediction = predict_spatial(Pred_Rast_Modern_Temp, RegRF_trained, format = "terra")
+names(prediction) <- "cvYield_Predict_1.0_Temp"
+cvYield_Pred <- prediction
+prediction = predict_spatial(Pred_Rast_Modern_Irrig, RegRF_trained, format = "terra")
+names(prediction) <- "cvYield_Predict_1.0_Irrig"
+cvYield_Pred <- c(cvYield_Pred, prediction)
+
+writeRaster(cvYield_Pred, filename = paste0(wd$data_p, "AvgYield_Pred.tif"), overwrite=TRUE)
+```
+
+
+
+
+### Inner Loop
+
+
+```{r}
+  i = 2
+
+# for (i in 2:length(FFrac)){
+
+rfecv = fselect(
+  fselector = fs("rfecv", n_features = FEAT[i], feature_fraction = FFrac[i]),
+  task = Data_sf_Full_tsk,
+  learner = RegRF_trained,
+  resampling = rsmp("cv", folds = 3),
+  measure = msr("regr.rsq")#,  store_models = TRUE
+)
+#   rfecv$result
+  temp_task = as_task_regr_st(Data_sf3, target = "cvYield", id = "temp_task")
+  temp_task$select(rfecv$result_feature_set)
+  temp_train = as_task_regr_st(Data_sf3, target = "cvYield", id = "temp_train")
+  temp_train$select(rfecv$result_feature_set)
+  temp_train = temp_train$filter(splits$train)
+  temp_test = as_task_regr_st(Data_sf3, target = "cvYield", id = "temp_test")
+  temp_test$select(rfecv$result_feature_set)
+  temp_test = temp_test$filter(splits$test)
+
+  
+  rr = resample(temp_train, at, resampling = rsmp("cv", folds = 3), store_models = T)
+  
+  outsample = as.numeric(rr$aggregate(msr("regr.rsq")))
+    
+  
+    
+  # setup another Ranger Random Forest Regression Model
+  RegRF_tuned = lrn("regr.ranger")
+    
+  # Set the tuned parameter values
+  RegRF_tuned$param_set$values = rr$learners[[1]]$state$model$tuning_instance$result_learner_param_vals
+  
+  generalization = as.numeric(RegRF_tuned$train(temp_train)$predict(temp_test)$score(msr("regr.rsq")))
+  
+  # results output dataframe
+  a <- data.frame(FeatSelect = FFrac[i],n_Features = temp_task$ncol,Perform_General = generalization, Perform_Outsample = outsample)
+  b = as.data.frame(rfecv$result) %>% rename(fselect_rsq = regr.rsq)
+  c = as.data.frame(rr$learners[[1]]$state$model$tuning_instance$result) %>% rename(tune_rsq = regr.rsq)
+    # Train model on full data for predictions
+  df = cbind(a,b,c)
+  results[[i]] <- df
+  names(results)[i] <- paste0("Feat_",FFrac[i])
+    
+  # Train model on full data for predictions
+  RegRF_trained2 <- RegRF_tuned$train(temp_task)
+  
+  # sf Polygon / dataframe predictions
+  pred = RegRF_trained2$predict(task = Data_sf_Full_tsk)
+  pred = as.data.frame(as.data.table(pred))
+  pred$resid = pred$response - pred$truth
+  names(pred) <- names(pred_df[[1]]) <- c("ID", "cvYield_Actual", paste0("cvYield_Predict_",FFrac[i]), paste0("cvYield_Resid_",FFrac[i]))
+  pred = pred[,-c(1:2)]
+  pred_df[[i]] <- pred
+  names(pred_df)[i] <- paste0("Feat_",FFrac[i])
+
+  # raster / terra predictions
+  prediction = predict_spatial(Pred_Rast_Modern_Temp, RegRF_trained2, format = "terra")
+  names(prediction) <- paste0("cvYield_Predict_Temp_",FFrac[i])
+  cvYield_Pred <- c(cvYield_Pred, prediction)
+  prediction = predict_spatial(Pred_Rast_Modern_Irrig, RegRF_trained2, format = "terra")
+  names(prediction) <- paste0("cvYield_Predict_Irrig_",FFrac[i])
+  cvYield_Pred <- c(cvYield_Pred, prediction)
+  #pred_rast[[i]] <- pred
+  #names(pred_rast) <- c(names(pred_rast),paste0("Feat_",FFrac[i]))
+  
+# }
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
